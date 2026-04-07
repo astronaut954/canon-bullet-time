@@ -3,7 +3,6 @@ import zipfile
 import tempfile
 from pathlib import Path
 
-# ===== CONFIG =====
 VERSION = "v1.0.0"
 PROJECT_NAME = "canon-bullet-time"
 
@@ -15,52 +14,59 @@ FILES = [
     "Canon Bullet Time.exe",
     "EDSDK.dll",
     "EdsImage.dll",
-    "README.md",
 ]
 
 OPTIONAL_FILES = [
     "CDC_EDSDK_Compat_List.pdf",
 ]
 
+README_CONTENT = """Canon Bullet Time
+
+Como usar:
+
+1. Conecte suas câmeras Canon via USB
+2. Execute: Canon Bullet Time.exe
+3. Siga as instruções no terminal
+
+Requisitos:
+- Windows 10 ou 11 (64-bit)
+- Câmeras Canon compatíveis
+
+Observações:
+- Não é necessário instalar nada
+- As imagens serão salvas automaticamente
+"""
+
 def main():
     if not DIST_DIR.exists():
-        raise Exception("Pasta dist/windows-x64 não encontrada")
+        raise Exception("dist/windows-x64 não encontrada")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-
-    # cria pasta temporária do sistema (resolve problema de DLL travada)
-    temp_dir = Path(tempfile.mkdtemp())
-
-    print("Copiando arquivos...")
-
-    # obrigatórios
-    for file in FILES:
-        src = DIST_DIR / file
-        if not src.exists():
-            raise Exception(f"Arquivo obrigatório não encontrado: {file}")
-        shutil.copy(src, temp_dir / file)
-
-    # opcionais
-    for file in OPTIONAL_FILES:
-        src = DIST_DIR / file
-        if src.exists():
-            shutil.copy(src, temp_dir / file)
 
     zip_path = OUTPUT_DIR / ZIP_NAME
 
     print("Criando ZIP...")
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-        for file in temp_dir.iterdir():
-            z.write(file, file.name)
 
-    print(f"Release gerado: {zip_path}")
+        # arquivos principais
+        for file in FILES:
+            src = DIST_DIR / file
+            if not src.exists():
+                raise Exception(f"Arquivo não encontrado: {file}")
+            z.write(src, file)
 
-    # limpeza (agora segura)
-    try:
-        shutil.rmtree(temp_dir)
-    except Exception:
-        print("Aviso: não conseguiu limpar temp (ok ignorar)")
+        # opcionais
+        for file in OPTIONAL_FILES:
+            src = DIST_DIR / file
+            if src.exists():
+                z.write(src, file)
+
+        # README.txt amigável
+        z.writestr("README.txt", README_CONTENT)
+
+    print(f"Release pronto: {zip_path}")
+
 
 if __name__ == "__main__":
     main()

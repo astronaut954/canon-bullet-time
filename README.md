@@ -41,3 +41,7 @@ de acordo com a versão do EDSDK utilizada.
 
 - O programa foi compilado para arquitetura x64
 - Não mova as DLLs para outra pasta
+
+## Download
+
+[⬇️ Download for Windows](https://github.com/astronaut954/canon-bullet-time/releases/latest)
