@@ -21,7 +21,13 @@ CanonBulletTime/x64/
 *.iobj
 *.ipdb
 
+# Distribuição / releases
+dist/
+release/
+*.zip
+*.exe
+*.dll
+
 # Python
-scripts/
 __pycache__/
 *.pyc
