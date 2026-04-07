@@ -1,0 +1,27 @@
+# Visual Studio
+.vs/
+*.VC.db
+*.suo
+*.user
+
+# Build outputs
+x64/
+Debug/
+Release/
+CanonBulletTime/x64/
+*.obj
+*.ilk
+*.idb
+*.pdb
+*.tlog
+*.lastbuildstate
+*.recipe
+*.log
+*.pgd
+*.iobj
+*.ipdb
+
+# Python
+scripts/
+__pycache__/
+*.pyc
