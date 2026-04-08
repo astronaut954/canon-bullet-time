@@ -35,6 +35,7 @@ public:
     int GetCompletedDownloads() const;
 
     void RefreshCameraConnectionStatus();
+    bool PrepareSessionFolder(int sessionIndex);
 
 private:
     int expectedDownloads = 0;

@@ -34,7 +34,7 @@ bool CanonController::InitializeSdk()
 
     if (baseOutputDir.empty())
     {
-        baseOutputDir = GetDefaultDownloadsFolder() / "canon-multicam";
+        baseOutputDir = GetDefaultDownloadsFolder() / "bullet-time";
     }
 
     fs::create_directories(baseOutputDir);
@@ -416,11 +416,25 @@ bool CanonController::ShootAll()
 
     bool anySuccess = false;
 
-    currentShotDir = baseOutputDir / MakeTimestamp(false);
+    bool hasPreparedSessionDir = false;
+
+    if (!cameras.empty())
+    {
+        hasPreparedSessionDir = !cameras.front().currentShotDir.empty();
+    }
+
+    if (hasPreparedSessionDir)
+    {
+        currentShotDir = cameras.front().currentShotDir;
+    }
+    else
+    {
+        currentShotDir = baseOutputDir / MakeTimestamp(false);
+    }
+
     fs::create_directories(currentShotDir);
     Log("\nPasta da rodada: " + currentShotDir.string());
 
-    // Definir diretório e contar quantos downloads esperamos
     for (auto& cam : cameras)
     {
         cam.currentShotDir = currentShotDir;
@@ -649,5 +663,42 @@ void CanonController::RefreshCameraConnectionStatus()
             cam.lastError = err;
 
         }
+    }
+}
+
+bool CanonController::PrepareSessionFolder(int sessionIndex)
+{
+    try
+    {
+        auto now = std::chrono::system_clock::now();
+        auto t = std::chrono::system_clock::to_time_t(now);
+
+        std::tm localTime{};
+#ifdef _WIN32
+        localtime_s(&localTime, &t);
+#else
+        localtime_r(&t, &localTime);
+#endif
+
+        std::ostringstream folderName;
+        folderName << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S")
+            << "_session_"
+            << std::setw(2) << std::setfill('0') << sessionIndex;
+
+        fs::path sessionDir = fs::path(GetOutputFolder()) / folderName.str();
+        fs::create_directories(sessionDir);
+
+        for (auto& cam : cameras)
+        {
+            cam.currentShotDir = sessionDir;
+        }
+
+        std::cout << "\n📁 Pasta da sessão: " << sessionDir.string() << "\n";
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "\n⚠️ Erro ao criar pasta da sessão: " << e.what() << "\n";
+        return false;
     }
 }

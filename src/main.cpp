@@ -405,20 +405,18 @@ static int ReadIntWithDefault(const std::string& prompt, int defaultValue, int m
 
 static void RunCountdown(int seconds)
 {
-    if (seconds <= 0)
+    if (seconds > 0)
     {
-        return;
+        std::cout << "⏳ Disparo em:\n";
+
+        for (int i = seconds; i >= 1; --i)
+        {
+            std::cout << "  " << i << "...\n";
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
     }
 
-    std::cout << "⏳ Disparo em:\n";
-
-    for (int i = seconds; i >= 1; --i)
-    {
-        std::cout << "  " << i << "...\n";
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-
-    std::cout << "\n📸 IT'S BULLET TIME!\n \n";
+    std::cout << "\n📸 IT'S BULLET TIME!\n";
 }
 
 int main()
@@ -448,6 +446,7 @@ int main()
     int option = -1;
     int bulletCountdownSeconds = 0;
     int bulletWaitSeconds = 10;
+    int bulletSessionCount = 1;
 
     while (true)
     {
@@ -498,11 +497,12 @@ int main()
                 std::cout << "\n🎬 BULLET TIME\n";
                 std::cout << "  📁 Pasta de saída: " << controller.GetOutputFolder() << "\n";
                 std::cout << "  ⏳ Timer: " << bulletCountdownSeconds << "s\n";
+                std::cout << "  🎞️ Sessões: " << bulletSessionCount << "\n";
                 std::cout << "  📥 Espera downloads: " << bulletWaitSeconds << "s\n";
 
                 std::cout << "\nAções:\n";
                 std::cout << "  [Enter] → Disparar\n";
-                std::cout << "  [c]     → Configurar timer\n";
+                std::cout << "  [c]     → Configurar Timer e Sessões\n";
                 std::cout << "  [t]     → Configurar tempo de download\n";
                 std::cout << "  [x]     → Voltar\n";
                 std::cout << "Comando: ";
@@ -517,6 +517,13 @@ int main()
                         bulletCountdownSeconds,
                         0
                     );
+
+                    bulletSessionCount = ReadIntWithDefault(
+                        "🎞️ Quantidade de sessões: ",
+                        bulletSessionCount,
+                        1
+                    );
+
                     continue;
                 }
                 else if (input == "t")
@@ -526,6 +533,7 @@ int main()
                         bulletWaitSeconds,
                         1
                     );
+
                     continue;
                 }
                 else if (input == "x")
@@ -538,74 +546,106 @@ int main()
                     continue;
                 }
 
-                RunCountdown(bulletCountdownSeconds);
+                bool sequenceAborted = false;
 
-                controller.ShootAll();
-
-                std::cout << "\n📥 Aguardando downloads...\n";
-
-                int maxWaitMs = bulletWaitSeconds * 1000;
-                int elapsed = 0;
-
-                while (true)
+                for (int sessionIndex = 1; sessionIndex <= bulletSessionCount; ++sessionIndex)
                 {
-                    EdsGetEvent();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                    elapsed += 50;
+                    std::cout << "\n🎞️ Sessão " << sessionIndex << " de " << bulletSessionCount << "\n";
 
-                    int done = controller.GetCompletedDownloads();
-                    int total = controller.GetExpectedDownloads();
-
-                    std::cout << "\r📥 [" << done << "/" << total << "]" << std::flush;
-
-                    if (done >= total && total > 0)
+                    if (!controller.PrepareSessionFolder(sessionIndex))
                     {
+                        std::cout << "\n⚠️ Falha ao preparar pasta da sessão.\n";
+                        sequenceAborted = true;
                         break;
                     }
 
-                    if (elapsed >= maxWaitMs)
+                    RunCountdown(bulletCountdownSeconds);
+
+                    controller.ShootAll();
+
+                    std::cout << "\n📥 Aguardando downloads...\n";
+
+                    int maxWaitMs = bulletWaitSeconds * 1000;
+                    int elapsed = 0;
+                    bool sessionFailed = false;
+
+                    while (true)
                     {
-                        std::cout << "\n⚠️ Timeout atingido.\n";
+                        EdsGetEvent();
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                        elapsed += 50;
 
-                        controller.RefreshCameraConnectionStatus();
+                        int done = controller.GetCompletedDownloads();
+                        int total = controller.GetExpectedDownloads();
 
-                        auto& cams = controller.GetCameras();
+                        std::cout << "\r📥 [" << done << "/" << total << "]" << std::flush;
 
-                        bool anyLost = false;
-
-                        for (const auto& cam : cams)
+                        if (done >= total && total > 0)
                         {
-                            if (cam.connectionLost)
+                            break;
+                        }
+
+                        if (elapsed >= maxWaitMs)
+                        {
+                            std::cout << "\n⚠️ Timeout atingido.\n";
+
+                            controller.RefreshCameraConnectionStatus();
+
+                            auto& camsLost = controller.GetCameras();
+
+                            bool anyLost = false;
+
+                            for (const auto& cam : camsLost)
                             {
-                                if (!anyLost)
+                                if (cam.connectionLost)
                                 {
-                                    std::cout << "\n🔌 Conexão perdida nas câmeras:\n";
-                                    anyLost = true;
+                                    if (!anyLost)
+                                    {
+                                        std::cout << "\n🔌 Conexão perdida nas câmeras:\n";
+                                        anyLost = true;
+                                    }
+
+                                    std::cout << "  - " << cam.shortName
+                                        << " │ " << cam.modelName << "\n";
                                 }
-
-                                std::cout << "  - " << cam.shortName
-                                    << " │" << cam.modelName << "\n";
                             }
-                        }
 
-                        if (!anyLost)
-                        {
-                            std::cout << "\nℹ️ Nenhuma câmera desconectada.\n";
-                        }
+                            if (!anyLost)
+                            {
+                                std::cout << "\nℹ️ Nenhuma câmera desconectada.\n";
+                            }
 
+                            sessionFailed = true;
+                            sequenceAborted = true;
+                            break;
+                        }
+                    }
+
+                    if (sessionFailed)
+                    {
+                        std::cout << "\n⚠️ Sessão interrompida.";
                         break;
                     }
+
+                    std::cout << "\n✅ Sessão finalizada.\n";
                 }
 
-                std::cout << "\n✅ Sequência finalizada.\n";
+                if (sequenceAborted)
+                {
+                    std::cout << "\n⚠️ Sequência interrompida.\n";
+                }
+                else
+                {
+                    std::cout << "\n🏁 Sequência concluída com sucesso.\n";
+                }
+
                 continue;
             }
         }
         else if (option == 4)
         {
             std::cout << "\n📁  PASTA DE SAÍDA\n";
-            std::cout << controller.GetOutputFolder() << "\n";
-            std::cout << "\n";
+            std::cout << controller.GetOutputFolder() << "\n\n";
 
             std::string newPath;
             std::cout << "Digite um novo caminho";
