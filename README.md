@@ -5,13 +5,13 @@ Designed for bullet time photography workflows.
 
 > **It's fucking bullet time.**
 
----
+
 
 ## Download
 
 [⬇️ Download for Windows](https://github.com/astronaut954/canon-bullet-time/releases/latest)
 
----
+
 
 ## Requirements
 
@@ -23,13 +23,13 @@ Designed for bullet time photography workflows.
   * `EDSDK.dll`
   * `EdsImage.dll`
 
----
+
 
 ## SDK Version
 
 * **EDSDK:** 13.20.20
 
----
+
 
 ## How to Use
 
@@ -39,7 +39,7 @@ Designed for bullet time photography workflows.
 4. Follow the terminal instructions
 5. Enter the Matrix
 
----
+
 
 ## Compatibility
 
@@ -49,7 +49,7 @@ Check camera compatibility in:
 
 Support depends on the EDSDK version used.
 
----
+
 
 ## Notes
 
@@ -57,7 +57,7 @@ Support depends on the EDSDK version used.
 * Do **not** move the DLLs elsewhere
 * If the DLLs are missing, there is no spoon
 
----
+
 
 ## For Developers
 
@@ -70,7 +70,7 @@ You may need to obtain the appropriate Canon SDK depending on the cameras you wa
 * **Canon Camera SDK Downloads**
   https://developercommunity.usa.canon.com/s/downloads/camera-downloads
 
----
+
 
 ### Developer Notes
 
@@ -78,7 +78,7 @@ You may need to obtain the appropriate Canon SDK depending on the cameras you wa
 * Additional SDKs may be required for legacy camera support
 * Refer to `CDC_EDSDK_Compat_List.pdf` for compatibility details
 
----
+
 
 ## License
 
