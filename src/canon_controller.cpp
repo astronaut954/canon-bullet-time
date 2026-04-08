@@ -230,7 +230,7 @@ EdsError EDSCALLBACK CanonController::HandleObjectEvent(
 
 bool CanonController::DetectCameras()
 {
-    cameras.clear();
+    CloseSessions();
 
     EdsCameraListRef cameraList = nullptr;
     EdsUInt32 cameraCount = 0;
@@ -509,10 +509,22 @@ void CanonController::CloseSessions()
 {
     for (auto& cam : cameras)
     {
+        if (cam.camera != nullptr)
+        {
+            if (cam.sessionOpen)
+            {
+                EdsError err = EdsCloseSession(cam.camera);
+                LogMessage("CloseSession retorno [" + cam.shortName + "]: " + std::to_string(err));
+            }
+
+            EdsError releaseErr = EdsRelease(cam.camera);
+            LogMessage("Release camera retorno [" + cam.shortName + "]: " + std::to_string(releaseErr));
+        }
+
         cam.sessionOpen = false;
         cam.camera = nullptr;
         cam.owner = nullptr;
-        cam.connectionLost = true;
+        cam.connectionLost = false;
     }
 
     cameras.clear();

@@ -19,7 +19,7 @@ static void PrintMenu()
 {
     std::cout << "\n😎 CANON BULLET TIME\n";
     std::cout << "  1 - Listar câmeras\n";
-    std::cout << "  2 - Detectar novamente\n";
+    std::cout << "  2 - Detectar câmeras\n";
     std::cout << "  3 - BULLET TIME\n";
     std::cout << "  4 - Pasta de saída\n";
     std::cout << "  5 - Reordenar câmeras\n";
@@ -166,18 +166,19 @@ static void PrintCameraOrderConsole(CanonController& controller)
 
 static bool RedetectAndPrepare(CanonController& controller, bool showSuccessMessage = true)
 {
-    std::cout << "\n🔄 Redetectando câmeras...\n";
-    std::cout << "\n";
+    std::cout << "\n🔄 Detectando câmeras...\n";
+
+    controller.CloseSessions();
 
     if (!PrepareSessions(controller))
     {
-        std::cout << "⚠️ Nenhuma câmera encontrada ou falha ao abrir sessões.\n";
+        std::cout << "\n⚠️ Nenhuma câmera encontrada ou falha ao abrir sessões.\n";
         return false;
     }
 
     if (showSuccessMessage)
     {
-        std::cout << "✅ Câmeras redetectadas com sucesso.\n";
+        std::cout << "\n✅ Câmeras redetectadas com sucesso.\n";
     }
 
     PrintCurrentCameras(controller);
