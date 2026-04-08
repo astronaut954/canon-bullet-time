@@ -548,7 +548,7 @@ int main()
                     );
 
                     bulletSessionCount = ReadIntWithDefault(
-                        "🎞️ Quantidade de sessões: ",
+                        "\n🎞️ Quantidade de sessões: ",
                         bulletSessionCount,
                         1
                     );
