@@ -1,47 +1,87 @@
 # Canon Bullet Time
 
-Aplicativo para controle simultâneo de câmeras Canon via EDSDK, com foco em captura estilo bullet time.
+Synchronized multi-camera control for Canon cameras via EDSDK.
+Designed for bullet time photography workflows.
 
-## Executável
+> **It's fucking bullet time.**
 
-A versão pronta para uso está em:
-
-dist/windows-x64/
-
-## Requisitos
-
-- Windows 10 ou 11 (64-bit)
-- Câmera Canon compatível
-- Arquivos obrigatórios na mesma pasta:
-  - EDSDK.dll
-  - EdsImage.dll
-
-## Versão do SDK
-
-- EDSDK: 13.20.20
-
-## Como usar
-
-1. Mantenha todos os arquivos juntos na mesma pasta:
-   - Canon Bullet Time.exe
-   - EDSDK.dll
-   - EdsImage.dll
-   - CDC_EDSDK_Compat_List.pdf
-2. Execute Canon Bullet Time.exe
-
-## Compatibilidade
-
-Verifique a compatibilidade da sua câmera no arquivo:
-
-CDC_EDSDK_Compat_List.pdf
-
-de acordo com a versão do EDSDK utilizada.
-
-## Observações
-
-- O programa foi compilado para arquitetura x64
-- Não mova as DLLs para outra pasta
+---
 
 ## Download
 
 [⬇️ Download for Windows](https://github.com/astronaut954/canon-bullet-time/releases/latest)
+
+---
+
+## Requirements
+
+* Windows 10 or 11 (64-bit)
+* Compatible Canon camera
+* Required files in the same folder:
+
+  * `Canon Bullet Time.exe`
+  * `EDSDK.dll`
+  * `EdsImage.dll`
+
+---
+
+## SDK Version
+
+* **EDSDK:** 13.20.20
+
+---
+
+## How to Use
+
+1. Extract all release files into the same folder
+2. Connect your Canon cameras via USB
+3. Run `Canon Bullet Time.exe`
+4. Follow the terminal instructions
+5. Enter the Matrix
+
+---
+
+## Compatibility
+
+Check camera compatibility in:
+
+`CDC_EDSDK_Compat_List.pdf`
+
+Support depends on the EDSDK version used.
+
+---
+
+## Notes
+
+* Compiled for **x64 architecture**
+* Do **not** move the DLLs elsewhere
+* If the DLLs are missing, there is no spoon
+
+---
+
+## For Developers
+
+Want to build, modify, or extend the project?
+
+You may need to obtain the appropriate Canon SDK depending on the cameras you want to support.
+
+### Canon SDK Downloads
+
+* **Canon Camera SDK Downloads**
+  https://developercommunity.usa.canon.com/s/downloads/camera-downloads
+
+---
+
+### Developer Notes
+
+* Current target SDK: **EDSDK 13.20.20**
+* Additional SDKs may be required for legacy camera support
+* Refer to `CDC_EDSDK_Compat_List.pdf` for compatibility details
+
+---
+
+## License
+
+Released under the MIT License.
+
+> Guns. Lots of cameras.
