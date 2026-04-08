@@ -19,13 +19,17 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\audio_player.cpp" />
     <ClCompile Include="src\canon_controller.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\path_utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\audio_player.h" />
     <ClInclude Include="include\camera_context.h" />
     <ClInclude Include="include\canon_controller.h" />
     <ClInclude Include="include\logger.h" />
+    <ClInclude Include="include\path_utils.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
@@ -157,8 +161,7 @@
       <AdditionalDependencies>$(CoreLibraryDependencies);EDSDK.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>xcopy /E /I /Y "$(ProjectDir)assets" "$(TargetDir)assets"</Command>
     </PostBuildEvent>
     <ProjectReference>
       <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>

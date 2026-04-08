@@ -1,5 +1,7 @@
 #include "canon_controller.h"
 #include "logger.h"
+#include "audio_player.h"
+#include "path_utils.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -407,6 +409,9 @@ static int ReadIntWithDefault(const std::string& prompt, int defaultValue, int m
 
 static void RunCountdown(int seconds)
 {
+    const auto countdownAudio = GetAssetAudioPath("countdown.wav");
+    const auto bulletTimeAudio = GetAssetAudioPath("itsbullettime.wav");
+
     if (seconds > 0)
     {
         std::cout << "⏳ Disparo em:\n";
@@ -414,11 +419,13 @@ static void RunCountdown(int seconds)
         for (int i = seconds; i >= 1; --i)
         {
             std::cout << "  " << i << "...\n";
+            AudioPlayer::PlayWavAsync(countdownAudio.string());
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
 
     std::cout << "\n📸 IT'S BULLET TIME!\n";
+    AudioPlayer::PlayWavAsync(bulletTimeAudio.string());
 }
 
 static std::string GenerateShotId()
@@ -588,6 +595,7 @@ int main()
                     }
 
                     RunCountdown(bulletCountdownSeconds);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(150));
 
                     controller.ShootAll();
 
