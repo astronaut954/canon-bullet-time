@@ -11,6 +11,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <random>
 
 static void TestCameraConsole(CanonController& controller);
 
@@ -419,6 +420,26 @@ static void RunCountdown(int seconds)
     std::cout << "\n📸 IT'S BULLET TIME!\n";
 }
 
+static std::string GenerateShotId()
+{
+    static const char charset[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "0123456789";
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(0, sizeof(charset) - 2);
+
+    std::string id;
+
+    for (int i = 0; i < 4; ++i)
+    {
+        id += charset[dist(gen)];
+    }
+
+    return id;
+}
+
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
@@ -547,12 +568,18 @@ int main()
                 }
 
                 bool sequenceAborted = false;
+                std::string shotId;
+
+                if (bulletSessionCount > 1)
+                {
+                    shotId = GenerateShotId();
+                }
 
                 for (int sessionIndex = 1; sessionIndex <= bulletSessionCount; ++sessionIndex)
                 {
                     std::cout << "\n🎞️ Sessão " << sessionIndex << " de " << bulletSessionCount << "\n";
 
-                    if (!controller.PrepareSessionFolder(sessionIndex))
+                    if (!controller.PrepareSessionFolder(sessionIndex, bulletSessionCount, shotId))
                     {
                         std::cout << "\n⚠️ Falha ao preparar pasta da sessão.\n";
                         sequenceAborted = true;

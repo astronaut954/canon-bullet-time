@@ -35,7 +35,7 @@ public:
     int GetCompletedDownloads() const;
 
     void RefreshCameraConnectionStatus();
-    bool PrepareSessionFolder(int sessionIndex);
+    bool PrepareSessionFolder(int sessionIndex, int totalSessions, const std::string& shotId);
 
 private:
     int expectedDownloads = 0;

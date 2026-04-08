@@ -666,7 +666,7 @@ void CanonController::RefreshCameraConnectionStatus()
     }
 }
 
-bool CanonController::PrepareSessionFolder(int sessionIndex)
+bool CanonController::PrepareSessionFolder(int sessionIndex, int totalSessions, const std::string& shotId)
 {
     try
     {
@@ -681,9 +681,15 @@ bool CanonController::PrepareSessionFolder(int sessionIndex)
 #endif
 
         std::ostringstream folderName;
-        folderName << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S")
-            << "_session_"
-            << std::setw(2) << std::setfill('0') << sessionIndex;
+        folderName << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S");
+
+        if (totalSessions > 1)
+        {
+            folderName << "_"
+                << shotId
+                << "_session_"
+                << std::setw(2) << std::setfill('0') << sessionIndex;
+        }
 
         fs::path sessionDir = fs::path(GetOutputFolder()) / folderName.str();
         fs::create_directories(sessionDir);
