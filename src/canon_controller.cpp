@@ -28,7 +28,7 @@ bool CanonController::InitializeSdk()
     EdsError err = EdsInitializeSDK();
     if (err != EDS_ERR_OK)
     {
-        Log("Erro ao inicializar SDK.");
+        Log("Failed to initialize SDK.");
         return false;
     }
 
@@ -44,7 +44,7 @@ bool CanonController::InitializeSdk()
 
 void CanonController::TerminateSdk()
 {
-    LogMessage("SDK finalizada.");
+    LogMessage("SDK terminated.");
     EdsTerminateSDK();
 }
 
@@ -55,11 +55,11 @@ void CanonController::SetOutputFolder(const std::string& folderPath)
     try
     {
         fs::create_directories(baseOutputDir);
-        Log("\n📁 Pasta de saída definida: " + baseOutputDir.string());
+        Log("\n📁 Output folder set to: " + baseOutputDir.string());
     }
     catch (...)
     {
-        Log("⚠️ Erro ao criar pasta de saída.");
+        Log("⚠️ Failed to create output folder.");
     }
 }
 
@@ -119,7 +119,7 @@ fs::path CanonController::BuildUniqueOutputPath(
     const std::string& originalName
 )
 {
-    std::string safeOriginal = originalName.empty() ? "arquivo.bin" : originalName;
+    std::string safeOriginal = originalName.empty() ? "file.bin" : originalName;
 
     for (char& c : safeOriginal)
     {
@@ -170,14 +170,14 @@ EdsError EDSCALLBACK CanonController::HandleObjectEvent(
 
         if (err != EDS_ERR_OK)
         {
-            Log("[" + ctx->shortName + "] Erro em EdsGetDirectoryItemInfo.");
+            Log("[" + ctx->shortName + "] EdsGetDirectoryItemInfo failed.");
             EdsRelease(object);
             return err;
         }
 
         fs::create_directories(ctx->currentShotDir);
 
-        std::string originalName = dirInfo.szFileName ? dirInfo.szFileName : "arquivo.bin";
+        std::string originalName = dirInfo.szFileName ? dirInfo.szFileName : "file.bin";
         fs::path outPath = BuildUniqueOutputPath(
             ctx->currentShotDir,
             ctx->orderPrefix,
@@ -195,7 +195,7 @@ EdsError EDSCALLBACK CanonController::HandleObjectEvent(
 
         if (err != EDS_ERR_OK)
         {
-            Log("[" + ctx->shortName + "] Erro em EdsCreateFileStream.");
+            Log("[" + ctx->shortName + "] EdsCreateFileStream failed.");
             EdsRelease(object);
             return err;
         }
@@ -209,7 +209,7 @@ EdsError EDSCALLBACK CanonController::HandleObjectEvent(
 
         if (err == EDS_ERR_OK)
         {
-            Log("[" + ctx->shortName + "] Baixado: " + outPath.string());
+            Log("[" + ctx->shortName + "] Downloaded: " + outPath.string());
 
             if (ctx->owner != nullptr)
             {
@@ -218,7 +218,7 @@ EdsError EDSCALLBACK CanonController::HandleObjectEvent(
         }
         else
         {
-            Log("[" + ctx->shortName + "] Erro no download.");
+            Log("[" + ctx->shortName + "] Download failed.");
         }
     }
 
@@ -238,19 +238,19 @@ bool CanonController::DetectCameras()
     EdsError err = EdsGetCameraList(&cameraList);
     if (err != EDS_ERR_OK || cameraList == nullptr)
     {
-        LogMessage("Erro ao obter lista de cameras.");
+        LogMessage("Failed to get camera list.");
         return false;
     }
 
     err = EdsGetChildCount(cameraList, &cameraCount);
     if (err != EDS_ERR_OK)
     {
-        LogMessage("Erro ao contar cameras.");
+        LogMessage("Failed to count cameras.");
         EdsRelease(cameraList);
         return false;
     }
 
-    LogMessage("Cameras encontradas: " + std::to_string(cameraCount));
+    LogMessage("Cameras found: " + std::to_string(cameraCount));
 
     std::unordered_map<std::string, int> modelCounters;
 
@@ -260,7 +260,7 @@ bool CanonController::DetectCameras()
         err = EdsGetChildAtIndex(cameraList, i, &camera);
         if (err != EDS_ERR_OK || camera == nullptr)
         {
-            LogMessage("Erro ao obter camera no indice " + std::to_string(i));
+            LogMessage("Failed to get camera at index " + std::to_string(i));
             continue;
         }
 
@@ -268,7 +268,7 @@ bool CanonController::DetectCameras()
         err = EdsGetDeviceInfo(camera, &deviceInfo);
         if (err != EDS_ERR_OK)
         {
-            LogMessage("Erro ao obter informacoes da camera " + std::to_string(i));
+            LogMessage("Failed to get camera info for index " + std::to_string(i));
             EdsRelease(camera);
             continue;
         }
@@ -313,13 +313,13 @@ bool CanonController::OpenSessions()
             continue;
 
         EdsError err = EdsOpenSession(cam.camera);
-        LogMessage("OpenSession retorno [" + cam.shortName + "]: " + std::to_string(err));
+        LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
 
         if (err == EDS_ERR_OK)
         {
             cam.sessionOpen = true;
             anySuccess = true;
-            LogMessage("Sessão aberta: " + cam.shortName);
+            LogMessage("Session opened: " + cam.shortName);
 
             err = EdsSetObjectEventHandler(
                 cam.camera,
@@ -328,16 +328,16 @@ bool CanonController::OpenSessions()
                 &cam
             );
 
-            LogMessage("SetObjectEventHandler retorno [" + cam.shortName + "]: " + std::to_string(err));
+            LogMessage("SetObjectEventHandler return [" + cam.shortName + "]: " + std::to_string(err));
 
             if (err == EDS_ERR_OK)
-                LogMessage("Callback registrado: " + cam.shortName);
+                LogMessage("Callback registered: " + cam.shortName);
             else
-                LogMessage("Erro ao registrar callback: " + cam.shortName);
+                LogMessage("Failed to register callback: " + cam.shortName);
         }
         else
         {
-            LogMessage("Erro ao abrir sessão: " + cam.shortName);
+            LogMessage("Failed to open session: " + cam.shortName);
         }
     }
 
@@ -362,16 +362,16 @@ bool CanonController::SetSaveToHost()
             &saveTo
         );
 
-        LogMessage("Set SaveTo_Host retorno [" + cam.shortName + "]: " + std::to_string(err));
+        LogMessage("Set SaveTo_Host return [" + cam.shortName + "]: " + std::to_string(err));
 
         if (err == EDS_ERR_OK)
         {
             anySuccess = true;
-            LogMessage("SaveTo_Host configurado: " + cam.shortName);
+            LogMessage("SaveTo_Host configured: " + cam.shortName);
         }
         else
         {
-            LogMessage("Erro em SaveTo_Host: " + cam.shortName);
+            LogMessage("Failed to set SaveTo_Host: " + cam.shortName);
         }
     }
 
@@ -393,16 +393,16 @@ bool CanonController::SetCapacityForAll()
         capacity.reset = 1;
 
         EdsError err = EdsSetCapacity(cam.camera, capacity);
-        LogMessage("SetCapacity retorno [" + cam.shortName + "]: " + std::to_string(err));
+        LogMessage("SetCapacity return [" + cam.shortName + "]: " + std::to_string(err));
 
         if (err == EDS_ERR_OK)
         {
             anySuccess = true;
-            LogMessage("Capacity configurado: " + cam.shortName);
+            LogMessage("Capacity configured: " + cam.shortName);
         }
         else
         {
-            LogMessage("Erro em SetCapacity: " + cam.shortName);
+            LogMessage("Failed to set capacity: " + cam.shortName);
         }
     }
 
@@ -433,7 +433,7 @@ bool CanonController::ShootAll()
     }
 
     fs::create_directories(currentShotDir);
-    Log("\nPasta da rodada: " + currentShotDir.string());
+    Log("\nRound folder: " + currentShotDir.string());
 
     for (auto& cam : cameras)
     {
@@ -445,10 +445,10 @@ bool CanonController::ShootAll()
         }
     }
 
-    Log("Esperando downloads de " + std::to_string(expectedDownloads) + " câmera(s)");
+    Log("Waiting for downloads from " + std::to_string(expectedDownloads) + " camera(s)");
 
     // =========================
-    // FASE 1: PRESS (todas)
+    // PHASE 1: PRESS (all)
     // =========================
     for (auto& cam : cameras)
     {
@@ -469,15 +469,15 @@ bool CanonController::ShootAll()
         }
         else
         {
-            LogMessage("Erro no DOWN: " + cam.shortName);
+            LogMessage("Press DOWN failed: " + cam.shortName);
         }
     }
 
-    // Pequena pausa para sincronizar melhor
+    // Small pause for better synchronization
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // =========================
-    // FASE 2: RELEASE (todas)
+    // PHASE 2: RELEASE (all)
     // =========================
     for (auto& cam : cameras)
     {
@@ -494,11 +494,11 @@ bool CanonController::ShootAll()
 
         if (errOff == EDS_ERR_OK)
         {
-            LogMessage("Disparo OK: " + cam.shortName);
+            LogMessage("Shot triggered: " + cam.shortName);
         }
         else
         {
-            LogMessage("Erro no OFF: " + cam.shortName);
+            LogMessage("Release OFF failed: " + cam.shortName);
         }
     }
 
@@ -514,11 +514,11 @@ void CanonController::CloseSessions()
             if (cam.sessionOpen)
             {
                 EdsError err = EdsCloseSession(cam.camera);
-                LogMessage("CloseSession retorno [" + cam.shortName + "]: " + std::to_string(err));
+                LogMessage("CloseSession return [" + cam.shortName + "]: " + std::to_string(err));
             }
 
             EdsError releaseErr = EdsRelease(cam.camera);
-            LogMessage("Release camera retorno [" + cam.shortName + "]: " + std::to_string(releaseErr));
+            LogMessage("Release camera return [" + cam.shortName + "]: " + std::to_string(releaseErr));
         }
 
         cam.sessionOpen = false;
@@ -537,7 +537,7 @@ std::vector<CameraContext>& CanonController::GetCameras()
 
 void CanonController::PrintCameraOrder() const
 {
-    Log("ORDEM ATUAL DAS CÂMERAS");
+    Log("CURRENT CAMERA ORDER");
 
     for (const auto& cam : cameras)
     {
@@ -554,7 +554,7 @@ bool CanonController::SetCameraPrefix(const std::string& shortName, int newPrefi
 {
     if (newPrefix <= 0)
     {
-        Log("Prefixo inválido: " + std::to_string(newPrefix));
+        Log("Invalid prefix: " + std::to_string(newPrefix));
         return false;
     }
 
@@ -572,13 +572,13 @@ bool CanonController::SetCameraPrefix(const std::string& shortName, int newPrefi
 
     if (target == nullptr)
     {
-        Log("Câmera não encontrada: " + shortName);
+        Log("Camera not found: " + shortName);
         return false;
     }
 
     if (target->orderPrefix == newPrefix)
     {
-        Log("Câmera " + shortName + " já está com o prefixo " + FormatOrderPrefix(newPrefix));
+        Log("Camera " + shortName + " is already using prefix " + FormatOrderPrefix(newPrefix));
         return true;
     }
 
@@ -592,7 +592,7 @@ bool CanonController::SetCameraPrefix(const std::string& shortName, int newPrefi
     target->orderPrefix = newPrefix;
 
     Log(
-        "Prefixo atualizado: " +
+        "Prefix updated: " +
         shortName +
         " -> " +
         FormatOrderPrefix(newPrefix)
@@ -625,7 +625,7 @@ void CanonController::ResetCameraPrefixesSequential()
         ordered[i]->orderPrefix = static_cast<int>(i) + 1;
     }
 
-    Log("\nPrefixos reorganizados sequencialmente.\n");
+    Log("\nPrefixes reorganized sequentially.\n");
 }
 
 int CanonController::GetExpectedDownloads() const
@@ -673,7 +673,6 @@ void CanonController::RefreshCameraConnectionStatus()
             cam.connectionLost = true;
             cam.sessionOpen = false;
             cam.lastError = err;
-
         }
     }
 }
@@ -711,12 +710,12 @@ bool CanonController::PrepareSessionFolder(int sessionIndex, int totalSessions, 
             cam.currentShotDir = sessionDir;
         }
 
-        std::cout << "\n📁 Pasta da sessão: " << sessionDir.string() << "\n";
+        std::cout << "\n📁 Session folder: " << sessionDir.string() << "\n";
         return true;
     }
     catch (const std::exception& e)
     {
-        std::cout << "\n⚠️ Erro ao criar pasta da sessão: " << e.what() << "\n";
+        std::cout << "\n⚠️ Failed to create session folder: " << e.what() << "\n";
         return false;
     }
 }

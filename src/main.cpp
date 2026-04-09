@@ -20,13 +20,13 @@ static void TestCameraConsole(CanonController& controller);
 static void PrintMenu()
 {
     std::cout << "\n😎 CANON BULLET TIME\n";
-    std::cout << "  1 - Listar câmeras\n";
-    std::cout << "  2 - Detectar câmeras\n";
+    std::cout << "  1 - List Cameras\n";
+    std::cout << "  2 - Detect Cameras\n";
     std::cout << "  3 - BULLET TIME\n";
-    std::cout << "  4 - Pasta de saída\n";
-    std::cout << "  5 - Reordenar câmeras\n";
-    std::cout << "  0 - Sair\n";
-    std::cout << "Opção: ";
+    std::cout << "  4 - Output Folder\n";
+    std::cout << "  5 - Reorder Cameras\n";
+    std::cout << "  0 - Exit\n";
+    std::cout << "Option: ";
 }
 
 static void PumpSdkEvents(int totalMs, int stepMs = 50)
@@ -79,7 +79,7 @@ static void PrintCurrentCameras(CanonController& controller)
 
     if (cams.empty())
     {
-        std::cout << "\nNenhuma câmera detectada no momento.\n";
+        std::cout << "\nNo cameras detected at the moment.\n";
         return;
     }
 
@@ -100,7 +100,7 @@ static void PrintCurrentCameras(CanonController& controller)
         }
     );
 
-    std::cout << "\n📷  CÂMERAS DETECTADAS\n";
+    std::cout << "\n📷  DETECTED CAMERAS\n";
 
     for (const auto* cam : ordered)
     {
@@ -111,12 +111,11 @@ static void PrintCurrentCameras(CanonController& controller)
 
         if (cam->connectionLost)
         {
-            std::cout << " — ⚠️ Conexão Perdida!";
+            std::cout << " — ⚠️ Connection Lost!";
         }
 
         std::cout << "\n";
     }
-
 }
 
 static void PrintCameraOrderConsole(CanonController& controller)
@@ -126,7 +125,7 @@ static void PrintCameraOrderConsole(CanonController& controller)
 
     if (cams.empty())
     {
-        std::cout << "\nNenhuma câmera detectada no momento.\n";
+        std::cout << "\nNo cameras detected at the moment.\n";
         return;
     }
 
@@ -147,7 +146,7 @@ static void PrintCameraOrderConsole(CanonController& controller)
         }
     );
 
-    std::cout << "\nORDEM ATUAL\n";
+    std::cout << "\nCURRENT ORDER\n";
 
     for (const auto* cam : ordered)
     {
@@ -157,7 +156,7 @@ static void PrintCameraOrderConsole(CanonController& controller)
 
         if (cam->connectionLost)
         {
-            std::cout << " — ⚠️ Conexão Perdida!";
+            std::cout << " — ⚠️ Connection Lost!";
         }
 
         std::cout << "\n";
@@ -168,19 +167,19 @@ static void PrintCameraOrderConsole(CanonController& controller)
 
 static bool RedetectAndPrepare(CanonController& controller, bool showSuccessMessage = true)
 {
-    std::cout << "\n🔄 Detectando câmeras...\n";
+    std::cout << "\n🔄 Detecting cameras...\n";
 
     controller.CloseSessions();
 
     if (!PrepareSessions(controller))
     {
-        std::cout << "\n⚠️ Nenhuma câmera encontrada ou falha ao abrir sessões.\n";
+        std::cout << "\n⚠️ No cameras found or failed to open sessions.\n";
         return false;
     }
 
     if (showSuccessMessage)
     {
-        std::cout << "\n✅ Câmeras redetectadas com sucesso.\n";
+        std::cout << "\n✅ Cameras successfully redetected.\n";
     }
 
     PrintCurrentCameras(controller);
@@ -194,7 +193,7 @@ static void ReorderCamerasConsole(CanonController& controller)
 
     if (cams.empty())
     {
-        std::cout << "\nNenhuma câmera detectada no momento.\n";
+        std::cout << "\nNo cameras detected at the moment.\n";
         return;
     }
 
@@ -210,7 +209,7 @@ static void ReorderCamerasConsole(CanonController& controller)
 
     if (!current)
     {
-        std::cout << "\nNenhuma câmera disponível.\n";
+        std::cout << "\nNo cameras available.\n";
         return;
     }
 
@@ -219,25 +218,25 @@ static void ReorderCamerasConsole(CanonController& controller)
         controller.RefreshCameraConnectionStatus();
         PrintCameraOrderConsole(controller);
 
-        std::cout << "CÂMERA ATUAL\n";
+        std::cout << "CURRENT CAMERA\n";
         std::cout << " 📷 " << current->shortName;
 
         if (current->connectionLost)
         {
-            std::cout << " — ⚠️ Conexão Perdida!";
+            std::cout << " — ⚠️ Connection Lost!";
         }
 
         std::cout << "\n";
-        std::cout << "  Prefixo: "
+        std::cout << "  Prefix: "
             << std::setw(2) << std::setfill('0') << current->orderPrefix << "\n";
         std::cout << "\n";
 
-        std::cout << "Ações:\n";
-        std::cout << "  [numero]     → Alterar prefixo\n";
-        std::cout << "  [test]       → Identificar câmera\n";
-        std::cout << "  [shortName]  → Trocar câmera\n";
-        std::cout << "  [Enter]      → Sair\n";
-        std::cout << "Comando: ";
+        std::cout << "Actions:\n";
+        std::cout << "  [number]    → Change prefix\n";
+        std::cout << "  [test]      → Identify camera\n";
+        std::cout << "  [shortName] → Switch camera\n";
+        std::cout << "  [Enter]     → Exit\n";
+        std::cout << "Command: ";
 
         std::string input;
         std::getline(std::cin, input);
@@ -251,17 +250,17 @@ static void ReorderCamerasConsole(CanonController& controller)
         {
             if (current->connectionLost)
             {
-                std::cout << "\n⚠️ Não é possível testar: conexão perdida.\n";
+                std::cout << "\n⚠️ Cannot test: connection lost.\n";
                 continue;
             }
 
             if (!current->sessionOpen || current->camera == nullptr)
             {
-                std::cout << "\nSessão não está aberta.\n";
+                std::cout << "\nSession is not open.\n";
                 continue;
             }
 
-            std::cout << "\nTestando câmera: " << current->shortName << "...\n";
+            std::cout << "\nTesting camera: " << current->shortName << "...\n";
 
             EdsSendCommand(
                 current->camera,
@@ -277,7 +276,7 @@ static void ReorderCamerasConsole(CanonController& controller)
                 kEdsCameraCommand_ShutterButton_OFF
             );
 
-            std::cout << "Teste concluído.\n";
+            std::cout << "Test completed.\n";
             continue;
         }
 
@@ -304,17 +303,17 @@ static void ReorderCamerasConsole(CanonController& controller)
         }
         catch (...)
         {
-            std::cout << "\n⚠️ Entrada inválida.\n";
+            std::cout << "\n⚠️ Invalid input.\n";
             continue;
         }
 
         if (!controller.SetCameraPrefix(current->shortName, newPrefix))
         {
-            std::cout << "\nErro ao alterar prefixo.\n";
+            std::cout << "\nFailed to change prefix.\n";
         }
         else
         {
-            std::cout << "\n✅ Prefixo atualizado com sucesso.\n";
+            std::cout << "\n✅ Prefix updated successfully.\n";
         }
     }
 }
@@ -325,12 +324,12 @@ static void TestCameraConsole(CanonController& controller)
 
     if (cams.empty())
     {
-        std::cout << "\n⚠️ Nenhuma câmera detectada.\n";
+        std::cout << "\n⚠️ No cameras detected.\n";
         return;
     }
 
     std::string shortName;
-    std::cout << "\nDigite o shortName da camera para testar (ex: T7_1): ";
+    std::cout << "\nEnter camera shortName to test (e.g. T7_1): ";
     std::getline(std::cin >> std::ws, shortName);
 
     CameraContext* target = nullptr;
@@ -346,17 +345,17 @@ static void TestCameraConsole(CanonController& controller)
 
     if (!target)
     {
-        std::cout << "\nCâmera não encontrada.\n";
+        std::cout << "\nCamera not found.\n";
         return;
     }
 
     if (!target->sessionOpen)
     {
-        std::cout << "\nSessão não está aberta para essa câmera.\n";
+        std::cout << "\nSession is not open for this camera.\n";
         return;
     }
 
-    std::cout << "\nTestando câmera: " << shortName << "...\n";
+    std::cout << "\nTesting camera: " << shortName << "...\n";
 
     EdsSendCommand(
         target->camera,
@@ -372,7 +371,7 @@ static void TestCameraConsole(CanonController& controller)
         kEdsCameraCommand_ShutterButton_OFF
     );
 
-    std::cout << "\nTeste concluído.\n";
+    std::cout << "\nTest completed.\n";
 }
 
 static int ReadIntWithDefault(const std::string& prompt, int defaultValue, int minValue = 0)
@@ -394,7 +393,7 @@ static int ReadIntWithDefault(const std::string& prompt, int defaultValue, int m
 
             if (value < minValue)
             {
-                std::cout << "\n⚠️ Valor inválido. Use um número maior ou igual a " << minValue << ".\n";
+                std::cout << "\n⚠️ Invalid value. Use a number greater than or equal to " << minValue << ".\n";
                 continue;
             }
 
@@ -402,7 +401,7 @@ static int ReadIntWithDefault(const std::string& prompt, int defaultValue, int m
         }
         catch (...)
         {
-            std::cout << "\n⚠️ Entrada inválida. Digite apenas números.\n";
+            std::cout << "\n⚠️ Invalid input. Enter numbers only.\n";
         }
     }
 }
@@ -414,7 +413,7 @@ static void RunCountdown(int seconds)
 
     if (seconds > 0)
     {
-        std::cout << "⏳ Disparo em:\n";
+        std::cout << "⏳ Triggering in:\n";
 
         for (int i = seconds; i >= 1; --i)
         {
@@ -458,18 +457,18 @@ int main()
 
     if (!controller.InitializeSdk())
     {
-        std::cout << "\nFalha ao iniciar SDK.\n";
+        std::cout << "\nFailed to initialize SDK.\n";
         return 1;
     }
 
     bool initialReady = PrepareSessions(controller);
 
     PrintCurrentCameras(controller);
-    std::cout << "\n📁 Pasta padrão de saída: " << controller.GetOutputFolder() << "\n";
+    std::cout << "\n📁 Default output folder: " << controller.GetOutputFolder() << "\n";
 
     if (!initialReady)
     {
-        std::cout << "\nNenhuma câmera pronta no momento. Use a opção 2 para tentar novamente.\n";
+        std::cout << "\nNo cameras ready at the moment. Use option 2 to try again.\n";
     }
 
     int option = -1;
@@ -495,7 +494,7 @@ int main()
         }
         catch (...)
         {
-            std::cout << "\nOpção inválida.\n";
+            std::cout << "\nInvalid option.\n";
             continue;
         }
 
@@ -519,22 +518,22 @@ int main()
 
                 if (cams.empty())
                 {
-                    std::cout << "\n⚠️ Nenhuma câmera detectada. Use a opção 2 primeiro.\n";
+                    std::cout << "\n⚠️ No cameras detected. Use option 2 first.\n";
                     break;
                 }
 
                 std::cout << "\n🎬 BULLET TIME\n";
-                std::cout << "  📁 Pasta de saída: " << controller.GetOutputFolder() << "\n";
+                std::cout << "  📁 Output Folder: " << controller.GetOutputFolder() << "\n";
                 std::cout << "  ⏳ Timer: " << bulletCountdownSeconds << "s\n";
-                std::cout << "  🎞️ Sessões: " << bulletSessionCount << "\n";
-                std::cout << "  📥 Espera downloads: " << bulletWaitSeconds << "s\n";
+                std::cout << "  🎞️ Sessions: " << bulletSessionCount << "\n";
+                std::cout << "  📥 Download Wait: " << bulletWaitSeconds << "s\n";
 
-                std::cout << "\nAções:\n";
-                std::cout << "  [Enter] → Disparar\n";
-                std::cout << "  [c]     → Configurar Timer e Sessões\n";
-                std::cout << "  [t]     → Configurar tempo de download\n";
-                std::cout << "  [x]     → Voltar\n";
-                std::cout << "Comando: ";
+                std::cout << "\nActions:\n";
+                std::cout << "  [Enter] → Trigger\n";
+                std::cout << "  [c]     → Configure Timer and Sessions\n";
+                std::cout << "  [t]     → Configure Download Timeout\n";
+                std::cout << "  [x]     → Back\n";
+                std::cout << "Command: ";
 
                 std::string input;
                 std::getline(std::cin, input);
@@ -542,13 +541,13 @@ int main()
                 if (input == "c")
                 {
                     bulletCountdownSeconds = ReadIntWithDefault(
-                        "\n⏳ Timer antes do disparo (segundos): ",
+                        "\n⏳ Countdown before trigger (seconds): ",
                         bulletCountdownSeconds,
                         0
                     );
 
                     bulletSessionCount = ReadIntWithDefault(
-                        "\n🎞️ Quantidade de sessões: ",
+                        "\n🎞️ Number of sessions: ",
                         bulletSessionCount,
                         1
                     );
@@ -558,7 +557,7 @@ int main()
                 else if (input == "t")
                 {
                     bulletWaitSeconds = ReadIntWithDefault(
-                        "\n📥 Tempo máximo de espera (segundos): ",
+                        "\n📥 Maximum wait time (seconds): ",
                         bulletWaitSeconds,
                         1
                     );
@@ -571,7 +570,7 @@ int main()
                 }
                 else if (!input.empty())
                 {
-                    std::cout << "\n⚠️ Comando inválido.\n";
+                    std::cout << "\n⚠️ Invalid command.\n";
                     continue;
                 }
 
@@ -585,11 +584,11 @@ int main()
 
                 for (int sessionIndex = 1; sessionIndex <= bulletSessionCount; ++sessionIndex)
                 {
-                    std::cout << "\n🎞️ Sessão " << sessionIndex << " de " << bulletSessionCount << "\n";
+                    std::cout << "\n🎞️ Session " << sessionIndex << " of " << bulletSessionCount << "\n";
 
                     if (!controller.PrepareSessionFolder(sessionIndex, bulletSessionCount, shotId))
                     {
-                        std::cout << "\n⚠️ Falha ao preparar pasta da sessão.\n";
+                        std::cout << "\n⚠️ Failed to prepare session folder.\n";
                         sequenceAborted = true;
                         break;
                     }
@@ -599,7 +598,7 @@ int main()
 
                     controller.ShootAll();
 
-                    std::cout << "\n📥 Aguardando downloads...\n";
+                    std::cout << "\n📥 Waiting for downloads...\n";
 
                     int maxWaitMs = bulletWaitSeconds * 1000;
                     int elapsed = 0;
@@ -623,7 +622,7 @@ int main()
 
                         if (elapsed >= maxWaitMs)
                         {
-                            std::cout << "\n⚠️ Timeout atingido.\n";
+                            std::cout << "\n⚠️ Timeout reached.\n";
 
                             controller.RefreshCameraConnectionStatus();
 
@@ -637,7 +636,7 @@ int main()
                                 {
                                     if (!anyLost)
                                     {
-                                        std::cout << "\n🔌 Conexão perdida nas câmeras:\n";
+                                        std::cout << "\n🔌 Lost connection on cameras:\n";
                                         anyLost = true;
                                     }
 
@@ -648,7 +647,7 @@ int main()
 
                             if (!anyLost)
                             {
-                                std::cout << "\nℹ️ Nenhuma câmera desconectada.\n";
+                                std::cout << "\nℹ️ No disconnected cameras detected.\n";
                             }
 
                             sessionFailed = true;
@@ -659,20 +658,20 @@ int main()
 
                     if (sessionFailed)
                     {
-                        std::cout << "\n⚠️ Sessão interrompida.";
+                        std::cout << "\n⚠️ Session interrupted.";
                         break;
                     }
 
-                    std::cout << "\n✅ Sessão finalizada.\n";
+                    std::cout << "\n✅ Session completed.\n";
                 }
 
                 if (sequenceAborted)
                 {
-                    std::cout << "\n⚠️ Sequência interrompida.\n";
+                    std::cout << "\n⚠️ Sequence interrupted.\n";
                 }
                 else
                 {
-                    std::cout << "\n🏁 Sequência concluída com sucesso.\n";
+                    std::cout << "\n🏁 Sequence completed successfully.\n";
                 }
 
                 continue;
@@ -680,22 +679,22 @@ int main()
         }
         else if (option == 4)
         {
-            std::cout << "\n📁  PASTA DE SAÍDA\n";
+            std::cout << "\n📁  OUTPUT FOLDER\n";
             std::cout << controller.GetOutputFolder() << "\n\n";
 
             std::string newPath;
-            std::cout << "Digite um novo caminho";
-            std::cout << "\nou pressione Enter para manter: ";
+            std::cout << "Enter a new path";
+            std::cout << "\nor press Enter to keep current: ";
             std::getline(std::cin, newPath);
 
             if (newPath.empty())
             {
-                std::cout << "\n↩️ Nenhuma alteração feita.\n";
+                std::cout << "\n↩️ No changes made.\n";
             }
             else
             {
                 controller.SetOutputFolder(newPath);
-                std::cout << "✅ Pasta atualizada.\n";
+                std::cout << "✅ Output folder updated.\n";
             }
         }
         else if (option == 5)
@@ -704,7 +703,7 @@ int main()
         }
         else
         {
-            std::cout << "\nOpção inválida.\n";
+            std::cout << "\nInvalid option.\n";
         }
     }
 
