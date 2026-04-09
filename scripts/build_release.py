@@ -1,11 +1,30 @@
 import os
+import re
 import stat
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 
-VERSION = "v1.0.0"
 PROJECT_NAME = "canon-bullet-time"
+
+if len(sys.argv) < 2:
+    raise SystemExit(
+        "\n[ERROR] Missing release version tag.\n"
+        "Usage:\n"
+        "  python scripts/build_release.py v1.1.0\n"
+    )
+
+VERSION = sys.argv[1]
+
+if not re.fullmatch(r"v\d+\.\d+\.\d+", VERSION):
+    raise SystemExit(
+        f"\n[ERROR] Invalid version format: '{VERSION}'.\n"
+        "Expected semantic version tag format, for example:\n"
+        "  python scripts/build_release.py v1.0.0\n"
+        "  python scripts/build_release.py v1.1.0\n"
+        "  python scripts/build_release.py v2.0.3\n"
+    )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -26,12 +45,12 @@ ZIP_NAME = f"{PROJECT_NAME}-{VERSION}-windows-x64.zip"
 
 def ensure_file(path: Path, label: str) -> None:
     if not path.exists() or not path.is_file():
-        raise FileNotFoundError(f"{label} não encontrado: {path}")
+        raise FileNotFoundError(f"{label} not found: {path}")
 
 
 def ensure_dir(path: Path, label: str) -> None:
     if not path.exists() or not path.is_dir():
-        raise FileNotFoundError(f"{label} não encontrada: {path}")
+        raise FileNotFoundError(f"{label} not found: {path}")
 
 
 def _on_rm_error(func, path, exc_info):
@@ -51,9 +70,9 @@ def clean_dir(path: Path) -> None:
         print(f"[CLEAN] {path}")
     except PermissionError:
         raise PermissionError(
-            f"\nNão foi possível limpar '{path}'.\n"
-            "Verifique se algum programa ainda está usando arquivos dessa pasta "
-            "ou se algum arquivo está protegido somente para leitura."
+            f"\nCould not clean '{path}'.\n"
+            "Make sure no program is still using files from this folder "
+            "and that no file is protected as read-only."
         )
 
 
@@ -84,7 +103,7 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
 
 
 def main():
-    ensure_file(BUILD_EXE, "Canon Bullet Time.exe (build Release)")
+    ensure_file(BUILD_EXE, "Canon Bullet Time.exe (Release build)")
     ensure_file(EDSDK_DLL, "EDSDK.dll")
     ensure_file(EDSIMAGE_DLL, "EdsImage.dll")
     ensure_dir(ASSETS_DIR, "assets")
@@ -114,7 +133,7 @@ def main():
     zip_path = OUTPUT_DIR / ZIP_NAME
     zip_dir(RELEASE_DIR, zip_path)
 
-    print(f"\n[OK] Release pronta: {zip_path}")
+    print(f"\n[OK] Release package ready: {zip_path}")
 
 
 if __name__ == "__main__":
