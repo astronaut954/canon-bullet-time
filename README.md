@@ -55,7 +55,7 @@ Support depends on the EDSDK version used.
 
 * Compiled for **x64 architecture**
 * Do **not** move the DLLs elsewhere
-* If the DLLs are missing, there is no spoon
+* If the DLLs are missing, there is no bullets
 
 
 
