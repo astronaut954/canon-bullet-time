@@ -44,6 +44,15 @@ bool CanonController::InitializeSdk()
     return true;
 }
 
+bool CanonController::RestartSdk()
+{
+    // Desliga e religa o SDK da Canon. Limpa câmeras "fantasma" que o SDK
+    // mantém na memória depois de uma câmera ser desconectada.
+    CloseSessions();
+    EdsTerminateSDK();
+    return EdsInitializeSDK() == EDS_ERR_OK;
+}
+
 void CanonController::TerminateSdk()
 {
     LogMessage("SDK terminated.");
@@ -61,7 +70,7 @@ void CanonController::SetOutputFolder(const std::string& folderPath)
     }
     catch (...)
     {
-        Log("⚠️ Failed to create output folder.");
+        Log("⚠️  Failed to create output folder.");
     }
 }
 
@@ -297,7 +306,7 @@ bool CanonController::DetectCameras()
     return !cameras.empty();
 }
 
-bool CanonController::OpenSessions()
+bool CanonController::OpenSessions(bool showProgress)
 {
     // Abre a sessão de cada câmera e mostra o progresso
     // (pode demorar vários segundos, ex.: câmera recém-conectada).
@@ -311,7 +320,8 @@ bool CanonController::OpenSessions()
             continue;
         }
 
-        std::cout << "  ⏳ Connecting to " << cam.shortName << " (" << cam.modelName << ")..." << std::flush;
+        if (showProgress)
+            std::cout << "  ⏳ Connecting to " << cam.shortName << " (" << cam.modelName << ")..." << std::flush;
         const auto startTime = std::chrono::steady_clock::now();
 
         EdsError err = EdsOpenSession(cam.camera);
@@ -325,13 +335,15 @@ bool CanonController::OpenSessions()
             cam.sessionOpen = true;
             cam.connectionLost = false;
             anySuccess = true;
-            std::cout << " ✅  Connected (" << elapsed.str() << ")\n";
+            if (showProgress)
+                std::cout << " ✅  Connected (" << elapsed.str() << ")\n";
         }
         else
         {
             cam.connectionLost = true;
             cam.lastError = err;
-            std::cout << " ⚠️  Failed, error " << err << " (" << elapsed.str() << ")\n";
+            if (showProgress)
+                std::cout << " ⚠️  Failed, error " << err << " (" << elapsed.str() << ")\n";
         }
 
         LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
@@ -773,7 +785,7 @@ bool CanonController::PrepareSessionFolder(int sessionIndex, int totalSessions, 
     }
     catch (const std::exception& e)
     {
-        std::cout << "\n⚠️ Failed to create session folder: " << e.what() << "\n";
+        std::cout << "\n⚠️  Failed to create session folder: " << e.what() << "\n";
         return false;
     }
 }

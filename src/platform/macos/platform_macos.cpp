@@ -2,6 +2,8 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <mach-o/dyld.h>
+#include <sys/select.h>
+#include <unistd.h>
 
 #include <climits>
 #include <clocale>
@@ -62,5 +64,14 @@ namespace Platform
     {
         const CFTimeInterval seconds = milliseconds > 0 ? milliseconds / 1000.0 : 0.0;
         CFRunLoopRunInMode(kCFRunLoopDefaultMode, seconds, false);
+    }
+
+    bool InputAvailable()
+    {
+        fd_set readSet;
+        FD_ZERO(&readSet);
+        FD_SET(STDIN_FILENO, &readSet);
+        timeval timeout{ 0, 0 };
+        return select(STDIN_FILENO + 1, &readSet, nullptr, nullptr, &timeout) > 0;
     }
 }

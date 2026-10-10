@@ -15,7 +15,8 @@ public:
     void TerminateSdk();
 
     bool DetectCameras();
-    bool OpenSessions();
+    bool OpenSessions(bool showProgress = true);
+    bool RestartSdk();
     std::vector<std::string> GetFailedCameraNames() const;
     void DropFailedCameras();
     void RegisterEventHandlers();

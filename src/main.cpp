@@ -39,9 +39,27 @@ static void PumpSdkEvents(int totalMs, int stepMs = 50)
     }
 }
 
+static std::string JoinNames(const std::vector<std::string>& names)
+{
+    std::string result;
+    for (const auto& name : names)
+        result += (result.empty() ? "" : ", ") + name;
+    return result;
+}
+
 static bool PrepareSessions(CanonController& controller)
 {
+    // Quando uma câmera falha ao conectar (ex.: recém-reconectada, ainda não liberada
+    // pelo sistema), o programa tenta de novo sozinho por até AUTO_RETRY_SECONDS,
+    // reiniciando o SDK a cada tentativa. O usuário pode interromper com Enter.
+    constexpr int AUTO_RETRY_SECONDS = 60;
+    constexpr int RETRY_INTERVAL_MS = 3000;
+
     controller.SetVerbose(false);
+
+    bool autoRetry = true;
+    bool retrying = false;
+    auto retryStart = std::chrono::steady_clock::now();
 
     while (true)
     {
@@ -54,16 +72,58 @@ static bool PrepareSessions(CanonController& controller)
         }
 
         PumpSdkEvents(300);
-        controller.OpenSessions();
+        controller.OpenSessions(!retrying);
 
         const auto failed = controller.GetFailedCameraNames();
         if (failed.empty())
+        {
+            if (retrying)
+                std::cout << "\n✅ All cameras connected.\n";
             break;
+        }
 
-        std::cout << "\n⚠️  Could not connect to:";
-        for (const auto& name : failed)
-            std::cout << " " << name;
-        std::cout << "\n";
+        const int waited = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::steady_clock::now() - retryStart).count());
+
+        if (autoRetry && waited < AUTO_RETRY_SECONDS)
+        {
+            if (!retrying)
+            {
+                std::cout << "\n⚠️  Could not connect to: " << JoinNames(failed) << "\n";
+                std::cout << "🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS
+                          << "s. Press Enter to stop waiting.\n";
+                retrying = true;
+            }
+
+            std::cout << "\r  ⏳ Waiting for " << JoinNames(failed) << "... " << waited << "s   " << std::flush;
+
+            bool cancelled = false;
+            for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 100)
+            {
+                if (Platform::InputAvailable())
+                {
+                    std::string discard;
+                    std::getline(std::cin, discard);
+                    cancelled = true;
+                    break;
+                }
+                PumpSdkEvents(100, 100);
+            }
+
+            if (!cancelled)
+            {
+                controller.RestartSdk();
+                continue;
+            }
+
+            autoRetry = false;
+        }
+
+        if (retrying)
+            std::cout << "\n";
+        retrying = false;
+
+        std::cout << "\n⚠️  Could not connect to: " << JoinNames(failed) << "\n";
         std::cout << "\nActions:\n";
         std::cout << "  [r]     → Scan again\n";
         std::cout << "  [Enter] → Remove them from the list and renumber the others\n";
@@ -75,7 +135,9 @@ static bool PrepareSessions(CanonController& controller)
         if (answer == "r" || answer == "R")
         {
             std::cout << "\n🔄 Scanning again...\n";
-            controller.CloseSessions();
+            controller.RestartSdk();
+            autoRetry = true;
+            retryStart = std::chrono::steady_clock::now();
             continue;
         }
 
@@ -141,7 +203,7 @@ static void PrintCurrentCameras(CanonController& controller)
 
         if (cam->connectionLost)
         {
-            std::cout << " — ⚠️ Connection Lost!";
+            std::cout << " — ⚠️  Connection Lost!";
         }
 
         std::cout << "\n";
@@ -186,7 +248,7 @@ static void PrintCameraOrderConsole(CanonController& controller)
 
         if (cam->connectionLost)
         {
-            std::cout << " — ⚠️ Connection Lost!";
+            std::cout << " — ⚠️  Connection Lost!";
         }
 
         std::cout << "\n";
@@ -203,7 +265,7 @@ static bool RedetectAndPrepare(CanonController& controller, bool showSuccessMess
 
     if (!PrepareSessions(controller))
     {
-        std::cout << "\n⚠️ No cameras found or failed to open sessions.\n";
+        std::cout << "\n⚠️  No cameras found or failed to open sessions.\n";
         return false;
     }
 
@@ -253,7 +315,7 @@ static void ReorderCamerasConsole(CanonController& controller)
 
         if (current->connectionLost)
         {
-            std::cout << " — ⚠️ Connection Lost!";
+            std::cout << " — ⚠️  Connection Lost!";
         }
 
         std::cout << "\n";
@@ -280,7 +342,7 @@ static void ReorderCamerasConsole(CanonController& controller)
         {
             if (current->connectionLost)
             {
-                std::cout << "\n⚠️ Cannot test: connection lost.\n";
+                std::cout << "\n⚠️  Cannot test: connection lost.\n";
                 continue;
             }
 
@@ -333,7 +395,7 @@ static void ReorderCamerasConsole(CanonController& controller)
         }
         catch (...)
         {
-            std::cout << "\n⚠️ Invalid input.\n";
+            std::cout << "\n⚠️  Invalid input.\n";
             continue;
         }
 
@@ -354,7 +416,7 @@ static void TestCameraConsole(CanonController& controller)
 
     if (cams.empty())
     {
-        std::cout << "\n⚠️ No cameras detected.\n";
+        std::cout << "\n⚠️  No cameras detected.\n";
         return;
     }
 
@@ -423,7 +485,7 @@ static int ReadIntWithDefault(const std::string& prompt, int defaultValue, int m
 
             if (value < minValue)
             {
-                std::cout << "\n⚠️ Invalid value. Use a number greater than or equal to " << minValue << ".\n";
+                std::cout << "\n⚠️  Invalid value. Use a number greater than or equal to " << minValue << ".\n";
                 continue;
             }
 
@@ -431,7 +493,7 @@ static int ReadIntWithDefault(const std::string& prompt, int defaultValue, int m
         }
         catch (...)
         {
-            std::cout << "\n⚠️ Invalid input. Enter numbers only.\n";
+            std::cout << "\n⚠️  Invalid input. Enter numbers only.\n";
         }
     }
 }
@@ -546,7 +608,7 @@ int main()
 
                 if (cams.empty())
                 {
-                    std::cout << "\n⚠️ No cameras detected. Use option 2 first.\n";
+                    std::cout << "\n⚠️  No cameras detected. Use option 2 first.\n";
                     break;
                 }
 
@@ -598,7 +660,7 @@ int main()
                 }
                 else if (!input.empty())
                 {
-                    std::cout << "\n⚠️ Invalid command.\n";
+                    std::cout << "\n⚠️  Invalid command.\n";
                     continue;
                 }
 
@@ -616,7 +678,7 @@ int main()
 
                     if (!controller.PrepareSessionFolder(sessionIndex, bulletSessionCount, shotId))
                     {
-                        std::cout << "\n⚠️ Failed to prepare session folder.\n";
+                        std::cout << "\n⚠️  Failed to prepare session folder.\n";
                         sequenceAborted = true;
                         break;
                     }
@@ -651,7 +713,7 @@ int main()
 
                         if (elapsed >= maxWaitMs)
                         {
-                            std::cout << "\n⚠️ Timeout reached.\n";
+                            std::cout << "\n⚠️  Timeout reached.\n";
 
                             controller.RefreshCameraConnectionStatus();
 
@@ -687,7 +749,7 @@ int main()
 
                     if (sessionFailed)
                     {
-                        std::cout << "\n⚠️ Session interrupted.";
+                        std::cout << "\n⚠️  Session interrupted.";
                         break;
                     }
 
@@ -696,7 +758,7 @@ int main()
 
                 if (sequenceAborted)
                 {
-                    std::cout << "\n⚠️ Sequence interrupted.\n";
+                    std::cout << "\n⚠️  Sequence interrupted.\n";
                 }
                 else
                 {

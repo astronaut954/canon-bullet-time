@@ -24,4 +24,7 @@ namespace Platform
     // Processa eventos do sistema por até `milliseconds` (0 = só os pendentes).
     // No Mac, o SDK da Canon entrega eventos das câmeras por aqui; no Windows não faz nada.
     void ProcessEvents(int milliseconds = 0);
+
+    // true se o usuário digitou algo no terminal (sem esperar). Usado para cancelar esperas.
+    bool InputAvailable();
 }
