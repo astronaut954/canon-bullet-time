@@ -1,5 +1,6 @@
 #include "canon_controller.h"
 #include "logger.h"
+#include "platform/platform.h"
 
 #include <sstream>
 #include <iomanip>
@@ -82,8 +83,7 @@ std::string CanonController::MakeTimestamp(bool withMilliseconds)
     auto now = system_clock::now();
     std::time_t t = system_clock::to_time_t(now);
 
-    std::tm tmLocal{};
-    localtime_s(&tmLocal, &t);
+    std::tm tmLocal = Platform::LocalTime(t);
 
     std::ostringstream oss;
     oss << std::put_time(&tmLocal, "%Y-%m-%d_%H-%M-%S");
@@ -99,17 +99,7 @@ std::string CanonController::MakeTimestamp(bool withMilliseconds)
 
 fs::path CanonController::GetDefaultDownloadsFolder()
 {
-    char* userProfile = nullptr;
-    size_t len = 0;
-
-    if (_dupenv_s(&userProfile, &len, "USERPROFILE") == 0 && userProfile != nullptr)
-    {
-        fs::path result = fs::path(userProfile) / "Downloads";
-        free(userProfile);
-        return result;
-    }
-
-    return fs::current_path();
+    return Platform::DownloadsFolder();
 }
 
 fs::path CanonController::BuildUniqueOutputPath(
@@ -684,12 +674,7 @@ bool CanonController::PrepareSessionFolder(int sessionIndex, int totalSessions, 
         auto now = std::chrono::system_clock::now();
         auto t = std::chrono::system_clock::to_time_t(now);
 
-        std::tm localTime{};
-#ifdef _WIN32
-        localtime_s(&localTime, &t);
-#else
-        localtime_r(&t, &localTime);
-#endif
+        std::tm localTime = Platform::LocalTime(t);
 
         std::ostringstream folderName;
         folderName << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S");

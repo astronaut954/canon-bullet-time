@@ -48,12 +48,22 @@ endforeach()
 # ---------------------------------------------------------------------------
 # Programa
 # ---------------------------------------------------------------------------
-add_executable(CanonBulletTime
+# Código comum a todos os sistemas
+set(CBT_SOURCES
     src/main.cpp
     src/canon_controller.cpp
-    src/audio_player.cpp
     src/path_utils.cpp
 )
+
+# Código específico de cada sistema (ver include/platform/platform.h)
+if(WIN32)
+    list(APPEND CBT_SOURCES
+        src/platform/windows/platform_windows.cpp
+        src/platform/windows/audio_player_windows.cpp
+    )
+endif()
+
+add_executable(CanonBulletTime ${CBT_SOURCES})
 
 set_target_properties(CanonBulletTime PROPERTIES
     OUTPUT_NAME "Canon Bullet Time"

@@ -2,6 +2,7 @@
 #include "logger.h"
 #include "audio_player.h"
 #include "path_utils.h"
+#include "platform/platform.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -9,10 +10,6 @@
 #include <limits>
 #include <vector>
 #include <algorithm>
-#include <windows.h>
-#include <io.h>
-#include <fcntl.h>
-#include <locale.h>
 #include <random>
 
 static void TestCameraConsole(CanonController& controller);
@@ -449,9 +446,7 @@ static std::string GenerateShotId()
 
 int main()
 {
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-    setlocale(LC_ALL, ".UTF8");
+    Platform::InitConsole();
 
     CanonController controller;
 

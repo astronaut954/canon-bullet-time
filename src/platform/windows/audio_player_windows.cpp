@@ -3,8 +3,6 @@
 #include <windows.h>
 #include <mmsystem.h>
 
-#pragma comment(lib, "winmm.lib")
-
 namespace AudioPlayer
 {
     bool PlayWavAsync(const std::string& filePath)
