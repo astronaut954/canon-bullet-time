@@ -50,7 +50,7 @@ def extract_all(zip_path: Path, target: Path) -> None:
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(target)
     for inner in list(target.rglob("*.zip")):
-        inner_dir = inner.with_suffix("")
+        inner_dir = inner.with_name(inner.name + "_unzipped")
         inner_dir.mkdir(exist_ok=True)
         extract_all(inner, inner_dir)
 
@@ -129,7 +129,7 @@ def install_windows(tmp_dir: Path, zip_path: Path) -> str:
 
 
 def install_macos(tmp_dir: Path, zip_path: Path) -> str:
-    dmgs = [p for p in tmp_dir.rglob("*.dmg") if "__MACOSX" not in p.parts]
+    dmgs = [p for p in tmp_dir.rglob("*.dmg") if p.is_file() and "__MACOSX" not in p.parts]
     if not dmgs:
         raise SystemExit("[ERRO] Nenhum .dmg encontrado dentro do zip (é o pacote de Mac?).")
 
