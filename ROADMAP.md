@@ -24,7 +24,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 1 | CMake + SDK 13.20.10 no Windows | Mesmo `.exe` de hoje, compilado pelo CMake, usando o SDK novo. Checklist passa com câmeras. | feito |
 | 2 | Isolar código de Windows | Áudio, caminhos, console e funções da Microsoft atrás de interfaces de plataforma. Windows funciona igual. | feito |
 | 3 | Versão Mac | SDK de Mac integrado, áudio e caminhos de Mac, checklist passa no Mac. Primeiro `.zip` para Mac (sem assinatura Apple por enquanto). | feito |
-| 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | próximo |
+| 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | em andamento |
 | 5 | Interface gráfica | Usa a mesma lógica do terminal. | depois |
 
 ### Critério para fechar uma etapa
@@ -52,6 +52,11 @@ Atualizar esta tabela sempre que uma função mudar de status.
 - **EDSDK fora do repositório:** decidido manter o SDK da Canon só dentro do
   `.zip` das versões (o que os termos da Canon permitem). Os arquivos do SDK
   saíram do repositório; cópias antigas continuam no histórico do Git.
+
+- **Windows: conexão em paralelo não testada com câmeras.** Desde a branch
+  `fix-feedback-conexao`, a sessão de cada câmera é aberta numa thread auxiliar
+  (com COM inicializado, como pede o manual da Canon). Compila, mas ainda não
+  foi testado com câmeras no Windows. Testar antes da próxima versão publicada.
 
 ## Histórico de versões do SDK
 
