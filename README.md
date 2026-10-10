@@ -9,19 +9,30 @@ Designed for bullet time photography workflows.
 
 ## Download
 
-[⬇️ Download for Windows](https://github.com/astronaut954/canon-bullet-time/releases/latest)
+[⬇️ Download for Windows and macOS](https://github.com/astronaut954/canon-bullet-time/releases/latest)
 
 
 
 ## Requirements
 
+**Windows**
+
 * Windows 10 or 11 (64-bit)
 * Compatible Canon camera
-* Required files in the same folder:
+* Keep these files in the same folder: `Canon Bullet Time.exe`, `EDSDK.dll`, `EdsImage.dll`, `assets/`
 
-  * `Canon Bullet Time.exe`
-  * `EDSDK.dll`
-  * `EdsImage.dll`
+**macOS**
+
+* Mac with Apple Silicon (M1 or newer), macOS 13.3 or later
+* Compatible Canon camera
+* Keep these files in the same folder: `Canon Bullet Time`, `Frameworks/`, `assets/`
+* The app is not signed by Apple yet. After extracting the zip, run once in Terminal:
+
+  ```
+  xattr -dr com.apple.quarantine path/to/canon-bullet-time-vX.Y.Z
+  ```
+
+  Then start it from Terminal: `./"Canon Bullet Time"`
 
 
 

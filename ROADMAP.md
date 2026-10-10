@@ -37,12 +37,12 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 
 | Função | Windows | Mac |
 | --- | --- | --- |
-| Detectar / listar câmeras | sim | — |
-| Disparo sincronizado (BULLET TIME) | sim | — |
-| Download e organização das fotos | sim | — |
-| Reordenar câmeras / prefixos | sim | — |
-| Pasta de saída configurável | sim | — |
-| Áudio de contagem | sim | — |
+| Detectar / listar câmeras | sim | sim |
+| Disparo sincronizado (BULLET TIME) | sim | sim |
+| Download e organização das fotos | sim | sim |
+| Reordenar câmeras / prefixos | sim | a testar |
+| Pasta de saída configurável | sim | a testar |
+| Áudio de contagem | sim | sim |
 | Pacote de distribuição (`.zip`) | sim | — |
 
 Atualizar esta tabela sempre que uma função mudar de status.
@@ -59,4 +59,4 @@ Atualizar esta tabela sempre que uma função mudar de status.
 | --- | --- |
 | Windows (máquina de build) | 13.20.10.6402 (desde a etapa 1) |
 | GitHub | nenhum (SDK fica só na máquina de cada um) |
-| Mac | — (pacote 13.20.10 disponível em `~/Downloads/ESDK`, entra na etapa 3) |
+| Mac (máquina de build) | 13.20.10.0 (desde a etapa 3) |

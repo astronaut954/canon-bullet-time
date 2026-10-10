@@ -156,6 +156,7 @@ def install_macos(tmp_dir: Path, zip_path: Path) -> str:
         subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], check=False)
 
     # Arquivos baixados da internet ficam "em quarentena" e o macOS pode bloquear o carregamento
+    subprocess.run(["chmod", "-R", "u+w", str(DEST)], check=False)
     subprocess.run(["xattr", "-dr", "com.apple.quarantine", str(DEST)], check=False)
 
     info = DEST / "macos" / "EDSDK.framework" / "Resources" / "Info.plist"

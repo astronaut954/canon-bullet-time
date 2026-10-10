@@ -55,11 +55,12 @@ def ensure_gh_available():
 
 
 def build_release(version: str):
-    run(["python", "scripts/build_release.py", version])
+    run([sys.executable, "scripts/build_release.py", version])
 
 
 def find_zip(version: str) -> Path:
-    zip_path = RELEASE_DIR / f"{PROJECT_NAME}-{version}-windows-x64.zip"
+    platform = "macos-arm64" if sys.platform == "darwin" else "windows-x64"
+    zip_path = RELEASE_DIR / f"{PROJECT_NAME}-{version}-{platform}.zip"
     if not zip_path.exists():
         raise SystemExit(f"\n[ERROR] Release ZIP not found: {zip_path}")
     return zip_path
@@ -84,7 +85,7 @@ def create_github_release(version: str, zip_path: Path):
     notes = (
         f"Release {version}\n\n"
         "- Updated release package\n"
-        "- Attached Windows x64 build\n"
+        "- Windows x64 and macOS arm64 builds (macOS added separately)\n"
     )
 
     run([
@@ -107,11 +108,19 @@ def main():
 
     ensure_version(version)
     ensure_clean_git_tree()
-    ensure_tag_does_not_exist(version)
     ensure_gh_available()
+
+    run(["git", "fetch", "--tags", "origin"])
+    tag_exists = version in get_output(["git", "tag"]).splitlines()
 
     build_release(version)
     zip_path = find_zip(version)
+
+    if tag_exists:
+        # A versão já foi publicada pelo outro sistema: só anexa o pacote deste sistema
+        run(["gh", "release", "upload", version, str(zip_path), "--clobber"])
+        print(f"\n[OK] Asset added to existing release {version}: {zip_path}")
+        return
 
     push_branch()
     create_tag(version)

@@ -2,6 +2,7 @@ import os
 import re
 import stat
 import shutil
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -28,19 +29,27 @@ if not re.fullmatch(r"v\d+\.\d+\.\d+", VERSION):
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-BUILD_EXE = REPO_ROOT / "build" / "windows-x64" / "Release" / "Canon Bullet Time.exe"
-EDSDK_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EDSDK.dll"
-EDSIMAGE_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EdsImage.dll"
+IS_MAC = sys.platform == "darwin"
+
+if IS_MAC:
+    PLATFORM = "macos-arm64"
+    BUILD_EXE = REPO_ROOT / "build" / "macos-arm64" / "Canon Bullet Time"
+    EDSDK_FRAMEWORK = REPO_ROOT / "third_party" / "edsdk" / "macos" / "EDSDK.framework"
+else:
+    PLATFORM = "windows-x64"
+    BUILD_EXE = REPO_ROOT / "build" / "windows-x64" / "Release" / "Canon Bullet Time.exe"
+    EDSDK_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EDSDK.dll"
+    EDSIMAGE_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EdsImage.dll"
 
 ASSETS_DIR = REPO_ROOT / "assets"
 README_MD = REPO_ROOT / "README.md"
 LICENSE_FILE = REPO_ROOT / "LICENSE"
 COMPAT_PDF = REPO_ROOT / "docs" / "CDC_EDSDK_Compat_List.pdf"
 
-DIST_DIR = REPO_ROOT / "dist" / "windows-x64"
+DIST_DIR = REPO_ROOT / "dist" / PLATFORM
 OUTPUT_DIR = REPO_ROOT / "release"
 RELEASE_DIR = OUTPUT_DIR / f"{PROJECT_NAME}-{VERSION}"
-ZIP_NAME = f"{PROJECT_NAME}-{VERSION}-windows-x64.zip"
+ZIP_NAME = f"{PROJECT_NAME}-{VERSION}-{PLATFORM}.zip"
 
 
 def ensure_file(path: Path, label: str) -> None:
@@ -103,9 +112,12 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
 
 
 def main():
-    ensure_file(BUILD_EXE, "Canon Bullet Time.exe (Release build)")
-    ensure_file(EDSDK_DLL, "EDSDK.dll")
-    ensure_file(EDSIMAGE_DLL, "EdsImage.dll")
+    ensure_file(BUILD_EXE, f"{BUILD_EXE.name} (Release build)")
+    if IS_MAC:
+        ensure_dir(EDSDK_FRAMEWORK, "EDSDK.framework")
+    else:
+        ensure_file(EDSDK_DLL, "EDSDK.dll")
+        ensure_file(EDSIMAGE_DLL, "EdsImage.dll")
     ensure_dir(ASSETS_DIR, "assets")
     ensure_file(README_MD, "README.md")
     ensure_file(LICENSE_FILE, "LICENSE")
@@ -117,9 +129,15 @@ def main():
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
-    copy_file(BUILD_EXE, DIST_DIR / "Canon Bullet Time.exe")
-    copy_file(EDSDK_DLL, DIST_DIR / "EDSDK.dll")
-    copy_file(EDSIMAGE_DLL, DIST_DIR / "EdsImage.dll")
+    copy_file(BUILD_EXE, DIST_DIR / BUILD_EXE.name)
+    if IS_MAC:
+        # ditto preserva links simbólicos e a assinatura do framework da Canon
+        (DIST_DIR / "Frameworks").mkdir()
+        subprocess.run(["ditto", str(EDSDK_FRAMEWORK), str(DIST_DIR / "Frameworks" / "EDSDK.framework")], check=True)
+        print(f"[COPYDIR] {EDSDK_FRAMEWORK} -> {DIST_DIR / 'Frameworks' / 'EDSDK.framework'}")
+    else:
+        copy_file(EDSDK_DLL, DIST_DIR / "EDSDK.dll")
+        copy_file(EDSIMAGE_DLL, DIST_DIR / "EdsImage.dll")
     copy_file(README_MD, DIST_DIR / "README.md")
     copy_file(LICENSE_FILE, DIST_DIR / "LICENSE")
     copy_tree(ASSETS_DIR, DIST_DIR / "assets")
@@ -127,11 +145,18 @@ def main():
     if COMPAT_PDF.exists():
         copy_file(COMPAT_PDF, DIST_DIR / "CDC_EDSDK_Compat_List.pdf")
 
-    shutil.copytree(DIST_DIR, RELEASE_DIR)
-    print(f"[COPYDIR] {DIST_DIR} -> {RELEASE_DIR}")
-
     zip_path = OUTPUT_DIR / ZIP_NAME
-    zip_dir(RELEASE_DIR, zip_path)
+    if IS_MAC:
+        subprocess.run(["ditto", str(DIST_DIR), str(RELEASE_DIR)], check=True)
+        print(f"[COPYDIR] {DIST_DIR} -> {RELEASE_DIR}")
+        if zip_path.exists():
+            zip_path.unlink()
+        # zip com ditto: o zipfile do Python não preserva links simbólicos do framework
+        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(RELEASE_DIR), str(zip_path)], check=True)
+    else:
+        shutil.copytree(DIST_DIR, RELEASE_DIR)
+        print(f"[COPYDIR] {DIST_DIR} -> {RELEASE_DIR}")
+        zip_dir(RELEASE_DIR, zip_path)
 
     print(f"\n[OK] Release package ready: {zip_path}")
 
