@@ -73,6 +73,14 @@ This project is being organized for Windows (x64) and macOS (Apple Silicon) supp
 * [Agent rules](AGENTS.md) — working rules for AI coding agents
 * [Manual test checklist](docs/teste-manual.md)
 
+### Canon SDK Setup
+
+The Canon EDSDK is **not included** in this repository (Canon's license only allows
+distributing it inside the compiled app). To build:
+
+1. Download **EDSDK 13.20.10** for your platform from the link below.
+2. Extract it into `third_party/edsdk/` (this folder is ignored by Git).
+
 ### Canon SDK Downloads
 
 * **Canon Camera SDK Downloads**

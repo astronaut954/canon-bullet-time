@@ -5,7 +5,7 @@
 *.user
 
 # Build outputs
-x64/
+/x64/
 Debug/
 Release/
 CanonBulletTime/x64/
@@ -31,3 +31,6 @@ release/
 # Python
 __pycache__/
 *.pyc
+
+# Canon EDSDK (licença não permite publicar; ver README)
+third_party/edsdk/
