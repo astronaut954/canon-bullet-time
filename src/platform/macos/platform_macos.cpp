@@ -73,4 +73,13 @@ namespace Platform
     {
         tcflush(STDIN_FILENO, TCIFLUSH);
     }
+
+    fs::path AppDataFolder()
+    {
+        const char* home = std::getenv("HOME");
+        if (home != nullptr && *home != '\0')
+            return fs::path(home) / "Library" / "Application Support" / "Canon Bullet Time";
+
+        return fs::current_path() / "Canon Bullet Time";
+    }
 }

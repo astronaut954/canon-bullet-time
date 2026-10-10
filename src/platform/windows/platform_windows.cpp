@@ -79,4 +79,19 @@ namespace Platform
     {
         FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
     }
+
+    fs::path AppDataFolder()
+    {
+        char* localAppData = nullptr;
+        size_t len = 0;
+
+        if (_dupenv_s(&localAppData, &len, "LOCALAPPDATA") == 0 && localAppData != nullptr)
+        {
+            fs::path result = fs::path(localAppData) / "Canon Bullet Time";
+            free(localAppData);
+            return result;
+        }
+
+        return DownloadsFolder() / "Canon Bullet Time";
+    }
 }

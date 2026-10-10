@@ -13,15 +13,24 @@
       <span class="brand-mark">◉</span>
       <span class="brand-name">Canon Bullet Time</span>
     </div>
-    <div id="status" class="status status-idle">Starting…</div>
+
+    <nav class="tabs">
+      <button class="tab active" data-view="capture">Capture</button>
+      <button class="tab" data-view="sessions">Sessions <span id="sessionCount" class="count hidden">0</span></button>
+    </nav>
+
+    <div class="topbar-right">
+      <div id="status" class="status status-idle">Starting…</div>
+      <button id="saveBtn" class="btn btn-primary btn-small" disabled>Save sessions</button>
+    </div>
   </header>
 
-  <main class="layout">
-    <!-- Câmeras -->
+  <!-- ====================== CAPTURA ====================== -->
+  <main id="view-capture" class="view capture">
     <section class="panel cameras">
       <div class="panel-head">
         <h2>Cameras</h2>
-        <button id="detectBtn" class="btn btn-secondary">Detect cameras</button>
+        <button id="detectBtn" class="btn btn-secondary btn-small">Detect cameras</button>
       </div>
       <ul id="cameraList" class="camera-list"></ul>
       <div id="noCameras" class="empty hidden">
@@ -37,10 +46,8 @@
       </div>
     </section>
 
-    <!-- Disparo -->
     <section class="panel shoot">
       <h2>Bullet time</h2>
-
       <div class="fields">
         <label class="field">
           <span>Countdown (s)</span>
@@ -55,46 +62,74 @@
           <input id="downloadWait" type="number" min="1" value="10">
         </label>
       </div>
-
-      <label class="field field-wide">
-        <span>Output folder</span>
-        <span class="folder-row">
-          <input id="outputFolder" type="text" spellcheck="false">
-          <button id="folderBtn" class="btn btn-secondary">Save</button>
-        </span>
-      </label>
-
       <button id="shootBtn" class="btn btn-primary btn-shoot">It's bullet time</button>
       <p id="progress" class="progress"></p>
-    </section>
-
-    <!-- Atividade -->
-    <section class="panel activity">
-      <div class="panel-head">
-        <h2>Activity</h2>
-        <button id="detailsBtn" class="btn btn-link">Show details</button>
-      </div>
-      <ol id="activity" class="activity-list"></ol>
-      <pre id="details" class="details hidden"></pre>
+      <p class="storage-note">Photos are kept in the app until you save them.</p>
     </section>
   </main>
 
-  <!-- Contagem regressiva em tela cheia -->
+  <!-- ====================== SESSÕES ====================== -->
+  <main id="view-sessions" class="view sessions hidden">
+    <section class="panel session-list-panel">
+      <div class="panel-head">
+        <h2>Sessions</h2>
+      </div>
+      <ul id="sessionList" class="session-list"></ul>
+      <p id="noSessions" class="empty">No sessions yet. Shoot one in Capture.</p>
+    </section>
+
+    <section class="panel viewer">
+      <div id="viewerEmpty" class="viewer-empty">Select a session to see its sequence.</div>
+      <div id="viewerContent" class="viewer-content hidden">
+        <div class="viewer-head">
+          <div>
+            <div id="viewerTitle" class="viewer-title"></div>
+            <div id="viewerCamera" class="viewer-camera"></div>
+          </div>
+          <div class="viewer-controls">
+            <button id="prevBtn" class="btn btn-secondary btn-small" title="Previous camera (←)">←</button>
+            <button id="playBtn" class="btn btn-secondary btn-small" title="Play sequence (space)">Play</button>
+            <button id="nextBtn" class="btn btn-secondary btn-small" title="Next camera (→)">→</button>
+            <button id="deleteSessionBtn" class="btn btn-link btn-small">Delete session</button>
+          </div>
+        </div>
+        <div class="stage">
+          <img id="stageImage" alt="">
+          <div id="stageMessage" class="stage-message hidden"></div>
+        </div>
+        <input id="scrubber" class="scrubber" type="range" min="0" value="0" step="1">
+        <ol id="filmstrip" class="filmstrip"></ol>
+      </div>
+    </section>
+  </main>
+
+  <!-- ====================== LOG (recolhido) ====================== -->
+  <footer id="log" class="log collapsed">
+    <button id="logToggle" class="log-bar">
+      <span class="log-label">Log</span>
+      <span id="logLast" class="log-last">Starting…</span>
+      <span class="log-chevron">▴</span>
+    </button>
+    <div class="log-body">
+      <label class="log-option"><input id="techToggle" type="checkbox"> Show technical details</label>
+      <ol id="logList" class="log-list"></ol>
+    </div>
+  </footer>
+
+  <!-- ====================== SOBREPOSIÇÕES ====================== -->
   <div id="countdownOverlay" class="overlay hidden">
     <div id="countdownNumber" class="countdown-number"></div>
   </div>
 
-  <!-- Pergunta quando câmeras não reconectam -->
-  <div id="askOverlay" class="overlay hidden">
+  <div id="dialogOverlay" class="overlay hidden">
     <div class="dialog">
-      <h3>Could not connect failed cameras.</h3>
-      <p id="askText"></p>
-      <div class="dialog-actions">
-        <button id="scanAgainBtn" class="btn btn-secondary">Scan again</button>
-        <button id="continueBtn" class="btn btn-primary">Continue with the connected cameras</button>
-      </div>
+      <h3 id="dialogTitle"></h3>
+      <p id="dialogText"></p>
+      <div id="dialogActions" class="dialog-actions"></div>
     </div>
   </div>
+
+  <div id="toast" class="toast hidden"></div>
 
   <script>/*__SCRIPT__*/</script>
 </body>

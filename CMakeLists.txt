@@ -161,10 +161,32 @@ if(CBT_BUILD_GUI)
         GIT_REPOSITORY https://github.com/webview/webview
         GIT_TAG 0.12.0
     )
-    FetchContent_MakeAvailable(webview)
+    # stb: leitura/redução/gravação de JPEG para as prévias das fotos (domínio público / MIT)
+    FetchContent_Declare(
+        stb
+        GIT_REPOSITORY https://github.com/nothings/stb
+        GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
+    )
+    FetchContent_MakeAvailable(webview stb)
 
-    add_executable(CanonBulletTimeGui WIN32 src/gui/main_gui.cpp)
+    set(CBT_GUI_SOURCES
+        src/gui/main_gui.cpp
+        src/gui/photo_store.cpp
+    )
+    if(WIN32)
+        list(APPEND CBT_GUI_SOURCES src/gui/native_window_win.cpp)
+    else()
+        list(APPEND CBT_GUI_SOURCES src/gui/native_window_mac.cpp)
+    endif()
+
+    add_executable(CanonBulletTimeGui WIN32 ${CBT_GUI_SOURCES})
     set_target_properties(CanonBulletTimeGui PROPERTIES OUTPUT_NAME "Canon Bullet Time GUI")
+    target_include_directories(CanonBulletTimeGui PRIVATE src/gui "${stb_SOURCE_DIR}")
     target_link_libraries(CanonBulletTimeGui PRIVATE cbt_core webview::core)
+    if(WIN32)
+        target_link_libraries(CanonBulletTimeGui PRIVATE comctl32 ole32)
+    else()
+        target_link_libraries(CanonBulletTimeGui PRIVATE "-framework AppKit")
+    endif()
     cbt_copy_runtime_files(CanonBulletTimeGui)
 endif()

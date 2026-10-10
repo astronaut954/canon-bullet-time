@@ -8,6 +8,11 @@
 // Comunicação:
 //   página -> C++ : funções JavaScript ligadas com webview::bind (detect, shoot...)
 //   C++ -> página : window.onCoreEvent({ type: "...", ... }) via webview::dispatch
+//
+// As fotos ficam na pasta de dados do app (PhotoStore) até a pessoa escolher onde
+// salvar. Ao fechar a janela com fotos não salvas, a página pergunta o que fazer;
+// se o app fechar de forma inesperada, as fotos continuam lá e são oferecidas na
+// próxima abertura.
 
 #include "bullet_time.h"
 #include "canon_controller.h"
@@ -16,11 +21,16 @@
 #include "platform/platform.h"
 #include "sdk_diagnostics.h"
 
+#include "native_window.h"
+#include "photo_store.h"
+
 #include "webview/webview.h"
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
+#include <map>
 #include <deque>
 #include <fstream>
 #include <functional>
@@ -141,14 +151,19 @@ namespace
     class CameraThread
     {
     public:
-        CameraThread()
-            : worker([this] { Loop(); })
+        // onIdle: chamado a cada ~2 s sem pedidos (monitoramento das câmeras)
+        explicit CameraThread(std::function<void()> onIdle)
+            : onIdle(std::move(onIdle)), worker([this] { Loop(); })
         {
         }
 
         ~CameraThread()
         {
-            Post(nullptr);
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                stopping = true;
+            }
+            ready.notify_one();
             worker.join();
         }
 
@@ -170,20 +185,79 @@ namespace
                 std::function<void()> task;
                 {
                     std::unique_lock<std::mutex> lock(mutex);
-                    ready.wait(lock, [this] { return !tasks.empty(); });
+                    ready.wait_for(lock, std::chrono::seconds(2), [this] { return stopping || !tasks.empty(); });
+                    if (!tasks.empty())
+                    {
+                        task = std::move(tasks.front());
+                        tasks.pop_front();
+                    }
+                    else if (stopping)
+                    {
+                        break;
+                    }
+                }
+
+                if (task)
+                    task();
+                else if (onIdle)
+                    onIdle();
+            }
+            Platform::EndSdkThread();
+        }
+
+        std::function<void()> onIdle;
+        std::mutex mutex;
+        std::condition_variable ready;
+        std::deque<std::function<void()>> tasks;
+        bool stopping = false;
+        std::thread worker;
+    };
+
+    // Gera prévias de fotos fora da thread da janela (uma de cada vez)
+    class PreviewThread
+    {
+    public:
+        PreviewThread() : worker([this] { Loop(); }) {}
+        ~PreviewThread()
+        {
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                stopping = true;
+            }
+            ready.notify_one();
+            worker.join();
+        }
+        void Post(std::function<void()> task)
+        {
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                tasks.push_back(std::move(task));
+            }
+            ready.notify_one();
+        }
+
+    private:
+        void Loop()
+        {
+            while (true)
+            {
+                std::function<void()> task;
+                {
+                    std::unique_lock<std::mutex> lock(mutex);
+                    ready.wait(lock, [this] { return stopping || !tasks.empty(); });
+                    if (stopping)
+                        break;
                     task = std::move(tasks.front());
                     tasks.pop_front();
                 }
-                if (!task)
-                    break;
                 task();
             }
-            Platform::EndSdkThread();
         }
 
         std::mutex mutex;
         std::condition_variable ready;
         std::deque<std::function<void()>> tasks;
+        bool stopping = false;
         std::thread worker;
     };
 
@@ -341,14 +415,40 @@ namespace
                 .Add("name", cam->shortName)
                 .Add("model", cam->modelName)
                 .Add("connected", cam->sessionOpen && !cam->connectionLost)
+                .Add("state", (cam->sessionOpen && !cam->connectionLost) ? "connected" : "disconnected")
                 .Add("compatible", cam->onCompatibilityList);
             list += (i ? "," : "") + item.Str();
         }
         list += "]";
 
         Json event("cameras");
-        event.Raw("cameras", list).Add("outputFolder", controller.GetOutputFolder());
+        event.Raw("cameras", list);
         return event;
+    }
+
+    std::string SessionsJson(const PhotoStore& store)
+    {
+        std::string list = "[";
+        bool firstSession = true;
+        for (const auto& session : store.ListSessions())
+        {
+            std::string photos = "[";
+            for (size_t i = 0; i < session.photos.size(); ++i)
+            {
+                const auto& photo = session.photos[i];
+                Json item("photo");
+                item.Add("file", photo.file).Add("order", photo.order)
+                    .Add("camera", photo.camera).Add("previewable", photo.previewable);
+                photos += (i ? "," : "") + item.Str();
+            }
+            photos += "]";
+
+            Json item("session");
+            item.Add("name", session.name).Raw("photos", photos);
+            list += (firstSession ? "" : ",") + item.Str();
+            firstSession = false;
+        }
+        return list + "]";
     }
 
     // Lê assets/ui/index.html e embute style.css e app.js (o WebKit do Mac não
@@ -385,18 +485,37 @@ namespace
 
         webview::webview window(false, nullptr);
         window.set_title("Canon Bullet Time");
-        window.set_size(1040, 720, WEBVIEW_HINT_NONE);
-        window.set_size(820, 560, WEBVIEW_HINT_MIN);
+        window.set_size(1120, 760, WEBVIEW_HINT_NONE);
+        window.set_size(900, 600, WEBVIEW_HINT_MIN);
 
         GuiListener listener(window);
         CanonController controller;
         BulletTime bulletTime(controller, listener);
-        CameraThread cameras;
+        PhotoStore store(Platform::AppDataFolder() / "Photos");
+        PreviewThread previews;
+
         bool sdkReady = false;
         std::atomic<bool> busy{ false };
+        std::atomic<bool> allowClose{ false };
+        std::map<std::string, std::chrono::steady_clock::time_point> retryAfter;
 
-        // Mensagens de texto do núcleo vão para o painel "Details" da página
+        // Tempo real: sem pedidos pendentes, verifica as câmeras a cada ~2 s
+        CameraThread cameras([&]
+        {
+            if (!sdkReady || busy)
+                return;
+            EdsGetEvent();
+            if (controller.MaintainConnections(&listener, retryAfter))
+                listener.Emit(CamerasSnapshot(controller));
+        });
+
+        // Mensagens de texto do núcleo vão para o log da página
         SetLogSink([&listener](const std::string& message) { listener.Emit(Json("log").Add("text", message)); });
+
+        auto emitSessions = [&]
+        {
+            listener.Emit(Json("sessions").Raw("sessions", SessionsJson(store)));
+        };
 
         // Executa um pedido na thread das câmeras, avisando a página de "ocupado"
         auto run = [&](const std::string& action, std::function<void()> task)
@@ -422,6 +541,15 @@ namespace
                                                                                : "failedAfterRetry"));
         };
 
+        // Fecha o app de fato (depois que a página já resolveu as fotos)
+        auto closeNow = [&]
+        {
+            allowClose = true;
+            window.terminate();
+        };
+
+        // --- Câmeras e disparo ---
+
         window.bind("uiReady", [&](const std::string&) -> std::string
         {
             run("detect", [&]
@@ -434,12 +562,11 @@ namespace
                         listener.Emit(Json("sdkFailed"));
                         return;
                     }
+                    controller.SetOutputFolder(store.Root().string());
                 }
-                // Mostra logo a pasta de saída, antes da detecção terminar
-                listener.Emit(CamerasSnapshot(controller));
                 connect();
             });
-            return "null";
+            return Json("startup").Add("unsavedSessions", store.CountSessions()).Str();
         });
 
         window.bind("detect", [&](const std::string&) -> std::string
@@ -447,6 +574,7 @@ namespace
             run("detect", [&]
             {
                 controller.CloseSessions();
+                retryAfter.clear();
                 connect();
             });
             return "null";
@@ -462,7 +590,11 @@ namespace
                 settings.sessionCount = std::max(1, values[1]);
                 settings.downloadWaitSeconds = std::max(1, values[2]);
             }
-            run("shoot", [&, settings] { bulletTime.RunSequence(settings); });
+            run("shoot", [&, settings]
+            {
+                bulletTime.RunSequence(settings);
+                emitSessions();
+            });
             return "null";
         });
 
@@ -495,21 +627,100 @@ namespace
             return "null";
         });
 
-        window.bind("setOutputFolder", [&](const std::string& request) -> std::string
-        {
-            const auto args = ParseStringArgs(request);
-            if (args.empty() || args[0].empty())
-                return "null";
-            const std::string path = args[0];
-            run("folder", [&, path] { controller.SetOutputFolder(path); });
-            return "null";
-        });
-
         window.bind("answerScanAgain", [&](const std::string& request) -> std::string
         {
             listener.AnswerScanAgain(request.find("true") != std::string::npos);
             return "null";
         });
+
+        // --- Sessões e fotos ---
+
+        window.bind("listSessions", [&](const std::string&) -> std::string
+        {
+            return SessionsJson(store);
+        });
+
+        // getPhoto(sessão, arquivo, tamanho) -> "data:image/jpeg;base64,..." (ou null)
+        window.bind("getPhoto", [&](const std::string& id, const std::string& request, void*)
+        {
+            const auto args = ParseStringArgs(request);
+            const auto numbers = ParseIntArgs(request);
+            const std::string session = args.size() > 0 ? args[0] : "";
+            const std::string file = args.size() > 1 ? args[1] : "";
+            const int size = numbers.empty() ? 1600 : std::clamp(numbers.back(), 64, 4000);
+
+            previews.Post([&, id, session, file, size]
+            {
+                const std::string jpeg = store.Preview(session, file, size);
+                window.resolve(id, 0, jpeg.empty() ? "null" : JsonString("data:image/jpeg;base64," + Base64Encode(jpeg)));
+            });
+        }, nullptr);
+
+        // saveSessions(exitAfter): escolhe a pasta e move todas as sessões para lá
+        window.bind("saveSessions", [&](const std::string& request) -> std::string
+        {
+            const bool exitAfter = request.find("true") != std::string::npos;
+            const std::string folder = NativeWindow::ChooseFolder("Choose where to save your bullet time sessions");
+            if (folder.empty())
+            {
+                listener.Emit(Json("saveCancelled"));
+                return "null";
+            }
+
+            listener.Emit(Json("saving").Add("folder", folder));
+            previews.Post([&, folder, exitAfter]
+            {
+                std::string error;
+                const int moved = store.SaveAll(folder, error);
+                listener.Emit(Json("saved").Add("count", moved).Add("folder", folder).Add("error", error));
+                emitSessions();
+                if (exitAfter && error.empty())
+                    window.dispatch([&] { closeNow(); });
+            });
+            return "null";
+        });
+
+        window.bind("deleteSession", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (!args.empty())
+                store.DeleteSession(args[0]);
+            emitSessions();
+            return "null";
+        });
+
+        window.bind("deleteAllSessions", [&](const std::string&) -> std::string
+        {
+            store.DeleteAll();
+            emitSessions();
+            return "null";
+        });
+
+        // --- Saída ---
+
+        window.bind("exitApp", [&](const std::string& request) -> std::string
+        {
+            // exitApp(true) apaga as fotos não salvas antes de fechar
+            if (request.find("true") != std::string::npos)
+                store.DeleteAll();
+            window.dispatch([&] { closeNow(); });
+            return "null";
+        });
+
+        // Ao fechar a janela com fotos não salvas, a página pergunta o que fazer
+        if (auto native = window.window(); native.ok())
+        {
+            NativeWindow::InstallCloseGuard(native.value(), [&]
+            {
+                if (allowClose)
+                    return true;
+                const int unsaved = store.CountSessions();
+                if (unsaved == 0)
+                    return true;
+                listener.Emit(Json("confirmExit").Add("unsavedSessions", unsaved));
+                return false;
+            });
+        }
 
         window.set_html(LoadUi());
         window.run();

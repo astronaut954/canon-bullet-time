@@ -18,6 +18,10 @@ namespace Platform
     // Pasta "Downloads" do usuário (ou a pasta atual, se não for possível descobrir).
     std::filesystem::path DownloadsFolder();
 
+    // Pasta de dados do app (fotos guardadas até a pessoa salvar):
+    // Windows: %LOCALAPPDATA%\Canon Bullet Time   Mac: ~/Library/Application Support/Canon Bullet Time
+    std::filesystem::path AppDataFolder();
+
     // Converte um horário para a hora local do computador.
     std::tm LocalTime(std::time_t t);
 

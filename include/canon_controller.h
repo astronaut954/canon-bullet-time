@@ -3,6 +3,8 @@
 #include "EDSDK.h"
 #include "camera_context.h"
 #include <atomic>
+#include <chrono>
+#include <map>
 #include <vector>
 #include <set>
 #include <string>
@@ -37,6 +39,12 @@ public:
     std::set<std::string> GetFailedCameraPorts() const;
     std::vector<std::string> ConnectNewCameras(std::set<std::string>& ignoredPorts, ConnectionObserver* observer = nullptr);
     void DropFailedCameras();
+    // Tempo real: marca câmeras que desligaram e conecta as que voltaram ou chegaram.
+    // Câmeras que voltam assumem o lugar (nome e ordem) da que tinha caído.
+    // retryAfter: conexões USB que falharam e só serão tentadas de novo depois desse horário.
+    // Retorna true se algo mudou.
+    bool MaintainConnections(ConnectionObserver* observer,
+                             std::map<std::string, std::chrono::steady_clock::time_point>& retryAfter);
     void RegisterEventHandlers();
     bool SetSaveToHost();
     bool SetCapacityForAll();
@@ -71,6 +79,7 @@ private:
 
     void LogMessage(const std::string& message) const;
     void RenumberCameras();
+    EdsError OpenOneSession(CameraContext& cam, ConnectionObserver* observer);
     bool BuildCameraContext(EdsCameraRef camera, CameraContext& ctx) const;
 
     static EdsError EDSCALLBACK HandleObjectEvent(

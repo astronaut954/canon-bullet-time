@@ -137,6 +137,19 @@ Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) a
 
 The window's look is defined in `assets/ui/style.css` (colors and fonts as variables at the top).
 
+### Window app: where photos go
+
+The window app keeps every session in its own folder until you choose where to save:
+
+* Windows: `%LOCALAPPDATA%\Canon Bullet Time\Photos`
+* macOS: `~/Library/Application Support/Canon Bullet Time/Photos`
+
+**Save sessions** moves them to the folder you choose. Closing the window with unsaved
+sessions asks whether to save or delete them; if the app closes unexpectedly, the photos
+stay in that folder and the app offers to save them the next time it opens.
+
+The terminal app keeps working as before (photos go straight to `Downloads/bullet-time`).
+
 ### Updating the camera compatibility list
 
 The model list used by the app is generated from `docs/CDC_EDSDK_Compat_List.pdf`:

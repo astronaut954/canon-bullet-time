@@ -278,75 +278,203 @@ bool CanonController::DetectCameras()
     return !cameras.empty();
 }
 
-bool CanonController::OpenSessions(ConnectionObserver* observer)
+EdsError CanonController::OpenOneSession(CameraContext& cam, ConnectionObserver* observer)
 {
-    // Abre a sessão de cada câmera. Pode levar dezenas de segundos (no Mac, com câmera
+    // Abre a sessão de uma câmera. Pode levar dezenas de segundos (no Mac, com câmera
     // recém-conectada), então roda numa thread auxiliar enquanto o observador recebe
     // avisos de andamento.
+    if (observer)
+        observer->OnConnecting(cam);
+
+    const auto startTime = std::chrono::steady_clock::now();
+    std::atomic<bool> done{ false };
+    EdsError err = EDS_ERR_OK;
+    EdsCameraRef cameraRef = cam.camera;
+
+    std::thread worker([&]()
+    {
+        Platform::BeginSdkThread();
+        err = EdsOpenSession(cameraRef);
+        Platform::EndSdkThread();
+        done = true;
+    });
+
+    int tick = 0;
+    while (!done)
+    {
+        Platform::ProcessEvents(0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        ++tick;
+
+        if (observer && tick % 4 == 0)
+        {
+            const int secondsSoFar = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::steady_clock::now() - startTime).count());
+            observer->OnConnectingProgress(cam, secondsSoFar, tick / 4);
+        }
+    }
+    worker.join();
+
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
+
+    if (err == EDS_ERR_OK)
+    {
+        cam.sessionOpen = true;
+        cam.connectionLost = false;
+        if (observer)
+            observer->OnConnected(cam, seconds);
+    }
+    else
+    {
+        cam.connectionLost = true;
+        cam.lastError = err;
+        if (observer)
+            observer->OnConnectFailed(cam, static_cast<long>(err), seconds);
+    }
+
+    LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
+    return err;
+}
+
+bool CanonController::OpenSessions(ConnectionObserver* observer)
+{
     bool anySuccess = false;
 
     for (auto& cam : cameras)
     {
+        if (!cam.sessionOpen)
+            OpenOneSession(cam, observer);
+
         if (cam.sessionOpen)
-        {
             anySuccess = true;
-            continue;
-        }
-
-        if (observer)
-            observer->OnConnecting(cam);
-
-        const auto startTime = std::chrono::steady_clock::now();
-        std::atomic<bool> done{ false };
-        EdsError err = EDS_ERR_OK;
-        EdsCameraRef cameraRef = cam.camera;
-
-        std::thread worker([&]()
-        {
-            Platform::BeginSdkThread();
-            err = EdsOpenSession(cameraRef);
-            Platform::EndSdkThread();
-            done = true;
-        });
-
-        int tick = 0;
-        while (!done)
-        {
-            Platform::ProcessEvents(0);
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            ++tick;
-
-            if (observer && tick % 4 == 0)
-            {
-                const int secondsSoFar = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::steady_clock::now() - startTime).count());
-                observer->OnConnectingProgress(cam, secondsSoFar, tick / 4);
-            }
-        }
-        worker.join();
-
-        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
-
-        if (err == EDS_ERR_OK)
-        {
-            cam.sessionOpen = true;
-            cam.connectionLost = false;
-            anySuccess = true;
-            if (observer)
-                observer->OnConnected(cam, seconds);
-        }
-        else
-        {
-            cam.connectionLost = true;
-            cam.lastError = err;
-            if (observer)
-                observer->OnConnectFailed(cam, static_cast<long>(err), seconds);
-        }
-
-        LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
     }
 
     return anySuccess;
+}
+
+bool CanonController::MaintainConnections(
+    ConnectionObserver* observer,
+    std::map<std::string, std::chrono::steady_clock::time_point>& retryAfter)
+{
+    using Clock = std::chrono::steady_clock;
+    bool changed = false;
+
+    // 1) Câmeras conectadas que pararam de responder (desligadas ou desconectadas)
+    for (auto& cam : cameras)
+    {
+        if (!cam.sessionOpen || cam.camera == nullptr)
+            continue;
+
+        if (EdsSendCommand(cam.camera, kEdsCameraCommand_ExtendShutDownTimer, 0) != EDS_ERR_OK)
+        {
+            EdsRelease(cam.camera);
+            cam.camera = nullptr;
+            cam.sessionOpen = false;
+            cam.connectionLost = true;
+            changed = true;
+            LogMessage("Camera stopped responding: " + cam.shortName);
+        }
+    }
+
+    // 2) Câmeras na lista do SDK que ainda não estão conectadas
+    Platform::ProcessEvents(300);
+
+    EdsCameraListRef cameraList = nullptr;
+    if (EdsGetCameraList(&cameraList) != EDS_ERR_OK || cameraList == nullptr)
+        return changed;
+
+    EdsUInt32 count = 0;
+    EdsGetChildCount(cameraList, &count);
+
+    for (EdsUInt32 i = 0; i < count; i++)
+    {
+        EdsCameraRef ref = nullptr;
+        if (EdsGetChildAtIndex(cameraList, i, &ref) != EDS_ERR_OK || ref == nullptr)
+            continue;
+
+        CameraContext found;
+        if (!BuildCameraContext(ref, found))
+        {
+            EdsRelease(ref);
+            continue;
+        }
+
+        const bool alreadyConnected = std::any_of(cameras.begin(), cameras.end(),
+            [&](const CameraContext& c) { return c.sessionOpen && c.portName == found.portName; });
+
+        auto retry = retryAfter.find(found.portName);
+        const bool waitingRetry = retry != retryAfter.end() && Clock::now() < retry->second;
+
+        if (alreadyConnected || waitingRetry)
+        {
+            EdsRelease(ref);
+            continue;
+        }
+
+        // Lugar a ocupar: mesma conexão USB, ou a câmera do mesmo modelo que caiu
+        CameraContext* slot = nullptr;
+        for (auto& c : cameras)
+            if (!c.sessionOpen && c.portName == found.portName) { slot = &c; break; }
+        if (!slot)
+            for (auto& c : cameras)
+                if (!c.sessionOpen && c.baseShortName == found.baseShortName) { slot = &c; break; }
+
+        CameraContext candidate = slot ? *slot : found;
+        candidate.camera = ref;
+        candidate.portName = found.portName;
+        candidate.modelName = found.modelName;
+        candidate.onCompatibilityList = found.onCompatibilityList;
+        candidate.owner = this;
+
+        if (!slot)
+        {
+            // Câmera nova: próximo número do modelo e última posição na ordem
+            int maxIndex = 0;
+            int maxOrder = 0;
+            for (const auto& c : cameras)
+            {
+                if (c.baseShortName == candidate.baseShortName)
+                    maxIndex = std::max(maxIndex, c.modelIndex);
+                maxOrder = std::max(maxOrder, c.orderPrefix);
+            }
+            candidate.modelIndex = maxIndex + 1;
+            candidate.shortName = candidate.baseShortName + "_" + std::to_string(candidate.modelIndex);
+            candidate.orderPrefix = maxOrder + 1;
+        }
+
+        if (OpenOneSession(candidate, observer) == EDS_ERR_OK)
+        {
+            retryAfter.erase(found.portName);
+            if (slot)
+            {
+                if (slot->camera != nullptr)
+                    EdsRelease(slot->camera);
+                *slot = candidate;
+            }
+            else
+            {
+                cameras.push_back(candidate);
+            }
+            changed = true;
+        }
+        else
+        {
+            // Não insistir na mesma conexão a cada volta (ex.: entrada "fantasma" do SDK do Mac)
+            retryAfter[found.portName] = Clock::now() + std::chrono::seconds(15);
+            EdsRelease(ref);
+        }
+    }
+    EdsRelease(cameraList);
+
+    if (changed)
+    {
+        // Endereços na lista podem ter mudado: registra de novo os avisos de foto
+        RegisterEventHandlers();
+        SetSaveToHost();
+        SetCapacityForAll();
+    }
+
+    return changed;
 }
 
 bool CanonController::BuildCameraContext(EdsCameraRef camera, CameraContext& ctx) const
