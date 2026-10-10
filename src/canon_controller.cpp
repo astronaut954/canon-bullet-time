@@ -227,7 +227,7 @@ bool CanonController::DetectCameras()
     EdsUInt32 cameraCount = 0;
 
     // No Mac (macOS 13+), o SDK só enxerga as câmeras depois de processar eventos do sistema.
-    Platform::ProcessEvents(500);
+    Platform::ProcessEvents(1000);
 
     EdsError err = EdsGetCameraList(&cameraList);
     if (err != EDS_ERR_OK || cameraList == nullptr)
@@ -299,15 +299,13 @@ bool CanonController::DetectCameras()
 
 bool CanonController::OpenSessions()
 {
-    bool anySuccess = false;
-
+    // 1) Abre a sessão de cada câmera e mostra o progresso
+    //    (pode demorar vários segundos, ex.: câmera recém-conectada).
     for (auto& cam : cameras)
     {
         if (cam.sessionOpen)
             continue;
 
-        // Abrir a sessão pode demorar vários segundos (ex.: câmera recém-conectada),
-        // então sempre mostramos o que está acontecendo, mesmo com as mensagens detalhadas desligadas.
         std::cout << "  ⏳ Connecting to " << cam.shortName << " (" << cam.modelName << ")..." << std::flush;
         const auto startTime = std::chrono::steady_clock::now();
 
@@ -318,39 +316,68 @@ bool CanonController::OpenSessions()
         elapsed << std::fixed << std::setprecision(1) << seconds << "s";
 
         if (err == EDS_ERR_OK)
-            std::cout << " ✅ connected (" << elapsed.str() << ")\n";
-        else
-            std::cout << " ⚠️ failed, error " << err << " (" << elapsed.str() << ")\n";
-
-        LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
-
-        if (err == EDS_ERR_OK)
         {
             cam.sessionOpen = true;
-            anySuccess = true;
-            LogMessage("Session opened: " + cam.shortName);
-
-            err = EdsSetObjectEventHandler(
-                cam.camera,
-                kEdsObjectEvent_All,
-                HandleObjectEvent,
-                &cam
-            );
-
-            LogMessage("SetObjectEventHandler return [" + cam.shortName + "]: " + std::to_string(err));
-
-            if (err == EDS_ERR_OK)
-                LogMessage("Callback registered: " + cam.shortName);
-            else
-                LogMessage("Failed to register callback: " + cam.shortName);
+            std::cout << " ✅ connected (" << elapsed.str() << ")\n";
         }
         else
         {
-            LogMessage("Failed to open session: " + cam.shortName);
+            cam.lastError = err;
+            std::cout << " ⚠️ not available, error " << err << " (" << elapsed.str() << ") — ignored\n";
+        }
+
+        LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
+    }
+
+    // 2) Câmeras que não abriram saem da lista. Isso evita "câmeras fantasma"
+    //    (ex.: no Mac, o SDK às vezes mantém na lista uma câmera que foi desconectada).
+    for (auto& cam : cameras)
+    {
+        if (!cam.sessionOpen && cam.camera != nullptr)
+        {
+            EdsRelease(cam.camera);
+            cam.camera = nullptr;
         }
     }
 
-    return anySuccess;
+    cameras.erase(
+        std::remove_if(cameras.begin(), cameras.end(),
+            [](const CameraContext& cam) { return !cam.sessionOpen; }),
+        cameras.end()
+    );
+
+    // 3) Renumera nomes e ordem só com as câmeras que realmente conectaram.
+    std::unordered_map<std::string, int> modelCounters;
+    for (size_t i = 0; i < cameras.size(); ++i)
+    {
+        auto& cam = cameras[i];
+        cam.modelIndex = ++modelCounters[cam.baseShortName];
+        cam.shortName = cam.baseShortName + "_" + std::to_string(cam.modelIndex);
+        cam.orderPrefix = static_cast<int>(i) + 1;
+    }
+
+    // 4) Registra os avisos de foto pronta. Feito só depois de a lista estar final,
+    //    porque o SDK guarda o endereço de cada câmera na lista.
+    for (auto& cam : cameras)
+    {
+        LogMessage("Session opened: " + cam.shortName);
+
+        EdsError err = EdsSetObjectEventHandler(
+            cam.camera,
+            kEdsObjectEvent_All,
+            HandleObjectEvent,
+            &cam
+        );
+
+        LogMessage("SetObjectEventHandler return [" + cam.shortName + "]: " + std::to_string(err));
+
+        if (err == EDS_ERR_OK)
+            LogMessage("Callback registered: " + cam.shortName);
+        else
+            LogMessage("Failed to register callback: " + cam.shortName);
+    }
+
+    return !cameras.empty();
 }
 
 bool CanonController::SetSaveToHost()
