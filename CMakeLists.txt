@@ -59,87 +59,112 @@ foreach(_f ${EDSDK_REQUIRED_FILES})
 endforeach()
 
 # ---------------------------------------------------------------------------
-# Programa
+# Núcleo + plataforma (compartilhado pelo terminal e pela interface gráfica)
 # ---------------------------------------------------------------------------
-# Núcleo (câmeras, sequência de disparo) e interface de terminal
-set(CBT_SOURCES
+option(CBT_BUILD_GUI "Compilar também a interface gráfica" ON)
+
+set(CBT_CORE_SOURCES
     src/core/canon_controller.cpp
     src/core/bullet_time.cpp
     src/core/sdk_diagnostics.cpp
     src/core/path_utils.cpp
-    src/cli/main.cpp
 )
 
 # Código específico de cada sistema (ver include/platform/platform.h)
 if(WIN32)
-    list(APPEND CBT_SOURCES
+    list(APPEND CBT_CORE_SOURCES
         src/platform/windows/platform_windows.cpp
         src/platform/windows/audio_player_windows.cpp
     )
 else()
-    list(APPEND CBT_SOURCES
+    list(APPEND CBT_CORE_SOURCES
         src/platform/macos/platform_macos.cpp
         src/platform/macos/audio_player_macos.cpp
     )
 endif()
 
-add_executable(CanonBulletTime ${CBT_SOURCES})
+add_library(cbt_core STATIC ${CBT_CORE_SOURCES})
 
-set_target_properties(CanonBulletTime PROPERTIES
-    OUTPUT_NAME "Canon Bullet Time"
-)
-
-target_include_directories(CanonBulletTime PRIVATE
+target_include_directories(cbt_core PUBLIC
     include
+    src/core
     "${EDSDK_INCLUDE_DIR}"
 )
 
 if(WIN32)
-    target_compile_definitions(CanonBulletTime PRIVATE
-        _CONSOLE
-        UNICODE
-        _UNICODE
-    )
+    target_compile_definitions(cbt_core PUBLIC UNICODE _UNICODE)
 
     if(MSVC)
         # Mesmas opções do projeto Visual Studio anterior
-        target_compile_options(CanonBulletTime PRIVATE /W3 /sdl /permissive-)
+        target_compile_options(cbt_core PUBLIC /W3 /sdl /permissive-)
     endif()
 
-    target_link_libraries(CanonBulletTime PRIVATE
+    target_link_libraries(cbt_core PUBLIC
         "${EDSDK_LIB}"
         winmm
     )
-
-    # Copia DLLs do SDK e os áudios para junto do .exe, para rodar direto da pasta de build
-    add_custom_command(TARGET CanonBulletTime POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${EDSDK_DLLS} "$<TARGET_FILE_DIR:CanonBulletTime>"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:CanonBulletTime>/assets"
-        VERBATIM
-    )
 else()
     # O SDK da Canon para Mac exige esta macro para escolher os tipos do macOS
-    target_compile_definitions(CanonBulletTime PRIVATE __MACOS__)
+    target_compile_definitions(cbt_core PUBLIC __MACOS__)
 
-    target_compile_options(CanonBulletTime PRIVATE "-F${EDSDK_FRAMEWORK_DIR}")
-    target_link_options(CanonBulletTime PRIVATE "-F${EDSDK_FRAMEWORK_DIR}")
-    target_link_libraries(CanonBulletTime PRIVATE
+    target_compile_options(cbt_core PUBLIC "-F${EDSDK_FRAMEWORK_DIR}")
+    target_link_options(cbt_core PUBLIC "-F${EDSDK_FRAMEWORK_DIR}")
+    target_link_libraries(cbt_core PUBLIC
         "-framework EDSDK"
         "-framework CoreFoundation"
     )
+endif()
 
-    # O programa procura o EDSDK.framework na pasta "Frameworks" ao lado dele
-    set_target_properties(CanonBulletTime PROPERTIES
-        BUILD_RPATH "@executable_path/Frameworks"
-        INSTALL_RPATH "@executable_path/Frameworks"
-    )
+# Junto de cada programa: SDK da Canon e pasta assets (áudios e interface)
+function(cbt_copy_runtime_files target)
+    if(WIN32)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${EDSDK_DLLS} "$<TARGET_FILE_DIR:${target}>"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${target}>/assets"
+            VERBATIM
+        )
+    else()
+        # O programa procura o EDSDK.framework na pasta "Frameworks" ao lado dele
+        set_target_properties(${target} PROPERTIES
+            BUILD_RPATH "@executable_path/Frameworks"
+            INSTALL_RPATH "@executable_path/Frameworks"
+        )
+        # ditto preserva a estrutura e a assinatura do framework
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:${target}>/Frameworks/EDSDK.framework"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${target}>/Frameworks"
+            COMMAND ditto "${EDSDK_FRAMEWORK}" "$<TARGET_FILE_DIR:${target}>/Frameworks/EDSDK.framework"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${target}>/assets"
+            VERBATIM
+        )
+    endif()
+endfunction()
 
-    # Copia o framework (preservando a estrutura, com ditto) e os áudios para junto do programa
-    add_custom_command(TARGET CanonBulletTime POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:CanonBulletTime>/Frameworks/EDSDK.framework"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:CanonBulletTime>/Frameworks"
-        COMMAND ditto "${EDSDK_FRAMEWORK}" "$<TARGET_FILE_DIR:CanonBulletTime>/Frameworks/EDSDK.framework"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:CanonBulletTime>/assets"
-        VERBATIM
+# ---------------------------------------------------------------------------
+# Programa de terminal
+# ---------------------------------------------------------------------------
+add_executable(CanonBulletTime src/cli/main.cpp)
+set_target_properties(CanonBulletTime PROPERTIES OUTPUT_NAME "Canon Bullet Time")
+target_link_libraries(CanonBulletTime PRIVATE cbt_core)
+if(WIN32)
+    target_compile_definitions(CanonBulletTime PRIVATE _CONSOLE)
+endif()
+cbt_copy_runtime_files(CanonBulletTime)
+
+# ---------------------------------------------------------------------------
+# Interface gráfica (janela nativa com HTML/CSS; ver assets/ui)
+# ---------------------------------------------------------------------------
+if(CBT_BUILD_GUI)
+    include(FetchContent)
+    FetchContent_Declare(
+        webview
+        GIT_REPOSITORY https://github.com/webview/webview
+        GIT_TAG 0.12.0
     )
+    FetchContent_MakeAvailable(webview)
+
+    add_executable(CanonBulletTimeGui WIN32 src/gui/main_gui.cpp)
+    set_target_properties(CanonBulletTimeGui PROPERTIES OUTPUT_NAME "Canon Bullet Time GUI")
+    target_link_libraries(CanonBulletTimeGui PRIVATE cbt_core webview::core)
+    cbt_copy_runtime_files(CanonBulletTimeGui)
 endif()

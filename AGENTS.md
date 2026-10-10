@@ -33,6 +33,7 @@ etapa atual.
 | --- | --- | --- |
 | `src/core/` + `include/bullet_time.h`, `include/canon_controller.h` | Núcleo: câmeras, conexão, sequência de disparo, downloads | Não lê teclado nem escreve no terminal. Fala com a interface pelo `BulletTimeListener` (eventos) e pelo `Log()` (mensagens de texto). |
 | `src/cli/` | Interface de terminal: menus, textos, leitura do teclado | Só chama o núcleo. Os textos da tela ficam aqui. |
+| `src/gui/` + `assets/ui/` | Interface gráfica: janela nativa (biblioteca webview) com página HTML/CSS/JS | `main_gui.cpp` traduz os avisos do núcleo em eventos para a página e roda as câmeras numa thread própria. Visual em `assets/ui/style.css` (variáveis no topo). |
 | `src/platform/<sistema>/` + `include/platform/platform.h` | Tudo que muda entre Windows e Mac | Único lugar com APIs do sistema. |
 
 Os textos da tela são definidos pelo dono do projeto: manter exatamente os mesmos

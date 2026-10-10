@@ -621,7 +621,7 @@ bool CanonController::ShootAll()
         }
     }
 
-    Log("Waiting for downloads from " + std::to_string(expectedDownloads) + " camera(s)");
+    Log("Waiting for downloads from " + std::to_string(expectedDownloads.load()) + " camera(s)");
 
     // =========================
     // PHASE 1: PRESS (all)
@@ -811,12 +811,12 @@ void CanonController::ResetCameraPrefixesSequential()
 
 int CanonController::GetExpectedDownloads() const
 {
-    return expectedDownloads;
+    return expectedDownloads.load();
 }
 
 int CanonController::GetCompletedDownloads() const
 {
-    return completedDownloads;
+    return completedDownloads.load();
 }
 
 void CanonController::RefreshCameraConnectionStatus()

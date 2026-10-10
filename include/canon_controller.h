@@ -2,6 +2,7 @@
 
 #include "EDSDK.h"
 #include "camera_context.h"
+#include <atomic>
 #include <vector>
 #include <set>
 #include <string>
@@ -59,8 +60,9 @@ public:
     bool PrepareSessionFolder(int sessionIndex, int totalSessions, const std::string& shotId);
 
 private:
-    int expectedDownloads = 0;
-    int completedDownloads = 0;
+    // atômicos: no Mac o aviso de foto pronta pode chegar em outra thread
+    std::atomic<int> expectedDownloads{ 0 };
+    std::atomic<int> completedDownloads{ 0 };
 
     std::vector<CameraContext> cameras;
     fs::path baseOutputDir;

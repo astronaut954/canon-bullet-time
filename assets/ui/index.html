@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canon Bullet Time</title>
+  <!-- style.css e app.js são embutidos aqui pelo programa ao abrir a janela -->
+  <style>/*__STYLE__*/</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◉</span>
+      <span class="brand-name">Canon Bullet Time</span>
+    </div>
+    <div id="status" class="status status-idle">Starting…</div>
+  </header>
+
+  <main class="layout">
+    <!-- Câmeras -->
+    <section class="panel cameras">
+      <div class="panel-head">
+        <h2>Cameras</h2>
+        <button id="detectBtn" class="btn btn-secondary">Detect cameras</button>
+      </div>
+      <ul id="cameraList" class="camera-list"></ul>
+      <div id="noCameras" class="empty hidden">
+        <p class="empty-title">No cameras found.</p>
+        <p>Check:</p>
+        <ul>
+          <li>Turn the camera off and on again</li>
+          <li>Camera is on and not in movie mode</li>
+          <li>USB cable supports data (not charge-only)</li>
+          <li>No other app is using the camera (EOS Utility, Photos, Image Capture, Google Drive)</li>
+          <li>Your model is supported: see CDC_EDSDK_Compat_List.pdf</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Disparo -->
+    <section class="panel shoot">
+      <h2>Bullet time</h2>
+
+      <div class="fields">
+        <label class="field">
+          <span>Countdown (s)</span>
+          <input id="countdown" type="number" min="0" value="0">
+        </label>
+        <label class="field">
+          <span>Sessions</span>
+          <input id="sessions" type="number" min="1" value="1">
+        </label>
+        <label class="field">
+          <span>Download wait (s)</span>
+          <input id="downloadWait" type="number" min="1" value="10">
+        </label>
+      </div>
+
+      <label class="field field-wide">
+        <span>Output folder</span>
+        <span class="folder-row">
+          <input id="outputFolder" type="text" spellcheck="false">
+          <button id="folderBtn" class="btn btn-secondary">Save</button>
+        </span>
+      </label>
+
+      <button id="shootBtn" class="btn btn-primary btn-shoot">It's bullet time</button>
+      <p id="progress" class="progress"></p>
+    </section>
+
+    <!-- Atividade -->
+    <section class="panel activity">
+      <div class="panel-head">
+        <h2>Activity</h2>
+        <button id="detailsBtn" class="btn btn-link">Show details</button>
+      </div>
+      <ol id="activity" class="activity-list"></ol>
+      <pre id="details" class="details hidden"></pre>
+    </section>
+  </main>
+
+  <!-- Contagem regressiva em tela cheia -->
+  <div id="countdownOverlay" class="overlay hidden">
+    <div id="countdownNumber" class="countdown-number"></div>
+  </div>
+
+  <!-- Pergunta quando câmeras não reconectam -->
+  <div id="askOverlay" class="overlay hidden">
+    <div class="dialog">
+      <h3>Could not connect failed cameras.</h3>
+      <p id="askText"></p>
+      <div class="dialog-actions">
+        <button id="scanAgainBtn" class="btn btn-secondary">Scan again</button>
+        <button id="continueBtn" class="btn btn-primary">Continue with the connected cameras</button>
+      </div>
+    </div>
+  </div>
+
+  <script>/*__SCRIPT__*/</script>
+</body>
+</html>

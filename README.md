@@ -122,7 +122,7 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64-release
 ```
 
-The app is generated in `build/windows-x64/Release/`, with the SDK DLLs and audio assets next to it.
+Two apps are generated in `build/windows-x64/Release/`: `Canon Bullet Time.exe` (terminal) and `Canon Bullet Time GUI.exe` (window), with the SDK DLLs and `assets/` next to them. The first configure downloads the webview library and Microsoft WebView2 headers (internet required).
 
 ### Build (macOS, Apple Silicon)
 
@@ -133,7 +133,9 @@ cmake --preset macos-arm64
 cmake --build --preset macos-arm64-release
 ```
 
-The app is generated in `build/macos-arm64/`, with `Frameworks/EDSDK.framework` and audio assets next to it.
+Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview library (internet required).
+
+The window's look is defined in `assets/ui/style.css` (colors and fonts as variables at the top).
 
 ### Updating the camera compatibility list
 
