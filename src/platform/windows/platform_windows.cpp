@@ -57,4 +57,9 @@ namespace Platform
         localtime_s(&result, &t);
         return result;
     }
+
+    void ProcessEvents(int /*milliseconds*/)
+    {
+        // No Windows, os eventos do SDK chegam via EdsGetEvent(); nada a fazer aqui.
+    }
 }

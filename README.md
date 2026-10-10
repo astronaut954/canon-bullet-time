@@ -82,7 +82,8 @@ distributing it inside the compiled app). To build:
 2. Install it into `third_party/edsdk/` (this folder is ignored by Git):
 
    ```
-   python scripts/setup_edsdk.py path/to/EDSDK_v13.20.10_Windows.zip
+   python scripts/setup_edsdk.py path/to/EDSDK_v13.20.10_Windows.zip      # Windows
+   python3 scripts/setup_edsdk.py path/to/EDSDK_v13.20.10_Macintosh.zip   # macOS
    ```
 
 ### Build (Windows x64)
@@ -96,6 +97,17 @@ cmake --build --preset windows-x64-release
 ```
 
 The app is generated in `build/windows-x64/Release/`, with the SDK DLLs and audio assets next to it.
+
+### Build (macOS, Apple Silicon)
+
+Requires Xcode Command Line Tools (`xcode-select --install`) and CMake (`brew install cmake`).
+
+```
+cmake --preset macos-arm64
+cmake --build --preset macos-arm64-release
+```
+
+The app is generated in `build/macos-arm64/`, with `Frameworks/EDSDK.framework` and audio assets next to it.
 
 ### Canon SDK Downloads
 

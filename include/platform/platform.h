@@ -20,4 +20,8 @@ namespace Platform
 
     // Converte um horário para a hora local do computador.
     std::tm LocalTime(std::time_t t);
+
+    // Processa eventos do sistema por até `milliseconds` (0 = só os pendentes).
+    // No Mac, o SDK da Canon entrega eventos das câmeras por aqui; no Windows não faz nada.
+    void ProcessEvents(int milliseconds = 0);
 }

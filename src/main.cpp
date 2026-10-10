@@ -33,6 +33,7 @@ static void PumpSdkEvents(int totalMs, int stepMs = 50)
     while (elapsed < totalMs)
     {
         EdsGetEvent();
+        Platform::ProcessEvents();
         std::this_thread::sleep_for(std::chrono::milliseconds(stepMs));
         elapsed += stepMs;
     }
@@ -602,6 +603,7 @@ int main()
                     while (true)
                     {
                         EdsGetEvent();
+                        Platform::ProcessEvents();
                         std::this_thread::sleep_for(std::chrono::milliseconds(50));
                         elapsed += 50;
 

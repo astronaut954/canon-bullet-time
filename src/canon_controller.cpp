@@ -225,6 +225,9 @@ bool CanonController::DetectCameras()
     EdsCameraListRef cameraList = nullptr;
     EdsUInt32 cameraCount = 0;
 
+    // No Mac (macOS 13+), o SDK só enxerga as câmeras depois de processar eventos do sistema.
+    Platform::ProcessEvents(500);
+
     EdsError err = EdsGetCameraList(&cameraList);
     if (err != EDS_ERR_OK || cameraList == nullptr)
     {
