@@ -411,7 +411,7 @@ std::set<std::string> CanonController::GetFailedCameraPorts() const
     return ports;
 }
 
-int CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts)
+std::vector<std::string> CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts)
 {
     // Procura câmeras novas SEM desconectar as que já estão funcionando.
     // Entradas já conhecidas como falhas (ex.: "fantasmas" que o SDK do Mac mantém
@@ -420,7 +420,7 @@ int CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts)
 
     EdsCameraListRef cameraList = nullptr;
     if (EdsGetCameraList(&cameraList) != EDS_ERR_OK || cameraList == nullptr)
-        return 0;
+        return {};
 
     EdsUInt32 cameraCount = 0;
     EdsGetChildCount(cameraList, &cameraCount);
@@ -450,12 +450,14 @@ int CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts)
     EdsRelease(cameraList);
 
     if (added == 0)
-        return 0;
+        return {};
 
     RenumberCameras();
 
-    const size_t openBefore = std::count_if(cameras.begin(), cameras.end(),
-        [](const CameraContext& c) { return c.sessionOpen; });
+    std::set<std::string> portsBefore;
+    for (const auto& c : cameras)
+        if (c.sessionOpen)
+            portsBefore.insert(c.portName);
 
     std::cout << "\n";
     OpenSessions(true);
@@ -464,8 +466,12 @@ int CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts)
         ignoredPorts.insert(port);
     DropFailedCameras();
 
-    const size_t openAfter = cameras.size();
-    return static_cast<int>(openAfter - openBefore);
+    // Devolve o modelo (T7, SL3...) de cada câmera que acabou de conectar
+    std::vector<std::string> connectedModels;
+    for (const auto& c : cameras)
+        if (portsBefore.count(c.portName) == 0)
+            connectedModels.push_back(c.baseShortName);
+    return connectedModels;
 }
 
 std::vector<std::string> CanonController::GetFailedCameraNames() const

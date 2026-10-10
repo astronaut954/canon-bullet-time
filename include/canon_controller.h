@@ -19,7 +19,7 @@ public:
     bool OpenSessions(bool showProgress = true);
     std::vector<std::string> GetFailedCameraNames() const;
     std::set<std::string> GetFailedCameraPorts() const;
-    int ConnectNewCameras(std::set<std::string>& ignoredPorts);
+    std::vector<std::string> ConnectNewCameras(std::set<std::string>& ignoredPorts);
     void DropFailedCameras();
     void RegisterEventHandlers();
     bool SetSaveToHost();

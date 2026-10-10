@@ -56,7 +56,7 @@ static bool PrepareSessions(CanonController& controller)
     // Quando uma câmera falha ao conectar (ex.: recém-reconectada, ainda não liberada
     // pelo sistema), as câmeras que já conectaram continuam conectadas e o programa
     // procura sozinho, por até AUTO_RETRY_SECONDS, a câmera que faltou.
-    constexpr int AUTO_RETRY_SECONDS = 30;
+    constexpr int AUTO_RETRY_SECONDS = 60;
     constexpr int RETRY_INTERVAL_MS = 3000;
     static const char* const dotFrames[] = { "   ", ".  ", ".. ", "..." };
 
@@ -78,8 +78,13 @@ static bool PrepareSessions(CanonController& controller)
     if (!failed.empty())
     {
         std::set<std::string> ignoredPorts = controller.GetFailedCameraPorts();
+
+        // Modelos que faltam (os nomes T7_1, T7_2... mudam ao renumerar; o modelo não)
+        std::vector<std::string> missingModels;
+        for (const auto& name : failed)
+            missingModels.push_back(name.substr(0, name.rfind('_')));
+
         controller.DropFailedCameras();
-        size_t missing = failed.size();
 
         std::cout << "  ⚠️  Could not connect to: " << JoinNames(failed) << "\n";
 
@@ -88,7 +93,7 @@ static bool PrepareSessions(CanonController& controller)
             std::cout << "\n🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS << "s...\n";
             const auto retryStart = std::chrono::steady_clock::now();
 
-            while (missing > 0)
+            while (!missingModels.empty())
             {
                 const int waited = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
                     std::chrono::steady_clock::now() - retryStart).count());
@@ -97,17 +102,23 @@ static bool PrepareSessions(CanonController& controller)
 
                 for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 400)
                 {
-                    std::cout << "\r  ⌛ Waiting for " << JoinNames(failed)
+                    std::cout << "\r  ⌛ Waiting for " << missingModels.size()
+                              << (missingModels.size() == 1 ? " camera (" : " cameras (")
+                              << JoinNames(missingModels) << ")"
                               << dotFrames[(elapsedMs / 400) % 4] << " "
                               << waited + elapsedMs / 1000 << "s   " << std::flush;
                     PumpSdkEvents(400, 100);
                 }
 
-                const int found = controller.ConnectNewCameras(ignoredPorts);
-                missing -= std::min(missing, static_cast<size_t>(found > 0 ? found : 0));
+                for (const auto& model : controller.ConnectNewCameras(ignoredPorts))
+                {
+                    auto it = std::find(missingModels.begin(), missingModels.end(), model);
+                    if (it != missingModels.end())
+                        missingModels.erase(it);
+                }
             }
 
-            if (missing == 0)
+            if (missingModels.empty())
             {
                 std::cout << "\n  ✅ All cameras connected.\n";
                 break;
