@@ -325,13 +325,13 @@ bool CanonController::OpenSessions()
             cam.sessionOpen = true;
             cam.connectionLost = false;
             anySuccess = true;
-            std::cout << " ✅ connected (" << elapsed.str() << ")\n";
+            std::cout << " ✅ Connected (" << elapsed.str() << ")\n";
         }
         else
         {
             cam.connectionLost = true;
             cam.lastError = err;
-            std::cout << " ⚠️ failed, error " << err << " (" << elapsed.str() << ")\n";
+            std::cout << " ⚠️ Failed, error " << err << " (" << elapsed.str() << ")\n";
         }
 
         LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));

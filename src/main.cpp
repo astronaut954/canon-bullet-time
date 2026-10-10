@@ -64,9 +64,10 @@ static bool PrepareSessions(CanonController& controller)
         for (const auto& name : failed)
             std::cout << " " << name;
         std::cout << "\n";
+        std::cout << "\nActions:\n";
         std::cout << "  [r]     → Scan again\n";
         std::cout << "  [Enter] → Remove them from the list and renumber the others\n";
-        std::cout << "Command: ";
+        std::cout << "Option: ";
 
         std::string answer;
         std::getline(std::cin, answer);
