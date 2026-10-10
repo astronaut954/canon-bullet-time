@@ -27,7 +27,7 @@ Designed for bullet time photography workflows.
 
 ## SDK Version
 
-* **EDSDK:** 13.20.20
+* **EDSDK:** 13.10.20 (migrating to 13.20.10)
 
 
 
@@ -65,6 +65,14 @@ Want to build, modify, or extend the project?
 
 You may need to obtain the appropriate Canon SDK depending on the cameras you want to support.
 
+### Development Roadmap
+
+This project is being organized for Windows (x64) and macOS (Apple Silicon) support.
+
+* [Roadmap](ROADMAP.md) — stages, decisions and platform status
+* [Agent rules](AGENTS.md) — working rules for AI coding agents
+* [Manual test checklist](docs/teste-manual.md)
+
 ### Canon SDK Downloads
 
 * **Canon Camera SDK Downloads**
@@ -74,7 +82,7 @@ You may need to obtain the appropriate Canon SDK depending on the cameras you wa
 
 ### Developer Notes
 
-* Current target SDK: **EDSDK 13.20.20**
+* Current SDK: **EDSDK 13.10.20** — target: **EDSDK 13.20.10**
 * Additional SDKs may be required for legacy camera support
 * Refer to `CDC_EDSDK_Compat_List.pdf` for compatibility details
 
