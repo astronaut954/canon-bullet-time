@@ -40,3 +40,4 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |
 | --- | --- | --- | --- | --- | --- |
 | 2026-10 | Windows | v1.3.0 | Canon SL3 + Canon T7 | sim | Teste de referência, antes da migração |
+| 2026-10-10 | Windows | etapa-1-cmake (CMake + EDSDK 13.20.10) | Canon SL3 + Canon T7 | sim | Checklist completa |

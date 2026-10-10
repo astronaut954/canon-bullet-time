@@ -27,7 +27,7 @@ Designed for bullet time photography workflows.
 
 ## SDK Version
 
-* **EDSDK:** 13.10.20 (migrating to 13.20.10)
+* **EDSDK:** 13.20.10
 
 
 
@@ -106,7 +106,7 @@ The app is generated in `build/windows-x64/Release/`, with the SDK DLLs and audi
 
 ### Developer Notes
 
-* Current SDK: **EDSDK 13.10.20** — target: **EDSDK 13.20.10**
+* Current SDK: **EDSDK 13.20.10**
 * Additional SDKs may be required for legacy camera support
 * Refer to `CDC_EDSDK_Compat_List.pdf` for compatibility details
 

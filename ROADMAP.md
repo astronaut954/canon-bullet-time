@@ -21,8 +21,8 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | # | Etapa | Resultado esperado | Status |
 | --- | --- | --- | --- |
 | 0 | Arrumação | Este roadmap, `AGENTS.md`, checklist de teste, README corrigido | feito |
-| 1 | CMake + SDK 13.20.10 no Windows | Mesmo `.exe` de hoje, compilado pelo CMake, usando o SDK novo. Checklist passa com câmeras. | em andamento |
-| 2 | Isolar código de Windows | Áudio, caminhos, console e funções da Microsoft atrás de interfaces de plataforma. Windows funciona igual. | depois |
+| 1 | CMake + SDK 13.20.10 no Windows | Mesmo `.exe` de hoje, compilado pelo CMake, usando o SDK novo. Checklist passa com câmeras. | feito |
+| 2 | Isolar código de Windows | Áudio, caminhos, console e funções da Microsoft atrás de interfaces de plataforma. Windows funciona igual. | próximo |
 | 3 | Versão Mac | SDK de Mac integrado, áudio e caminhos de Mac, checklist passa no Mac. Primeiro `.zip` para Mac (sem assinatura Apple por enquanto). | depois |
 | 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | depois |
 | 5 | Interface gráfica | Usa a mesma lógica do terminal. | depois |
@@ -52,13 +52,11 @@ Atualizar esta tabela sempre que uma função mudar de status.
 - **EDSDK fora do repositório:** decidido manter o SDK da Canon só dentro do
   `.zip` das versões (o que os termos da Canon permitem). Os arquivos do SDK
   saíram do repositório; cópias antigas continuam no histórico do Git.
-- **Debug x64 no `.vcxproj`:** aponta para `EDSDK\Header` e `copy_dlls.bat`,
-  que não existem. Some quando o CMake substituir o `.sln`.
 
 ## Histórico de versões do SDK
 
 | Onde | Versão em uso |
 | --- | --- |
-| Windows (máquina de build) | 13.10.20 (headers + DLLs x64) |
+| Windows (máquina de build) | 13.20.10.6402 (desde a etapa 1) |
 | GitHub | nenhum (SDK fica só na máquina de cada um) |
-| Mac | — (pacote 13.20.10 disponível em `~/Downloads/ESDK`) |
+| Mac | — (pacote 13.20.10 disponível em `~/Downloads/ESDK`, entra na etapa 3) |
