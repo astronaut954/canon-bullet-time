@@ -60,7 +60,7 @@ static bool PrepareSessions(CanonController& controller)
         if (failed.empty())
             break;
 
-        std::cout << "\n⚠️ Could not connect to:";
+        std::cout << "\n⚠️  Could not connect to:";
         for (const auto& name : failed)
             std::cout << " " << name;
         std::cout << "\n";
