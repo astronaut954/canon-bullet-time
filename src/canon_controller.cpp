@@ -2,6 +2,7 @@
 #include "logger.h"
 #include "platform/platform.h"
 
+#include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <chrono>
@@ -305,7 +306,22 @@ bool CanonController::OpenSessions()
         if (cam.sessionOpen)
             continue;
 
+        // Abrir a sessão pode demorar vários segundos (ex.: câmera recém-conectada),
+        // então sempre mostramos o que está acontecendo, mesmo com as mensagens detalhadas desligadas.
+        std::cout << "  ⏳ Connecting to " << cam.shortName << " (" << cam.modelName << ")..." << std::flush;
+        const auto startTime = std::chrono::steady_clock::now();
+
         EdsError err = EdsOpenSession(cam.camera);
+
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
+        std::ostringstream elapsed;
+        elapsed << std::fixed << std::setprecision(1) << seconds << "s";
+
+        if (err == EDS_ERR_OK)
+            std::cout << " ✅ connected (" << elapsed.str() << ")\n";
+        else
+            std::cout << " ⚠️ failed, error " << err << " (" << elapsed.str() << ")\n";
+
         LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
 
         if (err == EDS_ERR_OK)
