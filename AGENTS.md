@@ -27,6 +27,18 @@ etapa atual.
 - Não começar interface gráfica nem suporte a Sony/Nikon antes da etapa
   correspondente.
 
+## Organização do código
+
+| Pasta | O que tem | Regra |
+| --- | --- | --- |
+| `src/core/` + `include/bullet_time.h`, `include/canon_controller.h` | Núcleo: câmeras, conexão, sequência de disparo, downloads | Não lê teclado nem escreve no terminal. Fala com a interface pelo `BulletTimeListener` (eventos) e pelo `Log()` (mensagens de texto). |
+| `src/cli/` | Interface de terminal: menus, textos, leitura do teclado | Só chama o núcleo. Os textos da tela ficam aqui. |
+| `src/platform/<sistema>/` + `include/platform/platform.h` | Tudo que muda entre Windows e Mac | Único lugar com APIs do sistema. |
+
+Os textos da tela são definidos pelo dono do projeto: manter exatamente os mesmos
+emojis, espaçamentos e palavras ao mexer em `src/cli/` (ex.: `Option:` nos menus,
+dois espaços depois de `⚠️`).
+
 ## Onde as coisas estão
 
 | Item | Caminho |

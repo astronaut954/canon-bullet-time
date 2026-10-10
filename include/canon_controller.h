@@ -9,6 +9,21 @@
 
 namespace fs = std::filesystem;
 
+// Avisos sobre a conexão com cada câmera, para a interface mostrar o andamento.
+class ConnectionObserver
+{
+public:
+    virtual ~ConnectionObserver() = default;
+
+    virtual void OnConnecting(const CameraContext& /*camera*/) {}
+    // Chamado a cada ~0,4 s enquanto a conexão não termina
+    virtual void OnConnectingProgress(const CameraContext& /*camera*/, int /*seconds*/, int /*animationFrame*/) {}
+    virtual void OnConnected(const CameraContext& /*camera*/, double /*seconds*/) {}
+    virtual void OnConnectFailed(const CameraContext& /*camera*/, long /*error*/, double /*seconds*/) {}
+    // Uma câmera nova apareceu durante a espera por câmeras que faltavam
+    virtual void OnNewCamerasFound() {}
+};
+
 class CanonController
 {
 public:
@@ -16,10 +31,10 @@ public:
     void TerminateSdk();
 
     bool DetectCameras();
-    bool OpenSessions(bool showProgress = true);
+    bool OpenSessions(ConnectionObserver* observer = nullptr);
     std::vector<std::string> GetFailedCameraNames() const;
     std::set<std::string> GetFailedCameraPorts() const;
-    std::vector<std::string> ConnectNewCameras(std::set<std::string>& ignoredPorts);
+    std::vector<std::string> ConnectNewCameras(std::set<std::string>& ignoredPorts, ConnectionObserver* observer = nullptr);
     void DropFailedCameras();
     void RegisterEventHandlers();
     bool SetSaveToHost();

@@ -61,11 +61,12 @@ endforeach()
 # ---------------------------------------------------------------------------
 # Programa
 # ---------------------------------------------------------------------------
-# Código comum a todos os sistemas
+# Núcleo (câmeras, sequência de disparo) e interface de terminal
 set(CBT_SOURCES
-    src/main.cpp
-    src/canon_controller.cpp
-    src/path_utils.cpp
+    src/core/canon_controller.cpp
+    src/core/bullet_time.cpp
+    src/core/path_utils.cpp
+    src/cli/main.cpp
 )
 
 # Código específico de cada sistema (ver include/platform/platform.h)

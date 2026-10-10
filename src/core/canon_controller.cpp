@@ -277,10 +277,11 @@ bool CanonController::DetectCameras()
     return !cameras.empty();
 }
 
-bool CanonController::OpenSessions(bool showProgress)
+bool CanonController::OpenSessions(ConnectionObserver* observer)
 {
-    // Abre a sessão de cada câmera e mostra o progresso
-    // (pode demorar vários segundos, ex.: câmera recém-conectada).
+    // Abre a sessão de cada câmera. Pode levar dezenas de segundos (no Mac, com câmera
+    // recém-conectada), então roda numa thread auxiliar enquanto o observador recebe
+    // avisos de andamento.
     bool anySuccess = false;
 
     for (auto& cam : cameras)
@@ -291,13 +292,8 @@ bool CanonController::OpenSessions(bool showProgress)
             continue;
         }
 
-        // A abertura de sessão pode levar dezenas de segundos (no Mac, com câmera
-        // recém-conectada). Ela roda numa thread auxiliar para o terminal mostrar
-        // um contador de tempo enquanto isso.
-        // Enquanto espera, os "..." viram uma animação (".  ", ".. ", "...").
-        const std::string text = "  ⏳ Connecting to " + cam.shortName + " (" + cam.modelName + ")";
-        if (showProgress)
-            std::cout << text << "..." << std::flush;
+        if (observer)
+            observer->OnConnecting(cam);
 
         const auto startTime = std::chrono::steady_clock::now();
         std::atomic<bool> done{ false };
@@ -312,8 +308,6 @@ bool CanonController::OpenSessions(bool showProgress)
             done = true;
         });
 
-        static const char* const dotFrames[] = { "   ", ".  ", ".. ", "..." };
-        bool showedTimer = false;
         int tick = 0;
         while (!done)
         {
@@ -321,42 +315,31 @@ bool CanonController::OpenSessions(bool showProgress)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             ++tick;
 
-            const int secondsSoFar = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
-                std::chrono::steady_clock::now() - startTime).count());
-
-            if (showProgress && secondsSoFar >= 2 && tick % 4 == 0)
+            if (observer && tick % 4 == 0)
             {
-                showedTimer = true;
-                std::cout << "\r" << text << dotFrames[(tick / 4) % 4] << " " << secondsSoFar
-                          << "s (camera is starting up, please wait)" << std::flush;
+                const int secondsSoFar = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::steady_clock::now() - startTime).count());
+                observer->OnConnectingProgress(cam, secondsSoFar, tick / 4);
             }
         }
         worker.join();
 
-        if (showProgress && showedTimer)
-        {
-            // Apaga o contador e reescreve a linha antes do resultado
-            std::cout << "\r" << std::string(text.size() + 48, ' ') << "\r" << text << "..." << std::flush;
-        }
-
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
-        std::ostringstream elapsed;
-        elapsed << std::fixed << std::setprecision(1) << seconds << "s";
 
         if (err == EDS_ERR_OK)
         {
             cam.sessionOpen = true;
             cam.connectionLost = false;
             anySuccess = true;
-            if (showProgress)
-                std::cout << " ✅ Connected (" << elapsed.str() << ")\n";
+            if (observer)
+                observer->OnConnected(cam, seconds);
         }
         else
         {
             cam.connectionLost = true;
             cam.lastError = err;
-            if (showProgress)
-                std::cout << " ⚠️  Failed, error " << err << " (" << elapsed.str() << ")\n";
+            if (observer)
+                observer->OnConnectFailed(cam, static_cast<long>(err), seconds);
         }
 
         LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
@@ -411,7 +394,7 @@ std::set<std::string> CanonController::GetFailedCameraPorts() const
     return ports;
 }
 
-std::vector<std::string> CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts)
+std::vector<std::string> CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts, ConnectionObserver* observer)
 {
     // Procura câmeras novas SEM desconectar as que já estão funcionando.
     // Entradas já conhecidas como falhas (ex.: "fantasmas" que o SDK do Mac mantém
@@ -459,8 +442,9 @@ std::vector<std::string> CanonController::ConnectNewCameras(std::set<std::string
         if (c.sessionOpen)
             portsBefore.insert(c.portName);
 
-    std::cout << "\n";
-    OpenSessions(true);
+    if (observer)
+        observer->OnNewCamerasFound();
+    OpenSessions(observer);
 
     for (const auto& port : GetFailedCameraPorts())
         ignoredPorts.insert(port);
@@ -895,12 +879,12 @@ bool CanonController::PrepareSessionFolder(int sessionIndex, int totalSessions, 
             cam.currentShotDir = sessionDir;
         }
 
-        std::cout << "\n📁 Session folder: " << sessionDir.string() << "\n";
+        Log("\n📁 Session folder: " + sessionDir.string());
         return true;
     }
     catch (const std::exception& e)
     {
-        std::cout << "\n⚠️  Failed to create session folder: " << e.what() << "\n";
+        Log(std::string("\n⚠️  Failed to create session folder: ") + e.what());
         return false;
     }
 }
