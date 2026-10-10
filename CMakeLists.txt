@@ -169,6 +169,41 @@ if(CBT_BUILD_GUI)
     )
     FetchContent_MakeAvailable(webview stb)
 
+    # LibRaw: prévia de fotos RAW (CR2, CR3, NEF, ARW, DNG e centenas de outros
+    # formatos), usando o JPEG que a câmera embute em cada arquivo RAW.
+    # Licença: LGPL 2.1 ou CDDL 1.0, à escolha (usamos a CDDL; ver THIRD_PARTY_NOTICES.md).
+    # O LibRaw-cmake só fornece a receita de compilação do LibRaw.
+    FetchContent_Declare(
+        libraw_src
+        GIT_REPOSITORY https://github.com/LibRaw/LibRaw
+        GIT_TAG 0.21.4
+    )
+    FetchContent_Declare(
+        libraw_cmake
+        GIT_REPOSITORY https://github.com/LibRaw/LibRaw-cmake
+        GIT_TAG eb98e4325aef2ce85d2eb031c2ff18640ca616d3
+        SOURCE_SUBDIR cbt-do-not-add  # adicionado abaixo, só com o necessário
+    )
+    FetchContent_MakeAvailable(libraw_src libraw_cmake)
+
+    set(LIBRAW_PATH "${libraw_src_SOURCE_DIR}" CACHE STRING "" FORCE)
+    foreach(_opt ENABLE_OPENMP ENABLE_LCMS ENABLE_JASPER ENABLE_EXAMPLES ENABLE_RAWSPEED
+                 ENABLE_X3FTOOLS ENABLE_6BY9RPI LIBRAW_INSTALL LIBRAW_UNINSTALL_TARGET)
+        set(${_opt} OFF CACHE BOOL "" FORCE)
+    endforeach()
+    # Sem bibliotecas do sistema (zlib/libjpeg só servem a DNGs raros): o app
+    # continua sem depender de nada instalado na máquina
+    set(CMAKE_DISABLE_FIND_PACKAGE_ZLIB TRUE)
+    set(CMAKE_DISABLE_FIND_PACKAGE_JPEG TRUE)
+    set(_cbt_shared ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF)
+    set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)  # o LibRaw-cmake respeita o BUILD_SHARED_LIBS acima
+    add_subdirectory("${libraw_cmake_SOURCE_DIR}" "${libraw_cmake_BINARY_DIR}" EXCLUDE_FROM_ALL)
+    set(BUILD_SHARED_LIBS ${_cbt_shared})
+    unset(CMAKE_POLICY_DEFAULT_CMP0077)
+    unset(CMAKE_DISABLE_FIND_PACKAGE_ZLIB)
+    unset(CMAKE_DISABLE_FIND_PACKAGE_JPEG)
+
     set(CBT_GUI_SOURCES
         src/gui/main_gui.cpp
         src/gui/photo_store.cpp
@@ -182,7 +217,7 @@ if(CBT_BUILD_GUI)
     add_executable(CanonBulletTimeGui WIN32 ${CBT_GUI_SOURCES})
     set_target_properties(CanonBulletTimeGui PROPERTIES OUTPUT_NAME "Canon Bullet Time GUI")
     target_include_directories(CanonBulletTimeGui PRIVATE src/gui "${stb_SOURCE_DIR}")
-    target_link_libraries(CanonBulletTimeGui PRIVATE cbt_core webview::core)
+    target_link_libraries(CanonBulletTimeGui PRIVATE cbt_core webview::core libraw::libraw)
     if(WIN32)
         target_link_libraries(CanonBulletTimeGui PRIVATE comctl32 ole32)
     else()

@@ -5,6 +5,8 @@
 #include <atomic>
 #include <chrono>
 #include <map>
+#include <memory>
+#include <thread>
 #include <vector>
 #include <set>
 #include <string>
@@ -27,9 +29,25 @@ public:
     virtual void OnNewCamerasFound() {}
 };
 
+// Câmera que está conectando agora (para a interface mostrar)
+struct PendingConnectionInfo
+{
+    std::string name;        // nome provisório (T7_1...) ou o da câmera que caiu
+    std::string model;
+    int order = 0;           // posição atual (0 = câmera nova, ainda sem posição)
+    bool reconnecting = false;
+    bool retrying = false;   // essa conexão USB já falhou antes (nova tentativa automática)
+    int seconds = 0;
+};
+
 class CanonController
 {
 public:
+    CanonController() = default;
+    ~CanonController();
+    CanonController(const CanonController&) = delete;
+    CanonController& operator=(const CanonController&) = delete;
+
     bool InitializeSdk();
     void TerminateSdk();
 
@@ -39,12 +57,16 @@ public:
     std::set<std::string> GetFailedCameraPorts() const;
     std::vector<std::string> ConnectNewCameras(std::set<std::string>& ignoredPorts, ConnectionObserver* observer = nullptr);
     void DropFailedCameras();
-    // Tempo real: marca câmeras que desligaram e conecta as que voltaram ou chegaram.
-    // Câmeras que voltam assumem o lugar (nome e ordem) da que tinha caído.
-    // retryAfter: conexões USB que falharam e só serão tentadas de novo depois desse horário.
-    // Retorna true se algo mudou.
-    bool MaintainConnections(ConnectionObserver* observer,
-                             std::map<std::string, std::chrono::steady_clock::time_point>& retryAfter);
+    // Tempo real (interface gráfica). Chamar com frequência (ex.: a cada 0,4 s).
+    // Não bloqueia: cada câmera encontrada conecta numa thread própria, então uma
+    // câmera rápida não espera uma lenta. Marca as que pararam de responder e
+    // conecta as que voltaram ou chegaram; câmeras que voltam assumem o lugar
+    // (nome e ordem) da que tinha caído. Retorna true se a lista mudou.
+    bool MonitorTick(ConnectionObserver* observer);
+    std::vector<PendingConnectionInfo> GetPendingConnections() const;
+    bool HasPendingConnections() const;
+    // Espera as conexões em andamento terminarem e descarta o resultado.
+    void WaitPendingConnections();
     void RegisterEventHandlers();
     bool SetSaveToHost();
     bool SetCapacityForAll();
@@ -73,12 +95,35 @@ private:
     std::atomic<int> completedDownloads{ 0 };
 
     std::vector<CameraContext> cameras;
+
+    // Conexões em andamento (MonitorTick)
+    struct PendingConnection
+    {
+        CameraContext candidate;
+        std::string slotName;  // câmera que caiu e será substituída ("" = câmera nova)
+        std::chrono::steady_clock::time_point start;
+        std::chrono::steady_clock::time_point finish;
+        std::atomic<bool> done{ false };
+        EdsError result = EDS_ERR_OK;
+        std::thread worker;
+    };
+    struct PortRetry
+    {
+        std::chrono::steady_clock::time_point retryAt;
+        int failures = 0;
+    };
+    std::vector<std::unique_ptr<PendingConnection>> pending;
+    std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
+    std::chrono::steady_clock::time_point lastHealthCheck{};
+    std::chrono::steady_clock::time_point lastScan{};
+
     fs::path baseOutputDir;
     fs::path currentShotDir;
     bool verbose = true;
 
     void LogMessage(const std::string& message) const;
     void RenumberCameras();
+    int FirstFreeModelIndex(const std::string& baseShortName, bool countPending) const;
     EdsError OpenOneSession(CameraContext& cam, ConnectionObserver* observer);
     bool BuildCameraContext(EdsCameraRef camera, CameraContext& ctx) const;
 

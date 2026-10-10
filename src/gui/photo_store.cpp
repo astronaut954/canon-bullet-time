@@ -1,8 +1,14 @@
+#ifdef _WIN32
+#define NOMINMAX  // o LibRaw inclui windows.h, que define min/max
+#endif
+
 #include "photo_store.h"
 
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <iterator>
+#include <memory>
 #include <regex>
 #include <sstream>
 #include <system_error>
@@ -14,6 +20,8 @@
 #include "stb_image_resize2.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+
+#include "libraw/libraw.h"
 
 namespace fs = std::filesystem;
 
@@ -27,13 +35,6 @@ namespace
         std::ostringstream content;
         content << file.rdbuf();
         return content.str();
-    }
-
-    bool IsJpeg(const std::string& file)
-    {
-        std::string ext = fs::path(file).extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
-        return ext == ".jpg" || ext == ".jpeg";
     }
 
     // Orientação EXIF (1 = normal, 3 = 180°, 6 = 90° horário, 8 = 90° anti-horário)
@@ -78,6 +79,105 @@ namespace
             pos += 2 + length;
         }
         return 1;
+    }
+
+    std::string Extension(const std::string& file)
+    {
+        std::string ext = fs::path(file).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+        return ext;
+    }
+
+    bool IsJpeg(const std::string& file)
+    {
+        const std::string ext = Extension(file);
+        return ext == ".jpg" || ext == ".jpeg";
+    }
+
+    // Formatos RAW mais comuns (o LibRaw lê centenas de modelos desses formatos)
+    bool IsRaw(const std::string& file)
+    {
+        static const char* const kRaw[] = {
+            ".cr3", ".cr2", ".crw",          // Canon
+            ".nef", ".nrw",                  // Nikon
+            ".arw", ".srf", ".sr2",          // Sony
+            ".dng", ".raf", ".orf", ".rw2", ".pef", ".srw", ".x3f", ".3fr",
+            ".fff", ".iiq", ".mef", ".mos", ".mrw", ".erf", ".kdc", ".dcr", ".rwl",
+        };
+        const std::string ext = Extension(file);
+        return std::any_of(std::begin(kRaw), std::end(kRaw), [&](const char* e) { return ext == e; });
+    }
+
+    // Converte o "flip" do LibRaw para a orientação EXIF usada em Rotate()
+    int OrientationFromLibRawFlip(int flip)
+    {
+        switch (flip)
+        {
+        case 3: return 3;  // 180°
+        case 5: return 8;  // 90° anti-horário
+        case 6: return 6;  // 90° horário
+        default: return 1;
+        }
+    }
+
+    // Imagem RGB (3 bytes por pixel) pronta para reduzir
+    struct RgbImage
+    {
+        std::vector<unsigned char> pixels;
+        int width = 0;
+        int height = 0;
+        int orientation = 1;
+    };
+
+    bool DecodeJpeg(const std::string& jpeg, RgbImage& out)
+    {
+        int w = 0, h = 0, channels = 0;
+        unsigned char* pixels = stbi_load_from_memory(
+            reinterpret_cast<const stbi_uc*>(jpeg.data()), static_cast<int>(jpeg.size()), &w, &h, &channels, 3);
+        if (!pixels)
+            return false;
+        out.pixels.assign(pixels, pixels + static_cast<size_t>(w) * h * 3);
+        out.width = w;
+        out.height = h;
+        stbi_image_free(pixels);
+        return true;
+    }
+
+    // RAW: usa a prévia JPEG que a câmera grava dentro do arquivo (rápido e
+    // com as cores da câmera), em vez de revelar o RAW inteiro
+    bool DecodeRawPreview(const std::string& data, RgbImage& out)
+    {
+        auto raw = std::make_unique<LibRaw>();  // objeto grande: fica fora da pilha
+        if (raw->open_buffer(data.data(), data.size()) != LIBRAW_SUCCESS)
+            return false;
+        if (raw->unpack_thumb() != LIBRAW_SUCCESS)
+            return false;
+
+        const auto& thumb = raw->imgdata.thumbnail;
+        const int rawOrientation = OrientationFromLibRawFlip(raw->imgdata.sizes.flip);
+
+        if (thumb.tformat == LIBRAW_THUMBNAIL_JPEG && thumb.thumb && thumb.tlength > 0)
+        {
+            const std::string jpeg(thumb.thumb, thumb.tlength);
+            if (!DecodeJpeg(jpeg, out))
+                return false;
+            // A prévia embutida às vezes tem a própria orientação; senão vale a do RAW
+            const int own = ReadExifOrientation(jpeg);
+            out.orientation = own != 1 ? own : rawOrientation;
+            return true;
+        }
+
+        if (thumb.tformat == LIBRAW_THUMBNAIL_BITMAP && thumb.thumb && thumb.tcolors == 3
+            && thumb.tlength >= static_cast<unsigned>(thumb.twidth) * thumb.theight * 3)
+        {
+            const auto* bytes = reinterpret_cast<const unsigned char*>(thumb.thumb);
+            out.pixels.assign(bytes, bytes + static_cast<size_t>(thumb.twidth) * thumb.theight * 3);
+            out.width = thumb.twidth;
+            out.height = thumb.theight;
+            out.orientation = rawOrientation;
+            return true;
+        }
+        return false;
     }
 
     std::vector<unsigned char> Rotate(const std::vector<unsigned char>& src, int& w, int& h, int orientation)
@@ -158,7 +258,7 @@ std::vector<StoredSession> PhotoStore::ListSessions() const
                 photo.order = std::stoi(match[1].str());
                 photo.camera = match[2].str();
             }
-            photo.previewable = IsJpeg(photo.file);
+            photo.previewable = IsJpeg(photo.file) || IsRaw(photo.file);
             session.photos.push_back(photo);
         }
 
@@ -184,7 +284,7 @@ int PhotoStore::CountSessions() const
 std::string PhotoStore::Preview(const std::string& session, const std::string& file, int maxSize) const
 {
     const fs::path dir = SessionPath(session);
-    if (dir.empty() || file.find_first_of("/\\") != std::string::npos || !IsJpeg(file))
+    if (dir.empty() || file.find_first_of("/\\") != std::string::npos || !(IsJpeg(file) || IsRaw(file)))
         return "";
 
     const fs::path cache = dir / kPreviewFolder / (std::to_string(maxSize) + "_" + file);
@@ -196,16 +296,21 @@ std::string PhotoStore::Preview(const std::string& session, const std::string& f
     if (original.empty())
         return "";
 
-    int w = 0, h = 0, channels = 0;
-    unsigned char* pixels = stbi_load_from_memory(
-        reinterpret_cast<const stbi_uc*>(original.data()), static_cast<int>(original.size()), &w, &h, &channels, 3);
-    if (!pixels)
-        return "";
+    RgbImage decoded;
+    if (IsRaw(file))
+    {
+        if (!DecodeRawPreview(original, decoded))
+            return "";
+    }
+    else
+    {
+        if (!DecodeJpeg(original, decoded))
+            return "";
+        decoded.orientation = ReadExifOrientation(original);
+    }
 
-    std::vector<unsigned char> image(pixels, pixels + static_cast<size_t>(w) * h * 3);
-    stbi_image_free(pixels);
-
-    image = Rotate(image, w, h, ReadExifOrientation(original));
+    int w = decoded.width, h = decoded.height;
+    const std::vector<unsigned char> image = Rotate(decoded.pixels, w, h, decoded.orientation);
 
     const double scale = std::min(1.0, static_cast<double>(maxSize) / std::max(w, h));
     const int tw = std::max(1, static_cast<int>(w * scale));

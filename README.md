@@ -122,7 +122,7 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64-release
 ```
 
-Two apps are generated in `build/windows-x64/Release/`: `Canon Bullet Time.exe` (terminal) and `Canon Bullet Time GUI.exe` (window), with the SDK DLLs and `assets/` next to them. The first configure downloads the webview library and Microsoft WebView2 headers (internet required).
+Two apps are generated in `build/windows-x64/Release/`: `Canon Bullet Time.exe` (terminal) and `Canon Bullet Time GUI.exe` (window), with the SDK DLLs and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries and Microsoft WebView2 headers (internet required).
 
 ### Build (macOS, Apple Silicon)
 
@@ -133,7 +133,7 @@ cmake --preset macos-arm64
 cmake --build --preset macos-arm64-release
 ```
 
-Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview library (internet required).
+Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries (internet required).
 
 The window's look is defined in `assets/ui/style.css` (colors and fonts as variables at the top).
 
@@ -147,6 +147,13 @@ The window app keeps every session in its own folder until you choose where to s
 **Save sessions** moves them to the folder you choose. Closing the window with unsaved
 sessions asks whether to save or delete them; if the app closes unexpectedly, the photos
 stay in that folder and the app offers to save them the next time it opens.
+
+Cameras connect by themselves: each one connects in parallel as soon as it is turned on,
+and a camera that is turned off and on again returns to its place in the order. If a camera
+is on and plugged in but does not connect, use **Restart camera connections** in the log panel.
+
+The session viewer shows JPEG and RAW photos (CR3, CR2, NEF, ARW, DNG and other formats
+read by LibRaw), using the preview image the camera stores inside each RAW file.
 
 The terminal app keeps working as before (photos go straight to `Downloads/bullet-time`).
 
@@ -190,6 +197,7 @@ On Windows, run it from a terminal opened on the PC itself: over SSH, Git and `g
 
 ## License
 
-Released under the MIT License.
+Released under the MIT License. Third-party libraries used by the window app are listed
+in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 > Guns. Lots of cameras.

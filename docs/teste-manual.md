@@ -35,6 +35,18 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 ## 6. Saída
 - [ ] **0 – Exit** fecha o app normalmente.
 
+## 7. App com janela (Canon Bullet Time GUI)
+- [ ] Abrir o app **com as câmeras já ligadas**: cada câmera aparece conectada
+      assim que fica pronta (a rápida não espera a lenta).
+- [ ] Abrir o app e **depois** ligar as câmeras: elas aparecem sozinhas.
+- [ ] Sem nenhuma câmera: depois de alguns segundos aparece o guia "No cameras found".
+- [ ] Desligar uma câmera: ela fica "Disconnected"; religar: volta conectada no
+      mesmo lugar (mesmo nome e ordem), sem clicar em nada.
+- [ ] Disparar depois de religar uma câmera: a foto dela também chega.
+- [ ] **Restart camera connections** (no painel do log): todas reconectam.
+- [ ] Fotos em **RAW** (e RAW+JPEG): aparecem na aba Sessions.
+- [ ] Fechar com sessões não salvas: pergunta se quer salvar ou apagar.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

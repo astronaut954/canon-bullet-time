@@ -13,7 +13,7 @@ struct StoredPhoto
     std::string file;    // nome do arquivo
     int order = 0;       // posição da câmera na sequência (01, 02...)
     std::string camera;  // nome da câmera (T7_1...)
-    bool previewable = true; // JPEG; RAW não tem prévia
+    bool previewable = true; // JPEG ou RAW (prévia embutida no arquivo)
 };
 
 struct StoredSession

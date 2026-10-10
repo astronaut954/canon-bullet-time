@@ -352,121 +352,217 @@ bool CanonController::OpenSessions(ConnectionObserver* observer)
     return anySuccess;
 }
 
-bool CanonController::MaintainConnections(
-    ConnectionObserver* observer,
-    std::map<std::string, std::chrono::steady_clock::time_point>& retryAfter)
+CanonController::~CanonController()
+{
+    // Conexões ainda em andamento ao fechar: o SDK não permite interromper.
+    // As threads são soltas (e os dados delas mantidos) porque o processo está terminando.
+    for (auto& p : pending)
+    {
+        if (p->worker.joinable())
+            p->worker.detach();
+        (void)p.release();
+    }
+}
+
+bool CanonController::MonitorTick(ConnectionObserver* observer)
 {
     using Clock = std::chrono::steady_clock;
-    bool changed = false;
+    using std::chrono::seconds;
+    bool listChanged = false;
+    bool connectedChanged = false;
+
+    // No Mac, o SDK só atualiza a lista e as conexões processando eventos do sistema
+    Platform::ProcessEvents(50);
+    const auto now = Clock::now();
 
     // 1) Câmeras conectadas que pararam de responder (desligadas ou desconectadas)
-    for (auto& cam : cameras)
+    if (now - lastHealthCheck >= seconds(2))
     {
-        if (!cam.sessionOpen || cam.camera == nullptr)
-            continue;
-
-        if (EdsSendCommand(cam.camera, kEdsCameraCommand_ExtendShutDownTimer, 0) != EDS_ERR_OK)
+        lastHealthCheck = now;
+        for (auto& cam : cameras)
         {
-            EdsRelease(cam.camera);
-            cam.camera = nullptr;
-            cam.sessionOpen = false;
-            cam.connectionLost = true;
-            changed = true;
-            LogMessage("Camera stopped responding: " + cam.shortName);
+            if (!cam.sessionOpen || cam.camera == nullptr)
+                continue;
+
+            if (EdsSendCommand(cam.camera, kEdsCameraCommand_ExtendShutDownTimer, 0) != EDS_ERR_OK)
+            {
+                EdsRelease(cam.camera);
+                cam.camera = nullptr;
+                cam.sessionOpen = false;
+                cam.connectionLost = true;
+                listChanged = true;
+                LogMessage("Camera stopped responding: " + cam.shortName);
+            }
         }
     }
 
-    // 2) Câmeras na lista do SDK que ainda não estão conectadas
-    Platform::ProcessEvents(300);
-
-    EdsCameraListRef cameraList = nullptr;
-    if (EdsGetCameraList(&cameraList) != EDS_ERR_OK || cameraList == nullptr)
-        return changed;
-
-    EdsUInt32 count = 0;
-    EdsGetChildCount(cameraList, &count);
-
-    for (EdsUInt32 i = 0; i < count; i++)
+    // 2) Conexões que terminaram
+    for (auto it = pending.begin(); it != pending.end();)
     {
-        EdsCameraRef ref = nullptr;
-        if (EdsGetChildAtIndex(cameraList, i, &ref) != EDS_ERR_OK || ref == nullptr)
-            continue;
-
-        CameraContext found;
-        if (!BuildCameraContext(ref, found))
+        PendingConnection& p = **it;
+        if (!p.done)
         {
-            EdsRelease(ref);
+            ++it;
             continue;
         }
+        p.worker.join();
 
-        const bool alreadyConnected = std::any_of(cameras.begin(), cameras.end(),
-            [&](const CameraContext& c) { return c.sessionOpen && c.portName == found.portName; });
+        const double secs = std::chrono::duration<double>(p.finish - p.start).count();
+        CameraContext cam = p.candidate;
+        LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(p.result));
 
-        auto retry = retryAfter.find(found.portName);
-        const bool waitingRetry = retry != retryAfter.end() && Clock::now() < retry->second;
-
-        if (alreadyConnected || waitingRetry)
+        if (p.result == EDS_ERR_OK)
         {
-            EdsRelease(ref);
-            continue;
-        }
+            portRetry.erase(cam.portName);
+            cam.sessionOpen = true;
+            cam.connectionLost = false;
+            cam.lastError = 0;
 
-        // Lugar a ocupar: mesma conexão USB, ou a câmera do mesmo modelo que caiu
-        CameraContext* slot = nullptr;
-        for (auto& c : cameras)
-            if (!c.sessionOpen && c.portName == found.portName) { slot = &c; break; }
-        if (!slot)
-            for (auto& c : cameras)
-                if (!c.sessionOpen && c.baseShortName == found.baseShortName) { slot = &c; break; }
+            CameraContext* slot = nullptr;
+            if (!p.slotName.empty())
+                for (auto& c : cameras)
+                    if (!c.sessionOpen && c.shortName == p.slotName) { slot = &c; break; }
 
-        CameraContext candidate = slot ? *slot : found;
-        candidate.camera = ref;
-        candidate.portName = found.portName;
-        candidate.modelName = found.modelName;
-        candidate.onCompatibilityList = found.onCompatibilityList;
-        candidate.owner = this;
-
-        if (!slot)
-        {
-            // Câmera nova: próximo número do modelo e última posição na ordem
-            int maxIndex = 0;
-            int maxOrder = 0;
-            for (const auto& c : cameras)
-            {
-                if (c.baseShortName == candidate.baseShortName)
-                    maxIndex = std::max(maxIndex, c.modelIndex);
-                maxOrder = std::max(maxOrder, c.orderPrefix);
-            }
-            candidate.modelIndex = maxIndex + 1;
-            candidate.shortName = candidate.baseShortName + "_" + std::to_string(candidate.modelIndex);
-            candidate.orderPrefix = maxOrder + 1;
-        }
-
-        if (OpenOneSession(candidate, observer) == EDS_ERR_OK)
-        {
-            retryAfter.erase(found.portName);
             if (slot)
             {
                 if (slot->camera != nullptr)
                     EdsRelease(slot->camera);
-                *slot = candidate;
+                *slot = cam;
+                slot->owner = this;
+                if (observer)
+                    observer->OnConnected(*slot, secs);
             }
             else
             {
-                cameras.push_back(candidate);
+                // Câmera nova: menor número livre do modelo (T7_1, T7_2...) e último lugar na ordem
+                int maxOrder = 0;
+                for (const auto& c : cameras)
+                    maxOrder = std::max(maxOrder, c.orderPrefix);
+                cam.modelIndex = FirstFreeModelIndex(cam.baseShortName, false);
+                cam.shortName = cam.baseShortName + "_" + std::to_string(cam.modelIndex);
+                cam.orderPrefix = maxOrder + 1;
+                cam.owner = this;
+                cameras.push_back(cam);
+                if (observer)
+                    observer->OnConnected(cameras.back(), secs);
             }
-            changed = true;
+            listChanged = connectedChanged = true;
         }
         else
         {
-            // Não insistir na mesma conexão a cada volta (ex.: entrada "fantasma" do SDK do Mac)
-            retryAfter[found.portName] = Clock::now() + std::chrono::seconds(15);
-            EdsRelease(ref);
+            if (cam.camera != nullptr)
+                EdsRelease(cam.camera);
+
+            // Espera cada vez mais antes de tentar a mesma conexão (ex.: entrada
+            // "fantasma" que o SDK do Mac mantém depois de a câmera sair)
+            auto& retry = portRetry[cam.portName];
+            ++retry.failures;
+            const int waitSeconds = retry.failures == 1 ? 5 : retry.failures == 2 ? 10 : 15;
+            retry.retryAt = Clock::now() + seconds(waitSeconds);
+
+            cam.lastError = p.result;
+            if (observer && retry.failures == 1)
+                observer->OnConnectFailed(cam, static_cast<long>(p.result), secs);
+            listChanged = true;
+        }
+
+        it = pending.erase(it);
+    }
+
+    // 3) Câmeras na lista do SDK que ainda não estão conectadas: começa a conectar cada uma
+    if (now - lastScan >= seconds(1))
+    {
+        lastScan = now;
+
+        EdsCameraListRef cameraList = nullptr;
+        if (EdsGetCameraList(&cameraList) == EDS_ERR_OK && cameraList != nullptr)
+        {
+            EdsUInt32 count = 0;
+            EdsGetChildCount(cameraList, &count);
+
+            for (EdsUInt32 i = 0; i < count; i++)
+            {
+                EdsCameraRef ref = nullptr;
+                if (EdsGetChildAtIndex(cameraList, i, &ref) != EDS_ERR_OK || ref == nullptr)
+                    continue;
+
+                CameraContext found;
+                if (!BuildCameraContext(ref, found))
+                {
+                    EdsRelease(ref);
+                    continue;
+                }
+
+                const bool alreadyConnected = std::any_of(cameras.begin(), cameras.end(),
+                    [&](const CameraContext& c) { return c.sessionOpen && c.portName == found.portName; });
+                const bool alreadyConnecting = std::any_of(pending.begin(), pending.end(),
+                    [&](const std::unique_ptr<PendingConnection>& p) { return p->candidate.portName == found.portName; });
+                auto retry = portRetry.find(found.portName);
+                const bool waitingRetry = retry != portRetry.end() && now < retry->second.retryAt;
+
+                if (alreadyConnected || alreadyConnecting || waitingRetry)
+                {
+                    EdsRelease(ref);
+                    continue;
+                }
+
+                // Lugar a ocupar: mesma conexão USB, ou a câmera do mesmo modelo que caiu
+                auto reserved = [&](const CameraContext& c)
+                {
+                    return std::any_of(pending.begin(), pending.end(),
+                        [&](const std::unique_ptr<PendingConnection>& p) { return p->slotName == c.shortName; });
+                };
+                CameraContext* slot = nullptr;
+                for (auto& c : cameras)
+                    if (!c.sessionOpen && c.portName == found.portName && c.baseShortName == found.baseShortName && !reserved(c)) { slot = &c; break; }
+                if (!slot)
+                    for (auto& c : cameras)
+                        if (!c.sessionOpen && c.baseShortName == found.baseShortName && !reserved(c)) { slot = &c; break; }
+
+                auto job = std::make_unique<PendingConnection>();
+                CameraContext& candidate = job->candidate;
+                candidate = slot ? *slot : found;
+                candidate.camera = ref;
+                candidate.portName = found.portName;
+                candidate.modelName = found.modelName;
+                candidate.onCompatibilityList = found.onCompatibilityList;
+                candidate.sessionOpen = false;
+                candidate.owner = this;
+
+                if (slot)
+                {
+                    job->slotName = slot->shortName;
+                }
+                else
+                {
+                    // Nome provisório (contando as que estão conectando)
+                    candidate.modelIndex = FirstFreeModelIndex(candidate.baseShortName, true);
+                    candidate.shortName = candidate.baseShortName + "_" + std::to_string(candidate.modelIndex);
+                    candidate.orderPrefix = 0;
+                }
+
+                if (observer && (retry == portRetry.end() || retry->second.failures == 0))
+                    observer->OnConnecting(candidate);
+                LogMessage("Connecting: " + candidate.shortName + " (" + candidate.portName + ")");
+
+                job->start = Clock::now();
+                PendingConnection* raw = job.get();
+                job->worker = std::thread([raw]()
+                {
+                    Platform::BeginSdkThread();
+                    raw->result = EdsOpenSession(raw->candidate.camera);
+                    raw->finish = std::chrono::steady_clock::now();
+                    Platform::EndSdkThread();
+                    raw->done = true;
+                });
+                pending.push_back(std::move(job));
+                listChanged = true;
+            }
+            EdsRelease(cameraList);
         }
     }
-    EdsRelease(cameraList);
 
-    if (changed)
+    if (connectedChanged)
     {
         // Endereços na lista podem ter mudado: registra de novo os avisos de foto
         RegisterEventHandlers();
@@ -474,7 +570,59 @@ bool CanonController::MaintainConnections(
         SetCapacityForAll();
     }
 
-    return changed;
+    return listChanged;
+}
+
+int CanonController::FirstFreeModelIndex(const std::string& baseShortName, bool countPending) const
+{
+    for (int index = 1;; ++index)
+    {
+        const bool used = std::any_of(cameras.begin(), cameras.end(),
+            [&](const CameraContext& c) { return c.baseShortName == baseShortName && c.modelIndex == index; })
+            || (countPending && std::any_of(pending.begin(), pending.end(),
+            [&](const std::unique_ptr<PendingConnection>& p)
+            { return p->slotName.empty() && p->candidate.baseShortName == baseShortName && p->candidate.modelIndex == index; }));
+        if (!used)
+            return index;
+    }
+}
+
+std::vector<PendingConnectionInfo> CanonController::GetPendingConnections() const
+{
+    std::vector<PendingConnectionInfo> list;
+    const auto now = std::chrono::steady_clock::now();
+    for (const auto& p : pending)
+    {
+        PendingConnectionInfo info;
+        info.name = p->candidate.shortName;
+        info.model = p->candidate.modelName;
+        info.order = p->slotName.empty() ? 0 : p->candidate.orderPrefix;
+        info.reconnecting = !p->slotName.empty();
+        info.seconds = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(now - p->start).count());
+        auto retry = portRetry.find(p->candidate.portName);
+        info.retrying = retry != portRetry.end() && retry->second.failures > 0;
+        list.push_back(info);
+    }
+    return list;
+}
+
+bool CanonController::HasPendingConnections() const
+{
+    return !pending.empty();
+}
+
+void CanonController::WaitPendingConnections()
+{
+    for (auto& p : pending)
+    {
+        p->worker.join();
+        if (p->result == EDS_ERR_OK)
+            EdsCloseSession(p->candidate.camera);
+        if (p->candidate.camera != nullptr)
+            EdsRelease(p->candidate.camera);
+    }
+    pending.clear();
+    portRetry.clear();
 }
 
 bool CanonController::BuildCameraContext(EdsCameraRef camera, CameraContext& ctx) const

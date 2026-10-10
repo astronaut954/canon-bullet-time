@@ -1,8 +1,9 @@
 // Canon Bullet Time — comportamento da interface.
 // Recebe os avisos do programa em window.onCoreEvent e chama o programa pelas
-// funções que o C++ disponibiliza para a página: uiReady, detect, shoot,
-// identify, setPrefix, answerScanAgain, listSessions, getPhoto, saveSessions,
+// funções que o C++ disponibiliza para a página: uiReady, shoot, identify,
+// setPrefix, restartConnections, listSessions, getPhoto, saveSessions,
 // deleteSession, deleteAllSessions e exitApp.
+// As câmeras conectam sozinhas: a lista chega pelo aviso "cameras" sempre que muda.
 
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -11,7 +12,7 @@
     status: $("status"), saveBtn: $("saveBtn"), sessionCount: $("sessionCount"),
     tabs: document.querySelectorAll(".tab"),
     viewCapture: $("view-capture"), viewSessions: $("view-sessions"),
-    cameraList: $("cameraList"), noCameras: $("noCameras"), detectBtn: $("detectBtn"),
+    cameraList: $("cameraList"), noCameras: $("noCameras"), searching: $("searching"),
     shootBtn: $("shootBtn"), countdown: $("countdown"), sessions: $("sessions"), downloadWait: $("downloadWait"),
     progress: $("progress"),
     sessionList: $("sessionList"), noSessions: $("noSessions"),
@@ -20,6 +21,7 @@
     prevBtn: $("prevBtn"), playBtn: $("playBtn"), nextBtn: $("nextBtn"), deleteSessionBtn: $("deleteSessionBtn"),
     stageImage: $("stageImage"), stageMessage: $("stageMessage"), scrubber: $("scrubber"), filmstrip: $("filmstrip"),
     log: $("log"), logToggle: $("logToggle"), logLast: $("logLast"), logList: $("logList"), techToggle: $("techToggle"),
+    restartBtn: $("restartBtn"),
     countdownOverlay: $("countdownOverlay"), countdownNumber: $("countdownNumber"),
     dialogOverlay: $("dialogOverlay"), dialogTitle: $("dialogTitle"), dialogText: $("dialogText"), dialogActions: $("dialogActions"),
     toast: $("toast"),
@@ -27,8 +29,9 @@
 
   const DOTS = ["   ", ".  ", ".. ", "..."];
   let busy = false;
-  let cameras = [];          // última lista recebida do programa
-  let connecting = {};       // câmera -> segundos (conexão em andamento)
+  let cameras = [];          // última lista recebida do programa (inclui as que estão conectando)
+  const SEARCH_GRACE_MS = 4000; // tempo procurando antes de mostrar "nenhuma câmera"
+  const startedAt = Date.now();
   let sessions = [];
   let currentSession = null;
   let currentIndex = 0;
@@ -42,9 +45,17 @@
     ui.status.className = "status status-" + (kind || "idle");
   }
 
+  function stillSearching() {
+    return Date.now() - startedAt < SEARCH_GRACE_MS;
+  }
+
   function readyStatus() {
     const n = cameras.filter((c) => c.connected).length;
-    setStatus(n ? n + (n === 1 ? " camera ready" : " cameras ready") : "No cameras", n ? "ok" : "idle");
+    const connectingNow = cameras.filter((c) => c.state === "connecting").length;
+    if (n) setStatus(n + (n === 1 ? " camera ready" : " cameras ready") + (connectingNow ? " · " + connectingNow + " connecting" : ""), "ok");
+    else if (connectingNow) setStatus("Connecting…", "busy");
+    else if (stillSearching()) setStatus("Looking for cameras…", "busy");
+    else setStatus("No cameras", "idle");
   }
 
   // Log: linhas amigáveis + detalhes técnicos (ocultos até marcar a opção)
@@ -96,7 +107,7 @@
 
   function updateButtons() {
     const connected = cameras.filter((c) => c.connected).length;
-    ui.detectBtn.disabled = busy;
+    ui.restartBtn.disabled = busy;
     ui.shootBtn.disabled = busy || connected === 0;
     document.querySelectorAll(".camera-actions button").forEach((b) => (b.disabled = busy || b.dataset.locked === "1"));
     ui.saveBtn.disabled = sessions.length === 0;
@@ -121,19 +132,25 @@
   ui.tabs.forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
 
   // =================== Câmeras (tempo real) ===================
+  // Câmeras com posição na ordem (conectadas ou que caíram) e, no fim, as novas conectando
+  function placedCameras() {
+    return cameras.filter((c) => c.order > 0);
+  }
+
   function renderCameras() {
     ui.cameraList.innerHTML = "";
-    const pending = Object.keys(connecting).filter((n) => !cameras.some((c) => c.name === n));
-    ui.noCameras.classList.toggle("hidden", cameras.length > 0 || pending.length > 0);
+    const placed = placedCameras();
+    const empty = cameras.length === 0;
+    ui.searching.classList.toggle("hidden", !empty || !stillSearching());
+    ui.noCameras.classList.toggle("hidden", !empty || stillSearching());
 
-    cameras.forEach((cam, index) => ui.cameraList.appendChild(cameraRow(cam, index)));
-    pending.forEach((name) => ui.cameraList.appendChild(cameraRow({ name: name, model: connecting[name].model, order: 0, connected: false, compatible: true }, -1)));
+    placed.forEach((cam, index) => ui.cameraList.appendChild(cameraRow(cam, index, placed.length)));
+    cameras.filter((c) => c.order === 0).forEach((cam) => ui.cameraList.appendChild(cameraRow(cam, -1, placed.length)));
     updateButtons();
   }
 
-  function cameraRow(cam, index) {
-    const isConnecting = connecting[cam.name] !== undefined;
-    const state = isConnecting ? "connecting" : cam.connected ? "connected" : "disconnected";
+  function cameraRow(cam, index, placedCount) {
+    const state = cam.state || (cam.connected ? "connected" : "disconnected");
 
     const li = document.createElement("li");
     li.className = "camera is-" + state;
@@ -154,7 +171,7 @@
     stateLine.className = "camera-state state-" + state;
     stateLine.textContent =
       state === "connected" ? "Connected"
-      : state === "connecting" ? "Connecting" + (connecting[cam.name].seconds >= 2 ? "… " + connecting[cam.name].seconds + "s (camera is starting up)" : "…")
+      : state === "connecting" ? "Connecting" + (cam.seconds >= 2 ? "… " + cam.seconds + "s (camera is starting up)" : "…")
       : "Disconnected — turn it on to reconnect";
     info.append(name, model, stateLine);
 
@@ -171,7 +188,7 @@
       actions.append(
         smallButton("Identify", () => window.identify(cam.name), state !== "connected"),
         smallButton("↑", () => window.setPrefix(cam.name, cam.order - 1), index === 0),
-        smallButton("↓", () => window.setPrefix(cam.name, cam.order + 1), index === cameras.length - 1)
+        smallButton("↓", () => window.setPrefix(cam.name, cam.order + 1), index === placedCount - 1)
       );
     }
 
@@ -351,9 +368,9 @@
     busy(e) {
       busy = e.busy;
       if (busy) {
-        const labels = { detect: "Detecting cameras…", shoot: "Shooting…", identify: "Identifying…", reorder: "Reordering…" };
+        const labels = { restart: "Restarting connections…", shoot: "Shooting…", identify: "Identifying…", reorder: "Reordering…" };
         setStatus(labels[e.action] || "Working…", "busy");
-        if (e.action === "detect") log("🔄 Detecting cameras...", "muted");
+        if (e.action === "restart") log("🔄 Restarting camera connections...", "muted");
       } else {
         readyStatus();
       }
@@ -369,6 +386,13 @@
       cameras = e.cameras;
       renderCameras();
       if (!busy) readyStatus();
+
+      // Rodapé: quem está demorando para conectar
+      const slow = cameras.filter((c) => c.state === "connecting" && c.seconds >= 2);
+      if (slow.length) {
+        ui.logLast.textContent = "⏳ Connecting to " + slow.map((c) => c.name + " " + c.seconds + "s").join(", ") +
+          DOTS[tick++ % 4] + " (camera is starting up, please wait)";
+      }
     },
 
     sdkFailed() {
@@ -378,41 +402,15 @@
 
     // Conexão
     connecting(e) {
-      connecting[e.camera] = { seconds: 0, model: e.model };
       log("⏳ Connecting to " + e.camera + " (" + e.model + ")...", "muted");
-      renderCameras();
-    },
-    connectingProgress(e) {
-      if (!connecting[e.camera]) return;
-      connecting[e.camera].seconds = e.seconds;
-      if (e.seconds >= 2) ui.logLast.textContent = "⏳ Connecting to " + e.camera + DOTS[tick++ % 4] + " " + e.seconds + "s (camera is starting up, please wait)";
-      renderCameras();
     },
     connected(e) {
-      delete connecting[e.camera];
       log("✅ " + e.camera + " connected (" + e.seconds.toFixed(1) + "s)", "ok");
       if (!e.compatible) log("⚠️ " + e.model + " is not on Canon's compatibility list for this app.", "warn", "It may not work correctly.");
-      renderCameras();
     },
     connectFailed(e) {
-      delete connecting[e.camera];
-      log("⚠️ " + e.camera + " failed to connect, error " + e.error + " (" + e.seconds.toFixed(1) + "s)", "warn", e.hint);
-      renderCameras();
+      log("⚠️ " + e.camera + " failed to connect, error " + e.error + " (" + e.seconds.toFixed(1) + "s). Trying again automatically.", "warn", e.hint);
     },
-    camerasFailed(e) { log("⚠️ Could not connect to: " + e.names.join(", "), "warn"); },
-    retryStarted(e) { log("🔄 Retrying automatically for up to " + e.maxSeconds + "s...", "muted"); },
-    waiting(e) {
-      ui.logLast.textContent = "⌛ Waiting for " + e.models.length + (e.models.length === 1 ? " camera (" : " cameras (") + e.models.join(", ") + ")" + DOTS[tick++ % 4] + " " + e.seconds + "s";
-    },
-    allConnected() { log("✅ All cameras connected.", "ok"); },
-    retryGaveUp() { log("⚠️ Could not connect failed cameras.", "warn"); },
-    askScanAgain() {
-      dialog("Could not connect failed cameras.", "Scan again, or continue with the cameras that are connected.", [
-        { label: "Scan again", onClick: () => window.answerScanAgain(true) },
-        { label: "Continue with the connected cameras", primary: true, onClick: () => window.answerScanAgain(false) },
-      ]);
-    },
-    connectFinished(e) { if (e.result === "noCameras") log("⚠️ No cameras found.", "warn"); },
 
     // Sequência
     sessionStarted(e) {
@@ -479,7 +477,12 @@
   };
 
   // =================== Ações ===================
-  ui.detectBtn.addEventListener("click", () => window.detect());
+  ui.restartBtn.addEventListener("click", () => {
+    dialog("Restart camera connections?", "Use this if a camera is on and plugged in but does not connect. All cameras will reconnect.", [
+      { label: "Cancel" },
+      { label: "Restart", primary: true, onClick: () => window.restartConnections() },
+    ]);
+  });
   ui.shootBtn.addEventListener("click", () => {
     window.shoot(intValue(ui.countdown, 0, 0), intValue(ui.sessions, 1, 1), intValue(ui.downloadWait, 1, 10));
   });
@@ -491,6 +494,10 @@
   ui.techToggle.addEventListener("change", () => ui.logList.classList.toggle("show-tech", ui.techToggle.checked));
 
   updateButtons();
+  renderCameras();
+  readyStatus();
+  // Ao fim da procura inicial, mostra o guia se nenhuma câmera apareceu
+  setTimeout(() => { renderCameras(); if (!busy) readyStatus(); }, SEARCH_GRACE_MS + 100);
   window.uiReady().then((info) => {
     refreshSessions();
     if (info && info.unsavedSessions > 0) offerRecovery(info.unsavedSessions);

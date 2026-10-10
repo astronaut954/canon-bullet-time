@@ -87,6 +87,7 @@ input, .log-list { user-select: text; }
 }
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .panel-head h2 { margin: 0; }
+.panel-note { font-size: 12px; color: var(--muted); }
 
 /* ---------- Botões ---------- */
 .btn { font: inherit; font-size: 13px; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
@@ -188,7 +189,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .log.expanded .log-chevron { transform: rotate(180deg); }
 .log-body { flex: 1; min-height: 0; display: none; flex-direction: column; padding: 0 20px 12px; }
 .log.expanded .log-body { display: flex; }
-.log-option { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.log-options { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.log-option { font-size: 12px; color: var(--muted); }
 .log-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; font-size: 12.5px; }
 .log-list li { padding: 2px 0; }
 .log-list li.muted { color: var(--muted); }

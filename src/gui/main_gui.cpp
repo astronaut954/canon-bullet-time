@@ -4,9 +4,11 @@
 // próprio sistema (WebView2 no Windows, WebKit no Mac) dentro de uma janela
 // nativa. O trabalho com as câmeras roda numa thread própria ("thread das
 // câmeras"), usando o mesmo núcleo do terminal (BulletTime / CanonController).
+// A conexão é automática: sem pedidos, essa thread acompanha as câmeras a cada
+// ~0,4 s (CanonController::MonitorTick), e cada câmera conecta em paralelo.
 //
 // Comunicação:
-//   página -> C++ : funções JavaScript ligadas com webview::bind (detect, shoot...)
+//   página -> C++ : funções JavaScript ligadas com webview::bind (shoot, identify...)
 //   C++ -> página : window.onCoreEvent({ type: "...", ... }) via webview::dispatch
 //
 // As fotos ficam na pasta de dados do app (PhotoStore) até a pessoa escolher onde
@@ -151,7 +153,7 @@ namespace
     class CameraThread
     {
     public:
-        // onIdle: chamado a cada ~2 s sem pedidos (monitoramento das câmeras)
+        // onIdle: chamado a cada ~0,4 s sem pedidos (acompanhamento das câmeras)
         explicit CameraThread(std::function<void()> onIdle)
             : onIdle(std::move(onIdle)), worker([this] { Loop(); })
         {
@@ -185,7 +187,7 @@ namespace
                 std::function<void()> task;
                 {
                     std::unique_lock<std::mutex> lock(mutex);
-                    ready.wait_for(lock, std::chrono::seconds(2), [this] { return stopping || !tasks.empty(); });
+                    ready.wait_for(lock, std::chrono::milliseconds(400), [this] { return stopping || !tasks.empty(); });
                     if (!tasks.empty())
                     {
                         task = std::move(tasks.front());
@@ -279,17 +281,6 @@ namespace
 
         void Close() { closed = true; }
 
-        // Resposta da página para a pergunta "procurar de novo?"
-        void AnswerScanAgain(bool scanAgain)
-        {
-            {
-                std::lock_guard<std::mutex> lock(answerMutex);
-                answer = scanAgain;
-                answered = true;
-            }
-            answerReady.notify_one();
-        }
-
         // --- Conexão ---
         void OnConnecting(const CameraContext& camera) override
         {
@@ -308,35 +299,6 @@ namespace
         {
             Emit(Json("connectFailed").Add("camera", camera.shortName).Add("error", error)
                 .Add("seconds", seconds).Add("hint", DescribeConnectionError(error)));
-        }
-
-        // --- Espera por câmeras ---
-        void OnCamerasFailed(const std::vector<std::string>& names) override
-        {
-            Emit(Json("camerasFailed").Add("names", names));
-        }
-        void OnRetryStarted(int maxSeconds) override
-        {
-            Emit(Json("retryStarted").Add("maxSeconds", maxSeconds));
-        }
-        void OnWaitingForCameras(const std::vector<std::string>& models, int seconds, int) override
-        {
-            Emit(Json("waiting").Add("models", models).Add("seconds", seconds));
-        }
-        void OnAllCamerasConnected() override { Emit(Json("allConnected")); }
-        void OnRetryGaveUp() override { Emit(Json("retryGaveUp")); }
-
-        bool AskScanAgain() override
-        {
-            {
-                std::lock_guard<std::mutex> lock(answerMutex);
-                answered = false;
-            }
-            Emit(Json("askScanAgain"));
-
-            std::unique_lock<std::mutex> lock(answerMutex);
-            answerReady.wait(lock, [this] { return answered; });
-            return answer;
         }
 
         // --- Sequência ---
@@ -386,19 +348,15 @@ namespace
         webview::webview& window;
         std::atomic<bool> closed{ false };
 
-        std::mutex answerMutex;
-        std::condition_variable answerReady;
-        bool answered = false;
-        bool answer = false;
-
         int lastDone = -1;
         int lastTotal = -1;
     };
 
-    // Estado atual (lista de câmeras e pasta) para a página redesenhar
+    // Estado atual das câmeras para a página redesenhar: conectadas, desconectadas
+    // e as que estão conectando agora (com os segundos de espera)
     Json CamerasSnapshot(CanonController& controller)
     {
-        controller.RefreshCameraConnectionStatus();
+        const auto pending = controller.GetPendingConnections();
 
         std::vector<const CameraContext*> ordered;
         for (const auto& cam : controller.GetCameras())
@@ -407,17 +365,47 @@ namespace
             [](const CameraContext* a, const CameraContext* b) { return a->orderPrefix < b->orderPrefix; });
 
         std::string list = "[";
-        for (size_t i = 0; i < ordered.size(); ++i)
+        bool first = true;
+        auto addItem = [&](const Json& item)
         {
-            const auto* cam = ordered[i];
+            list += (first ? "" : ",") + item.Str();
+            first = false;
+        };
+
+        for (const auto* cam : ordered)
+        {
+            const bool connected = cam->sessionOpen && !cam->connectionLost;
+            auto reconnect = std::find_if(pending.begin(), pending.end(),
+                [&](const PendingConnectionInfo& p) { return p.reconnecting && !p.retrying && p.name == cam->shortName; });
+            const bool connecting = !connected && reconnect != pending.end();
+
             Json item("camera");
             item.Add("order", cam->orderPrefix)
                 .Add("name", cam->shortName)
                 .Add("model", cam->modelName)
-                .Add("connected", cam->sessionOpen && !cam->connectionLost)
-                .Add("state", (cam->sessionOpen && !cam->connectionLost) ? "connected" : "disconnected")
+                .Add("connected", connected)
+                .Add("state", connected ? "connected" : connecting ? "connecting" : "disconnected")
+                .Add("seconds", connecting ? reconnect->seconds : 0)
                 .Add("compatible", cam->onCompatibilityList);
-            list += (i ? "," : "") + item.Str();
+            addItem(item);
+        }
+
+        // Câmeras novas que ainda estão conectando (sem posição na ordem). Novas
+        // tentativas numa conexão que já falhou (ex.: entrada "fantasma" do SDK do
+        // Mac) não aparecem, para a lista não piscar.
+        for (const auto& p : pending)
+        {
+            if (p.reconnecting || p.retrying)
+                continue;
+            Json item("camera");
+            item.Add("order", 0)
+                .Add("name", p.name)
+                .Add("model", p.model)
+                .Add("connected", false)
+                .Add("state", "connecting")
+                .Add("seconds", p.seconds)
+                .Add("compatible", IsOnCompatibilityList(p.model));
+            addItem(item);
         }
         list += "]";
 
@@ -497,15 +485,16 @@ namespace
         bool sdkReady = false;
         std::atomic<bool> busy{ false };
         std::atomic<bool> allowClose{ false };
-        std::map<std::string, std::chrono::steady_clock::time_point> retryAfter;
 
-        // Tempo real: sem pedidos pendentes, verifica as câmeras a cada ~2 s
+        // Tempo real: sem pedidos pendentes, acompanha as câmeras a cada ~0,4 s.
+        // Cada câmera conecta em paralelo; a página recebe a lista sempre que algo
+        // muda e, enquanto alguma conecta, a cada volta (para mostrar os segundos).
         CameraThread cameras([&]
         {
             if (!sdkReady || busy)
                 return;
             EdsGetEvent();
-            if (controller.MaintainConnections(&listener, retryAfter))
+            if (controller.MonitorTick(&listener) || controller.HasPendingConnections())
                 listener.Emit(CamerasSnapshot(controller));
         });
 
@@ -532,15 +521,6 @@ namespace
             });
         };
 
-        auto connect = [&]
-        {
-            const auto result = bulletTime.ConnectCameras();
-            listener.Emit(Json("connectFinished")
-                .Add("result", result == BulletTime::ConnectResult::Connected ? "connected"
-                             : result == BulletTime::ConnectResult::NoCameras ? "noCameras"
-                                                                               : "failedAfterRetry"));
-        };
-
         // Fecha o app de fato (depois que a página já resolveu as fotos)
         auto closeNow = [&]
         {
@@ -550,32 +530,39 @@ namespace
 
         // --- Câmeras e disparo ---
 
+        auto startSdk = [&]
+        {
+            sdkReady = controller.InitializeSdk();
+            if (!sdkReady)
+            {
+                listener.Emit(Json("sdkFailed"));
+                return;
+            }
+            controller.SetOutputFolder(store.Root().string());
+        };
+
         window.bind("uiReady", [&](const std::string&) -> std::string
         {
-            run("detect", [&]
+            // Só liga o SDK: a procura e a conexão das câmeras são automáticas
+            cameras.Post([&]
             {
                 if (!sdkReady)
-                {
-                    sdkReady = controller.InitializeSdk();
-                    if (!sdkReady)
-                    {
-                        listener.Emit(Json("sdkFailed"));
-                        return;
-                    }
-                    controller.SetOutputFolder(store.Root().string());
-                }
-                connect();
+                    startSdk();
+                listener.Emit(CamerasSnapshot(controller));
             });
             return Json("startup").Add("unsavedSessions", store.CountSessions()).Str();
         });
 
-        window.bind("detect", [&](const std::string&) -> std::string
+        // Solução de problemas: desliga e liga de novo a conexão com todas as câmeras
+        window.bind("restartConnections", [&](const std::string&) -> std::string
         {
-            run("detect", [&]
+            run("restart", [&]
             {
+                controller.WaitPendingConnections();
                 controller.CloseSessions();
-                retryAfter.clear();
-                connect();
+                if (sdkReady)
+                    controller.TerminateSdk();
+                startSdk();
             });
             return "null";
         });
@@ -624,12 +611,6 @@ namespace
             const std::string name = names[0];
             const int prefix = numbers.back();
             run("reorder", [&, name, prefix] { controller.SetCameraPrefix(name, prefix); });
-            return "null";
-        });
-
-        window.bind("answerScanAgain", [&](const std::string& request) -> std::string
-        {
-            listener.AnswerScanAgain(request.find("true") != std::string::npos);
             return "null";
         });
 
@@ -725,15 +706,15 @@ namespace
         window.set_html(LoadUi());
         window.run();
 
-        // Janela fechada: nada mais vai para a página; libera uma pergunta pendente
-        // e encerra as câmeras na própria thread delas
+        // Janela fechada: nada mais vai para a página; encerra as câmeras na
+        // própria thread delas. Se alguma ainda estiver conectando, o SDK não pode
+        // ser desligado com segurança: o sistema libera tudo ao fechar o programa.
         SetLogSink([](const std::string&) {});
         listener.Close();
-        listener.AnswerScanAgain(false);
         cameras.Post([&]
         {
             controller.CloseSessions();
-            if (sdkReady)
+            if (sdkReady && !controller.HasPendingConnections())
                 controller.TerminateSdk();
         });
         return 0;
