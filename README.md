@@ -120,6 +120,17 @@ cmake --build --preset macos-arm64-release
 
 The app is generated in `build/macos-arm64/`, with `Frameworks/EDSDK.framework` and audio assets next to it.
 
+### Publishing a release
+
+Each platform packages its own zip. Run on each machine, after building:
+
+```
+python3 scripts/publish_release.py vX.Y.Z   # macOS — creates the tag and the GitHub release
+python scripts\publish_release.py vX.Y.Z    # Windows — attaches the Windows zip to the same release
+```
+
+On Windows, run it from a terminal opened on the PC itself: over SSH, Git and `gh` cannot read the Windows credential store.
+
 ### Canon SDK Downloads
 
 * **Canon Camera SDK Downloads**
