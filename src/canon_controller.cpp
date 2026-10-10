@@ -324,11 +324,10 @@ bool CanonController::OpenSessions(bool showProgress)
         // A abertura de sessão pode levar dezenas de segundos (no Mac, com câmera
         // recém-conectada). Ela roda numa thread auxiliar para o terminal mostrar
         // um contador de tempo enquanto isso.
-        // Ícone alterna entre ⏳ e ⌛ para indicar que o programa está trabalhando.
-        const std::string text = " Connecting to " + cam.shortName + " (" + cam.modelName + ")...";
-        const std::string label = "  ⏳" + text;
+        // Enquanto espera, os "..." viram uma animação (".  ", ".. ", "...").
+        const std::string text = "  ⏳ Connecting to " + cam.shortName + " (" + cam.modelName + ")";
         if (showProgress)
-            std::cout << label << std::flush;
+            std::cout << text << "..." << std::flush;
 
         const auto startTime = std::chrono::steady_clock::now();
         std::atomic<bool> done{ false };
@@ -343,6 +342,7 @@ bool CanonController::OpenSessions(bool showProgress)
             done = true;
         });
 
+        static const char* const dotFrames[] = { ".  ", ".. ", "..." };
         bool showedTimer = false;
         int tick = 0;
         while (!done)
@@ -354,11 +354,10 @@ bool CanonController::OpenSessions(bool showProgress)
             const int secondsSoFar = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::steady_clock::now() - startTime).count());
 
-            if (showProgress && secondsSoFar >= 2 && tick % 5 == 0)
+            if (showProgress && secondsSoFar >= 2 && tick % 4 == 0)
             {
                 showedTimer = true;
-                const char* icon = (tick / 5) % 2 == 0 ? "⏳" : "⌛";
-                std::cout << "\r  " << icon << text << " " << secondsSoFar
+                std::cout << "\r" << text << dotFrames[(tick / 4) % 3] << " " << secondsSoFar
                           << "s (camera is starting up, please wait)" << std::flush;
             }
         }
@@ -366,8 +365,8 @@ bool CanonController::OpenSessions(bool showProgress)
 
         if (showProgress && showedTimer)
         {
-            // Limpa o contador e reescreve a linha antes do resultado
-            std::cout << "\r" << label << std::string(48, ' ') << "\r" << label << std::flush;
+            // Apaga o contador e reescreve a linha antes do resultado
+            std::cout << "\r" << std::string(text.size() + 48, ' ') << "\r" << text << "..." << std::flush;
         }
 
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();

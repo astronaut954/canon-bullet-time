@@ -47,8 +47,13 @@ static std::string JoinNames(const std::vector<std::string>& names)
     return result;
 }
 
+// true quando PrepareSessions já explicou a falha ao usuário
+static bool g_failureAlreadyReported = false;
+
 static bool PrepareSessions(CanonController& controller)
 {
+    g_failureAlreadyReported = false;
+
     // Quando uma câmera falha ao conectar (ex.: recém-reconectada, ainda não liberada
     // pelo sistema), o programa tenta de novo sozinho por até AUTO_RETRY_SECONDS,
     // reiniciando o SDK a cada tentativa.
@@ -58,27 +63,36 @@ static bool PrepareSessions(CanonController& controller)
     controller.SetVerbose(false);
 
     bool retrying = false;
+    std::vector<std::string> lastFailed;
     auto retryStart = std::chrono::steady_clock::now();
 
     while (true)
     {
         PumpSdkEvents(500);
 
-        if (!controller.DetectCameras())
+        const bool detected = controller.DetectCameras();
+        std::vector<std::string> failed;
+
+        if (detected)
         {
+            PumpSdkEvents(300);
+            controller.OpenSessions(!retrying);
+            failed = controller.GetFailedCameraNames();
+
+            if (failed.empty())
+            {
+                if (retrying)
+                    std::cout << "\n  ✅ All cameras connected.\n";
+                break;
+            }
+
+            lastFailed = failed;
+        }
+        else if (!retrying)
+        {
+            // Nenhuma câmera encontrada (e não estávamos esperando por nenhuma)
             controller.SetVerbose(true);
             return false;
-        }
-
-        PumpSdkEvents(300);
-        controller.OpenSessions(!retrying);
-
-        const auto failed = controller.GetFailedCameraNames();
-        if (failed.empty())
-        {
-            if (retrying)
-                std::cout << "\n✅ All cameras connected.\n";
-            break;
         }
 
         const int waited = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
@@ -88,17 +102,19 @@ static bool PrepareSessions(CanonController& controller)
         {
             if (!retrying)
             {
-                std::cout << "\n⚠️  Could not connect to: " << JoinNames(failed) << "\n";
-                std::cout << "🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS << "s...\n";
+                std::cout << "  ⚠️  Could not connect to: " << JoinNames(lastFailed) << "\n";
+                std::cout << "\n🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS << "s...\n";
                 retrying = true;
             }
 
-            for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 500)
+            // Logo após reiniciar o SDK a lista pode vir vazia: continuamos esperando.
+            static const char* const dotFrames[] = { ".  ", ".. ", "..." };
+            for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 400)
             {
-                const char* icon = (elapsedMs / 500) % 2 == 0 ? "⏳" : "⌛";
-                std::cout << "\r  " << icon << " Waiting for " << JoinNames(failed) << "... "
+                std::cout << "\r  ⌛ Waiting for " << JoinNames(lastFailed)
+                          << dotFrames[(elapsedMs / 400) % 3] << " "
                           << waited + elapsedMs / 1000 << "s   " << std::flush;
-                PumpSdkEvents(500, 100);
+                PumpSdkEvents(400, 100);
             }
 
             controller.RestartSdk();
@@ -109,7 +125,15 @@ static bool PrepareSessions(CanonController& controller)
             std::cout << "\n";
         retrying = false;
 
-        std::cout << "\n⚠️  Could not connect to: " << JoinNames(failed) << "\n";
+        std::cout << "  ⚠️  Could not connect failed cameras.\n";
+
+        if (!detected)
+        {
+            g_failureAlreadyReported = true;
+            controller.SetVerbose(true);
+            return false;
+        }
+
         std::cout << "\nActions:\n";
         std::cout << "  [r]     → Scan again\n";
         std::cout << "  [Enter] → Remove them from the list and renumber the others\n";
@@ -250,7 +274,8 @@ static bool RedetectAndPrepare(CanonController& controller, bool showSuccessMess
 
     if (!PrepareSessions(controller))
     {
-        std::cout << "\n⚠️  No cameras found or failed to open sessions.\n";
+        if (!g_failureAlreadyReported)
+            std::cout << "\n⚠️  No cameras found or failed to open sessions.\n";
         return false;
     }
 
