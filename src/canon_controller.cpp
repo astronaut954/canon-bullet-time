@@ -324,7 +324,9 @@ bool CanonController::OpenSessions(bool showProgress)
         // A abertura de sessão pode levar dezenas de segundos (no Mac, com câmera
         // recém-conectada). Ela roda numa thread auxiliar para o terminal mostrar
         // um contador de tempo enquanto isso.
-        const std::string label = "  ⏳ Connecting to " + cam.shortName + " (" + cam.modelName + ")...";
+        // Ícone alterna entre ⏳ e ⌛ para indicar que o programa está trabalhando.
+        const std::string text = " Connecting to " + cam.shortName + " (" + cam.modelName + ")...";
+        const std::string label = "  ⏳" + text;
         if (showProgress)
             std::cout << label << std::flush;
 
@@ -341,24 +343,28 @@ bool CanonController::OpenSessions(bool showProgress)
             done = true;
         });
 
-        int lastShown = 0;
+        bool showedTimer = false;
+        int tick = 0;
         while (!done)
         {
             Platform::ProcessEvents(0);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            ++tick;
 
             const int secondsSoFar = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::steady_clock::now() - startTime).count());
 
-            if (showProgress && secondsSoFar >= 2 && secondsSoFar != lastShown)
+            if (showProgress && secondsSoFar >= 2 && tick % 5 == 0)
             {
-                lastShown = secondsSoFar;
-                std::cout << "\r" << label << " " << secondsSoFar << "s (camera is starting up, please wait)" << std::flush;
+                showedTimer = true;
+                const char* icon = (tick / 5) % 2 == 0 ? "⏳" : "⌛";
+                std::cout << "\r  " << icon << text << " " << secondsSoFar
+                          << "s (camera is starting up, please wait)" << std::flush;
             }
         }
         worker.join();
 
-        if (showProgress && lastShown > 0)
+        if (showProgress && showedTimer)
         {
             // Limpa o contador e reescreve a linha antes do resultado
             std::cout << "\r" << label << std::string(48, ' ') << "\r" << label << std::flush;

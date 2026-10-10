@@ -51,13 +51,12 @@ static bool PrepareSessions(CanonController& controller)
 {
     // Quando uma câmera falha ao conectar (ex.: recém-reconectada, ainda não liberada
     // pelo sistema), o programa tenta de novo sozinho por até AUTO_RETRY_SECONDS,
-    // reiniciando o SDK a cada tentativa. O usuário pode interromper com Enter.
+    // reiniciando o SDK a cada tentativa.
     constexpr int AUTO_RETRY_SECONDS = 60;
     constexpr int RETRY_INTERVAL_MS = 3000;
 
     controller.SetVerbose(false);
 
-    bool autoRetry = true;
     bool retrying = false;
     auto retryStart = std::chrono::steady_clock::now();
 
@@ -85,38 +84,25 @@ static bool PrepareSessions(CanonController& controller)
         const int waited = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::steady_clock::now() - retryStart).count());
 
-        if (autoRetry && waited < AUTO_RETRY_SECONDS)
+        if (waited < AUTO_RETRY_SECONDS)
         {
             if (!retrying)
             {
                 std::cout << "\n⚠️  Could not connect to: " << JoinNames(failed) << "\n";
-                std::cout << "🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS
-                          << "s. Press Enter to stop waiting.\n";
+                std::cout << "🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS << "s...\n";
                 retrying = true;
             }
 
-            std::cout << "\r  ⏳ Waiting for " << JoinNames(failed) << "... " << waited << "s   " << std::flush;
-
-            bool cancelled = false;
-            for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 100)
+            for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 500)
             {
-                if (Platform::InputAvailable())
-                {
-                    std::string discard;
-                    std::getline(std::cin, discard);
-                    cancelled = true;
-                    break;
-                }
-                PumpSdkEvents(100, 100);
+                const char* icon = (elapsedMs / 500) % 2 == 0 ? "⏳" : "⌛";
+                std::cout << "\r  " << icon << " Waiting for " << JoinNames(failed) << "... "
+                          << waited + elapsedMs / 1000 << "s   " << std::flush;
+                PumpSdkEvents(500, 100);
             }
 
-            if (!cancelled)
-            {
-                controller.RestartSdk();
-                continue;
-            }
-
-            autoRetry = false;
+            controller.RestartSdk();
+            continue;
         }
 
         if (retrying)
@@ -136,7 +122,6 @@ static bool PrepareSessions(CanonController& controller)
         {
             std::cout << "\n🔄 Scanning again...\n";
             controller.RestartSdk();
-            autoRetry = true;
             retryStart = std::chrono::steady_clock::now();
             continue;
         }

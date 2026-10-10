@@ -1,7 +1,6 @@
 #include "platform/platform.h"
 
 #include <windows.h>
-#include <conio.h>
 #include <objbase.h>
 #include <clocale>
 #include <cstdlib>
@@ -63,11 +62,6 @@ namespace Platform
     void ProcessEvents(int /*milliseconds*/)
     {
         // No Windows, os eventos do SDK chegam via EdsGetEvent(); nada a fazer aqui.
-    }
-
-    bool InputAvailable()
-    {
-        return _kbhit() != 0;
     }
 
     void BeginSdkThread()
