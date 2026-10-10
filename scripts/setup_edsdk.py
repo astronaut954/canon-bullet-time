@@ -14,7 +14,9 @@ O SDK da Canon não pode ser publicado no repositório (ver README).
 A pasta third_party/edsdk/ é ignorada pelo Git.
 """
 
+import os
 import shutil
+import stat
 import struct
 import sys
 import tempfile
@@ -27,6 +29,12 @@ DEST = REPO_ROOT / "third_party" / "edsdk"
 HEADERS = ["EDSDK.h", "EDSDKErrors.h", "EDSDKTypes.h"]
 DLLS = ["EDSDK.dll", "EdsImage.dll"]
 PE_X64 = 0x8664
+
+
+def _force_remove(func, path, _exc_info):
+    """Remove arquivos marcados como somente leitura (comum em DLLs vindas de zip)."""
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 
 def extract_all(zip_path: Path, target: Path) -> None:
@@ -95,7 +103,7 @@ def main() -> None:
         if DEST.exists():
             backup = DEST.with_name("edsdk_backup")
             if backup.exists():
-                shutil.rmtree(backup)
+                shutil.rmtree(backup, onerror=_force_remove)
             DEST.rename(backup)
             print(f"[BACKUP] SDK anterior movido para {backup}")
 
