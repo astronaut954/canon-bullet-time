@@ -193,6 +193,12 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
 
         controller.ShootAll();
 
+        for (const auto& cam : controller.GetCameras())
+        {
+            if (cam.sessionOpen && cam.lastShotError != 0)
+                listener.OnShotFailed(cam, cam.lastShotError);
+        }
+
         listener.OnWaitingForDownloads();
 
         const int maxWaitMs = settings.downloadWaitSeconds * 1000;

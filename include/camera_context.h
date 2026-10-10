@@ -15,6 +15,8 @@ struct CameraContext
 
     std::string modelName;
     std::string portName;   // identifica a conexão USB da câmera
+    bool onCompatibilityList = true;  // modelo está na lista da Canon usada pelo app
+    long lastShotError = 0;           // erro do último disparo (0 = ok)
     std::string shortName;
     std::string baseShortName;
 

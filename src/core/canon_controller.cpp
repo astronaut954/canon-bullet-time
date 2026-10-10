@@ -1,6 +1,7 @@
 #include "canon_controller.h"
 #include "logger.h"
 #include "platform/platform.h"
+#include "sdk_diagnostics.h"
 
 #include <iostream>
 #include <sstream>
@@ -359,6 +360,7 @@ bool CanonController::BuildCameraContext(EdsCameraRef camera, CameraContext& ctx
     ctx.connectionLost = false;
     ctx.modelName = deviceInfo.szDeviceDescription;
     ctx.portName = deviceInfo.szPortName;
+    ctx.onCompatibilityList = IsOnCompatibilityList(ctx.modelName);
 
     if (ctx.modelName.find("Rebel T7") != std::string::npos)
         ctx.baseShortName = "T7";
@@ -637,6 +639,8 @@ bool CanonController::ShootAll()
 
         LogMessage("PressShutter DOWN [" + cam.shortName + "]: " + std::to_string(errDown));
 
+        cam.lastShotError = static_cast<long>(errDown);
+
         if (errDown == EDS_ERR_OK)
         {
             anySuccess = true;
@@ -644,6 +648,9 @@ bool CanonController::ShootAll()
         else
         {
             LogMessage("Press DOWN failed: " + cam.shortName);
+            // Câmera que não disparou não vai mandar foto: não esperar por ela
+            if (expectedDownloads > 0)
+                expectedDownloads--;
         }
     }
 
@@ -666,7 +673,7 @@ bool CanonController::ShootAll()
 
         LogMessage("PressShutter OFF [" + cam.shortName + "]: " + std::to_string(errOff));
 
-        if (errOff == EDS_ERR_OK)
+        if (errOff == EDS_ERR_OK && cam.lastShotError == 0)
         {
             LogMessage("Shot triggered: " + cam.shortName);
         }

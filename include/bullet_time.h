@@ -36,6 +36,7 @@ public:
     virtual void OnCountdownStarted(int /*seconds*/) {}
     virtual void OnCountdownTick(int /*secondsLeft*/) {}
     virtual void OnTrigger() {}
+    virtual void OnShotFailed(const CameraContext& /*camera*/, long /*error*/) {}
     virtual void OnWaitingForDownloads() {}
     virtual void OnDownloadProgress(int /*done*/, int /*total*/) {}
     virtual void OnDownloadTimeout(const std::vector<const CameraContext*>& /*lostCameras*/) {}

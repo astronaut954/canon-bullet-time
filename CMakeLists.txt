@@ -65,6 +65,7 @@ endforeach()
 set(CBT_SOURCES
     src/core/canon_controller.cpp
     src/core/bullet_time.cpp
+    src/core/sdk_diagnostics.cpp
     src/core/path_utils.cpp
     src/cli/main.cpp
 )

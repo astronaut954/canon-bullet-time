@@ -5,6 +5,7 @@
 #include "bullet_time.h"
 #include "canon_controller.h"
 #include "platform/platform.h"
+#include "sdk_diagnostics.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -52,16 +53,26 @@ public:
                   << "s (camera is starting up, please wait)" << std::flush;
     }
 
-    void OnConnected(const CameraContext&, double seconds) override
+    void OnConnected(const CameraContext& camera, double seconds) override
     {
         ClearTimer();
         std::cout << " ✅ Connected (" << FormatSeconds(seconds) << ")\n";
+
+        if (!camera.onCompatibilityList)
+        {
+            std::cout << "  ⚠️  " << camera.modelName << " is not on Canon's compatibility list for this app.\n";
+            std::cout << "      It may not work correctly.\n";
+        }
     }
 
     void OnConnectFailed(const CameraContext&, long error, double seconds) override
     {
         ClearTimer();
         std::cout << " ⚠️  Failed, error " << error << " (" << FormatSeconds(seconds) << ")\n";
+
+        const std::string hint = DescribeConnectionError(error);
+        if (!hint.empty())
+            std::cout << "      " << hint << "\n";
     }
 
     void OnNewCamerasFound() override
@@ -138,6 +149,13 @@ public:
         std::cout << "\n📸 IT'S BULLET TIME!\n";
     }
 
+    void OnShotFailed(const CameraContext& camera, long error) override
+    {
+        const std::string hint = DescribeShotError(error);
+        std::cout << "  ⚠️  " << camera.shortName << " did not take the picture: "
+                  << (hint.empty() ? "error " + std::to_string(error) : hint) << ".\n";
+    }
+
     void OnWaitingForDownloads() override
     {
         std::cout << "\n📥 Waiting for downloads...\n";
@@ -206,6 +224,18 @@ static void PrintMenu()
     std::cout << "  5 - Reorder Cameras\n";
     std::cout << "  0 - Exit\n";
     std::cout << "Option: ";
+}
+
+// Orientação quando nenhuma câmera foi encontrada.
+static void PrintNoCamerasGuide()
+{
+    std::cout << "\n⚠️  No cameras found.\n";
+    std::cout << "    Check:\n";
+    std::cout << "    • Turn the camera off and on again\n";
+    std::cout << "    • Camera is on and not in movie mode\n";
+    std::cout << "    • USB cable supports data (not charge-only)\n";
+    std::cout << "    • No other app is using the camera (EOS Utility, Photos, Image Capture, Google Drive)\n";
+    std::cout << "    • Your model is supported: see CDC_EDSDK_Compat_List.pdf\n";
 }
 
 // Conecta as câmeras e descarta o que foi digitado durante esperas longas,
@@ -319,9 +349,7 @@ static bool RedetectAndPrepare(CanonController& controller, BulletTime& bulletTi
     const auto result = ConnectCameras(bulletTime);
     if (result != BulletTime::ConnectResult::Connected)
     {
-        // Em FailedAfterRetry o motivo já foi mostrado durante a espera
-        if (result == BulletTime::ConnectResult::NoCameras)
-            std::cout << "\n⚠️  No cameras found or failed to open sessions.\n";
+        PrintNoCamerasGuide();
         return false;
     }
 
@@ -500,7 +528,10 @@ int main()
 
     bool initialReady = ConnectCameras(bulletTime) == BulletTime::ConnectResult::Connected;
 
-    PrintCurrentCameras(controller);
+    if (initialReady)
+        PrintCurrentCameras(controller);
+    else
+        PrintNoCamerasGuide();
     std::cout << "\n📁 Default output folder: " << controller.GetOutputFolder() << "\n";
 
     if (!initialReady)

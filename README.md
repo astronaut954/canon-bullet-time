@@ -52,6 +52,21 @@ Designed for bullet time photography workflows.
 
 
 
+## Troubleshooting
+
+If no camera is found, check:
+
+* Turn the camera off and on again
+* Camera is on and not in movie mode
+* USB cable supports data (not charge-only)
+* No other app is using the camera (EOS Utility, Photos, Image Capture, Google Drive)
+* Your model is supported (see below)
+
+The app also warns when a connected model is not on Canon's compatibility list,
+and explains the most common connection and shooting errors.
+
+
+
 ## Compatibility
 
 Check camera compatibility in:
@@ -119,6 +134,18 @@ cmake --build --preset macos-arm64-release
 ```
 
 The app is generated in `build/macos-arm64/`, with `Frameworks/EDSDK.framework` and audio assets next to it.
+
+### Updating the camera compatibility list
+
+The model list used by the app is generated from `docs/CDC_EDSDK_Compat_List.pdf`:
+
+```
+pip install pdfplumber
+python3 scripts/update_compat_list.py v13.20.0
+```
+
+Regional model names (e.g. Rebel T7 = EOS 2000D = Kiss X90) are mapped in
+`src/core/sdk_diagnostics.cpp`.
 
 ### Publishing a release
 

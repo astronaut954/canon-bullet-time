@@ -25,6 +25,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 2 | Isolar código de Windows | Áudio, caminhos, console e funções da Microsoft atrás de interfaces de plataforma. Windows funciona igual. | feito |
 | 3 | Versão Mac | SDK de Mac integrado, áudio e caminhos de Mac, checklist passa no Mac. Primeiro `.zip` para Mac (sem assinatura Apple por enquanto). | feito |
 | 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | feito |
+| 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | em andamento |
 | 5 | Interface gráfica | Usa a mesma lógica do terminal. | depois |
 
 ### Critério para fechar uma etapa
@@ -32,6 +33,17 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 1. Compila nos sistemas que a etapa toca.
 2. `docs/teste-manual.md` passa com câmeras reais no(s) sistema(s) afetado(s).
 3. Branch volta para `main`; se fizer sentido, sai uma versão (`vX.Y.Z`).
+
+## Futuro (não planejado ainda)
+
+- **Outras marcas (Sony, Nikon).** Viável marca a marca, com câmera para testar.
+  Sony: SDK oficial gratuito, Windows 11 x64 e macOS 14.1+, ~33 modelos recentes.
+  Nikon: confirmar como o SDK atual é distribuído antes de decidir.
+- **Pesquisar a libgphoto2** (biblioteca aberta, várias marcas via PTP/USB) como
+  alternativa a um SDK por marca. Pontos a verificar: suporte no Windows e
+  precisão do disparo sincronizado.
+- **Vários SDKs da Canon ao mesmo tempo:** descartado. Os SDKs antigos não rodam em
+  64 bits / Apple Silicon e versões diferentes não convivem no mesmo programa.
 
 ## O que funciona em cada sistema
 
