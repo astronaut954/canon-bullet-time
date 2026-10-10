@@ -299,12 +299,17 @@ bool CanonController::DetectCameras()
 
 bool CanonController::OpenSessions()
 {
-    // 1) Abre a sessão de cada câmera e mostra o progresso
-    //    (pode demorar vários segundos, ex.: câmera recém-conectada).
+    // Abre a sessão de cada câmera e mostra o progresso
+    // (pode demorar vários segundos, ex.: câmera recém-conectada).
+    bool anySuccess = false;
+
     for (auto& cam : cameras)
     {
         if (cam.sessionOpen)
+        {
+            anySuccess = true;
             continue;
+        }
 
         std::cout << "  ⏳ Connecting to " << cam.shortName << " (" << cam.modelName << ")..." << std::flush;
         const auto startTime = std::chrono::steady_clock::now();
@@ -318,19 +323,39 @@ bool CanonController::OpenSessions()
         if (err == EDS_ERR_OK)
         {
             cam.sessionOpen = true;
+            cam.connectionLost = false;
+            anySuccess = true;
             std::cout << " ✅ connected (" << elapsed.str() << ")\n";
         }
         else
         {
+            cam.connectionLost = true;
             cam.lastError = err;
-            std::cout << " ⚠️ not available, error " << err << " (" << elapsed.str() << ") — ignored\n";
+            std::cout << " ⚠️ failed, error " << err << " (" << elapsed.str() << ")\n";
         }
 
         LogMessage("OpenSession return [" + cam.shortName + "]: " + std::to_string(err));
     }
 
-    // 2) Câmeras que não abriram saem da lista. Isso evita "câmeras fantasma"
-    //    (ex.: no Mac, o SDK às vezes mantém na lista uma câmera que foi desconectada).
+    return anySuccess;
+}
+
+std::vector<std::string> CanonController::GetFailedCameraNames() const
+{
+    std::vector<std::string> names;
+    for (const auto& cam : cameras)
+    {
+        if (!cam.sessionOpen)
+            names.push_back(cam.shortName);
+    }
+    return names;
+}
+
+void CanonController::DropFailedCameras()
+{
+    // Tira da lista as câmeras que não conectaram (ex.: no Mac, o SDK às vezes
+    // mantém uma câmera já desconectada) e renumera as que sobraram:
+    // T7_1 (falhou), T7_2, T7_3  ->  T7_1, T7_2
     for (auto& cam : cameras)
     {
         if (!cam.sessionOpen && cam.camera != nullptr)
@@ -346,7 +371,6 @@ bool CanonController::OpenSessions()
         cameras.end()
     );
 
-    // 3) Renumera nomes e ordem só com as câmeras que realmente conectaram.
     std::unordered_map<std::string, int> modelCounters;
     for (size_t i = 0; i < cameras.size(); ++i)
     {
@@ -355,11 +379,16 @@ bool CanonController::OpenSessions()
         cam.shortName = cam.baseShortName + "_" + std::to_string(cam.modelIndex);
         cam.orderPrefix = static_cast<int>(i) + 1;
     }
+}
 
-    // 4) Registra os avisos de foto pronta. Feito só depois de a lista estar final,
-    //    porque o SDK guarda o endereço de cada câmera na lista.
+void CanonController::RegisterEventHandlers()
+{
+    // Feito só com a lista final: o SDK guarda o endereço de cada câmera da lista.
     for (auto& cam : cameras)
     {
+        if (!cam.sessionOpen)
+            continue;
+
         LogMessage("Session opened: " + cam.shortName);
 
         EdsError err = EdsSetObjectEventHandler(
@@ -376,8 +405,6 @@ bool CanonController::OpenSessions()
         else
             LogMessage("Failed to register callback: " + cam.shortName);
     }
-
-    return !cameras.empty();
 }
 
 bool CanonController::SetSaveToHost()

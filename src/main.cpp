@@ -43,17 +43,48 @@ static bool PrepareSessions(CanonController& controller)
 {
     controller.SetVerbose(false);
 
-    PumpSdkEvents(500);
-
-    if (!controller.DetectCameras())
+    while (true)
     {
-        controller.SetVerbose(true);
-        return false;
+        PumpSdkEvents(500);
+
+        if (!controller.DetectCameras())
+        {
+            controller.SetVerbose(true);
+            return false;
+        }
+
+        PumpSdkEvents(300);
+        controller.OpenSessions();
+
+        const auto failed = controller.GetFailedCameraNames();
+        if (failed.empty())
+            break;
+
+        std::cout << "\n⚠️ Could not connect to:";
+        for (const auto& name : failed)
+            std::cout << " " << name;
+        std::cout << "\n";
+        std::cout << "  [r]     → Scan again\n";
+        std::cout << "  [Enter] → Remove them from the list and renumber the others\n";
+        std::cout << "Command: ";
+
+        std::string answer;
+        std::getline(std::cin, answer);
+
+        if (answer == "r" || answer == "R")
+        {
+            std::cout << "\n🔄 Scanning again...\n";
+            controller.CloseSessions();
+            continue;
+        }
+
+        controller.DropFailedCameras();
+        break;
     }
 
-    PumpSdkEvents(300);
+    controller.RegisterEventHandlers();
 
-    if (!controller.OpenSessions())
+    if (controller.GetCameras().empty())
     {
         controller.SetVerbose(true);
         return false;

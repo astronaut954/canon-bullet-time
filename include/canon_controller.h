@@ -16,6 +16,9 @@ public:
 
     bool DetectCameras();
     bool OpenSessions();
+    std::vector<std::string> GetFailedCameraNames() const;
+    void DropFailedCameras();
+    void RegisterEventHandlers();
     bool SetSaveToHost();
     bool SetCapacityForAll();
     bool ShootAll();
