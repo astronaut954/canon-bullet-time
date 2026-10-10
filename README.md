@@ -79,7 +79,23 @@ The Canon EDSDK is **not included** in this repository (Canon's license only all
 distributing it inside the compiled app). To build:
 
 1. Download **EDSDK 13.20.10** for your platform from the link below.
-2. Extract it into `third_party/edsdk/` (this folder is ignored by Git).
+2. Install it into `third_party/edsdk/` (this folder is ignored by Git):
+
+   ```
+   python scripts/setup_edsdk.py path/to/EDSDK_v13.20.10_Windows.zip
+   ```
+
+### Build (Windows x64)
+
+Requires Visual Studio with the "Desktop development with C++" workload (includes CMake).
+From a *Developer Command Prompt*:
+
+```
+cmake --preset windows-x64
+cmake --build --preset windows-x64-release
+```
+
+The app is generated in `build/windows-x64/Release/`, with the SDK DLLs and audio assets next to it.
 
 ### Canon SDK Downloads
 

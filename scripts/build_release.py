@@ -28,7 +28,7 @@ if not re.fullmatch(r"v\d+\.\d+\.\d+", VERSION):
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-BUILD_EXE = REPO_ROOT / "x64" / "Release" / "Canon Bullet Time.exe"
+BUILD_EXE = REPO_ROOT / "build" / "windows-x64" / "Release" / "Canon Bullet Time.exe"
 EDSDK_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EDSDK.dll"
 EDSIMAGE_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EdsImage.dll"
 
