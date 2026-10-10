@@ -113,6 +113,7 @@ private:
         int failures = 0;
     };
     std::vector<std::unique_ptr<PendingConnection>> pending;
+    std::vector<EdsCameraRef> retiredCameras;  // ver RetireCamera()
     std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
     std::chrono::steady_clock::time_point lastHealthCheck{};
     std::chrono::steady_clock::time_point lastScan{};
@@ -123,6 +124,7 @@ private:
 
     void LogMessage(const std::string& message) const;
     void RenumberCameras();
+    void RetireCamera(EdsCameraRef camera);
     int FirstFreeModelIndex(const std::string& baseShortName, bool countPending) const;
     EdsError OpenOneSession(CameraContext& cam, ConnectionObserver* observer);
     bool BuildCameraContext(EdsCameraRef camera, CameraContext& ctx) const;

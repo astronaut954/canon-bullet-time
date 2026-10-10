@@ -212,13 +212,25 @@
     (list && list.then ? list : Promise.resolve(list)).then(setSessions);
   }
 
+  // A sessão mais recente fica selecionada: ao abrir, quando chega uma sessão
+  // nova e quando a selecionada é apagada ou salva
   function setSessions(list) {
+    const known = sessions.map((x) => x.name);
     sessions = list || [];
     updateButtons();
-    renderSessionList();
-    if (currentSession && !sessions.some((s) => s.name === currentSession.name)) {
+
+    const newest = sessions[0] || null;
+    const current = currentSession && sessions.find((x) => x.name === currentSession.name);
+    const arrivedNewer = newest && known.length > 0 && !known.includes(newest.name);
+
+    if (!newest) {
       currentSession = null;
       showSession(null);
+    } else if (!current || arrivedNewer) {
+      showSession(newest);
+    } else {
+      currentSession = current;
+      renderSessionList();
     }
   }
 

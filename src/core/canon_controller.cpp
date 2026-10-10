@@ -50,6 +50,19 @@ void CanonController::TerminateSdk()
 {
     LogMessage("SDK terminated.");
     EdsTerminateSDK();
+    retiredCameras.clear();  // o SDK já liberou tudo
+}
+
+void CanonController::RetireCamera(EdsCameraRef camera)
+{
+    // No Mac, o SDK avisa que uma câmera saiu na thread principal, no tempo dele,
+    // e nesse aviso ainda usa o objeto da câmera. Se o app soltar (EdsRelease)
+    // esse objeto antes do aviso chegar, o SDK lê memória já liberada e o app
+    // fecha sozinho (visto com uma câmera reconectando e outra sendo desligada).
+    // Por isso câmeras perdidas ou que falharam não são soltas durante o uso:
+    // ficam guardadas aqui (poucos bytes cada) até o SDK ser desligado.
+    if (camera != nullptr)
+        retiredCameras.push_back(camera);
 }
 
 void CanonController::SetOutputFolder(const std::string& folderPath)
@@ -386,7 +399,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
 
             if (EdsSendCommand(cam.camera, kEdsCameraCommand_ExtendShutDownTimer, 0) != EDS_ERR_OK)
             {
-                EdsRelease(cam.camera);
+                RetireCamera(cam.camera);
                 cam.camera = nullptr;
                 cam.sessionOpen = false;
                 cam.connectionLost = true;
@@ -426,7 +439,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
             if (slot)
             {
                 if (slot->camera != nullptr)
-                    EdsRelease(slot->camera);
+                    RetireCamera(slot->camera);
                 *slot = cam;
                 slot->owner = this;
                 if (observer)
@@ -451,7 +464,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         else
         {
             if (cam.camera != nullptr)
-                EdsRelease(cam.camera);
+                RetireCamera(cam.camera);
 
             // Espera cada vez mais antes de tentar a mesma conexão (ex.: entrada
             // "fantasma" que o SDK do Mac mantém depois de a câmera sair)
@@ -619,7 +632,7 @@ void CanonController::WaitPendingConnections()
         if (p->result == EDS_ERR_OK)
             EdsCloseSession(p->candidate.camera);
         if (p->candidate.camera != nullptr)
-            EdsRelease(p->candidate.camera);
+            RetireCamera(p->candidate.camera);
     }
     pending.clear();
     portRetry.clear();
