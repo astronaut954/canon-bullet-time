@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <conio.h>
+#include <objbase.h>
 #include <clocale>
 #include <cstdlib>
 #include <string>
@@ -67,5 +68,16 @@ namespace Platform
     bool InputAvailable()
     {
         return _kbhit() != 0;
+    }
+
+    void BeginSdkThread()
+    {
+        // Exigência do EDSDK para chamadas fora da thread principal (manual da Canon).
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    }
+
+    void EndSdkThread()
+    {
+        CoUninitialize();
     }
 }

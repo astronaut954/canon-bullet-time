@@ -74,4 +74,7 @@ namespace Platform
         timeval timeout{ 0, 0 };
         return select(STDIN_FILENO + 1, &readSet, nullptr, nullptr, &timeout) > 0;
     }
+
+    void BeginSdkThread() {}
+    void EndSdkThread() {}
 }

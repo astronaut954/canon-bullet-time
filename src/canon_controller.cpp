@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <unordered_map>
 #include <thread>
+#include <atomic>
 #include <algorithm>
 
 void CanonController::SetVerbose(bool enabled)
@@ -320,11 +321,48 @@ bool CanonController::OpenSessions(bool showProgress)
             continue;
         }
 
+        // A abertura de sessão pode levar dezenas de segundos (no Mac, com câmera
+        // recém-conectada). Ela roda numa thread auxiliar para o terminal mostrar
+        // um contador de tempo enquanto isso.
+        const std::string label = "  ⏳ Connecting to " + cam.shortName + " (" + cam.modelName + ")...";
         if (showProgress)
-            std::cout << "  ⏳ Connecting to " << cam.shortName << " (" << cam.modelName << ")..." << std::flush;
-        const auto startTime = std::chrono::steady_clock::now();
+            std::cout << label << std::flush;
 
-        EdsError err = EdsOpenSession(cam.camera);
+        const auto startTime = std::chrono::steady_clock::now();
+        std::atomic<bool> done{ false };
+        EdsError err = EDS_ERR_OK;
+        EdsCameraRef cameraRef = cam.camera;
+
+        std::thread worker([&]()
+        {
+            Platform::BeginSdkThread();
+            err = EdsOpenSession(cameraRef);
+            Platform::EndSdkThread();
+            done = true;
+        });
+
+        int lastShown = 0;
+        while (!done)
+        {
+            Platform::ProcessEvents(0);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+            const int secondsSoFar = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::steady_clock::now() - startTime).count());
+
+            if (showProgress && secondsSoFar >= 2 && secondsSoFar != lastShown)
+            {
+                lastShown = secondsSoFar;
+                std::cout << "\r" << label << " " << secondsSoFar << "s (camera is starting up, please wait)" << std::flush;
+            }
+        }
+        worker.join();
+
+        if (showProgress && lastShown > 0)
+        {
+            // Limpa o contador e reescreve a linha antes do resultado
+            std::cout << "\r" << label << std::string(48, ' ') << "\r" << label << std::flush;
+        }
 
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
         std::ostringstream elapsed;
@@ -336,7 +374,7 @@ bool CanonController::OpenSessions(bool showProgress)
             cam.connectionLost = false;
             anySuccess = true;
             if (showProgress)
-                std::cout << " ✅  Connected (" << elapsed.str() << ")\n";
+                std::cout << " ✅ Connected (" << elapsed.str() << ")\n";
         }
         else
         {
