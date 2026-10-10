@@ -9,6 +9,7 @@
 #include <string>
 #include <limits>
 #include <vector>
+#include <set>
 #include <algorithm>
 #include <random>
 
@@ -52,115 +53,93 @@ static bool g_failureAlreadyReported = false;
 
 static bool PrepareSessions(CanonController& controller)
 {
-    g_failureAlreadyReported = false;
-
     // Quando uma câmera falha ao conectar (ex.: recém-reconectada, ainda não liberada
-    // pelo sistema), o programa tenta de novo sozinho por até AUTO_RETRY_SECONDS,
-    // reiniciando o SDK a cada tentativa.
-    constexpr int AUTO_RETRY_SECONDS = 60;
+    // pelo sistema), as câmeras que já conectaram continuam conectadas e o programa
+    // procura sozinho, por até AUTO_RETRY_SECONDS, a câmera que faltou.
+    constexpr int AUTO_RETRY_SECONDS = 30;
     constexpr int RETRY_INTERVAL_MS = 3000;
+    static const char* const dotFrames[] = { "   ", ".  ", ".. ", "..." };
 
+    g_failureAlreadyReported = false;
     controller.SetVerbose(false);
 
-    bool retrying = false;
-    std::vector<std::string> lastFailed;
-    auto retryStart = std::chrono::steady_clock::now();
+    PumpSdkEvents(500);
 
-    while (true)
-    {
-        PumpSdkEvents(500);
-
-        const bool detected = controller.DetectCameras();
-        std::vector<std::string> failed;
-
-        if (detected)
-        {
-            PumpSdkEvents(300);
-            controller.OpenSessions(!retrying);
-            failed = controller.GetFailedCameraNames();
-
-            if (failed.empty())
-            {
-                if (retrying)
-                    std::cout << "\n  ✅ All cameras connected.\n";
-                break;
-            }
-
-            lastFailed = failed;
-        }
-        else if (!retrying)
-        {
-            // Nenhuma câmera encontrada (e não estávamos esperando por nenhuma)
-            controller.SetVerbose(true);
-            return false;
-        }
-
-        const int waited = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::steady_clock::now() - retryStart).count());
-
-        if (waited < AUTO_RETRY_SECONDS)
-        {
-            if (!retrying)
-            {
-                std::cout << "  ⚠️  Could not connect to: " << JoinNames(lastFailed) << "\n";
-                std::cout << "\n🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS << "s...\n";
-                retrying = true;
-            }
-
-            // Logo após reiniciar o SDK a lista pode vir vazia: continuamos esperando.
-            static const char* const dotFrames[] = { ".  ", ".. ", "..." };
-            for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 400)
-            {
-                std::cout << "\r  ⌛ Waiting for " << JoinNames(lastFailed)
-                          << dotFrames[(elapsedMs / 400) % 3] << " "
-                          << waited + elapsedMs / 1000 << "s   " << std::flush;
-                PumpSdkEvents(400, 100);
-            }
-
-            controller.RestartSdk();
-            continue;
-        }
-
-        if (retrying)
-            std::cout << "\n";
-        retrying = false;
-
-        std::cout << "  ⚠️  Could not connect failed cameras.\n";
-
-        if (!detected)
-        {
-            g_failureAlreadyReported = true;
-            controller.SetVerbose(true);
-            return false;
-        }
-
-        std::cout << "\nActions:\n";
-        std::cout << "  [r]     → Scan again\n";
-        std::cout << "  [Enter] → Remove them from the list and renumber the others\n";
-        std::cout << "Option: ";
-
-        std::string answer;
-        std::getline(std::cin, answer);
-
-        if (answer == "r" || answer == "R")
-        {
-            std::cout << "\n🔄 Scanning again...\n";
-            controller.RestartSdk();
-            retryStart = std::chrono::steady_clock::now();
-            continue;
-        }
-
-        controller.DropFailedCameras();
-        break;
-    }
-
-    controller.RegisterEventHandlers();
-
-    if (controller.GetCameras().empty())
+    if (!controller.DetectCameras())
     {
         controller.SetVerbose(true);
         return false;
     }
+
+    PumpSdkEvents(300);
+    controller.OpenSessions();
+
+    const auto failed = controller.GetFailedCameraNames();
+    if (!failed.empty())
+    {
+        std::set<std::string> ignoredPorts = controller.GetFailedCameraPorts();
+        controller.DropFailedCameras();
+        size_t missing = failed.size();
+
+        std::cout << "  ⚠️  Could not connect to: " << JoinNames(failed) << "\n";
+
+        while (true)
+        {
+            std::cout << "\n🔄 Retrying automatically for up to " << AUTO_RETRY_SECONDS << "s...\n";
+            const auto retryStart = std::chrono::steady_clock::now();
+
+            while (missing > 0)
+            {
+                const int waited = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::steady_clock::now() - retryStart).count());
+                if (waited >= AUTO_RETRY_SECONDS)
+                    break;
+
+                for (int elapsedMs = 0; elapsedMs < RETRY_INTERVAL_MS; elapsedMs += 400)
+                {
+                    std::cout << "\r  ⌛ Waiting for " << JoinNames(failed)
+                              << dotFrames[(elapsedMs / 400) % 4] << " "
+                              << waited + elapsedMs / 1000 << "s   " << std::flush;
+                    PumpSdkEvents(400, 100);
+                }
+
+                const int found = controller.ConnectNewCameras(ignoredPorts);
+                missing -= std::min(missing, static_cast<size_t>(found > 0 ? found : 0));
+            }
+
+            if (missing == 0)
+            {
+                std::cout << "\n  ✅ All cameras connected.\n";
+                break;
+            }
+
+            std::cout << "\n  ⚠️  Could not connect failed cameras.\n";
+            Platform::DiscardPendingInput();
+
+            std::cout << "\nActions:\n";
+            std::cout << "  [r]     → Scan again\n";
+            std::cout << "  [Enter] → Continue with the connected cameras\n";
+            std::cout << "Option: ";
+
+            std::string answer;
+            std::getline(std::cin, answer);
+
+            if (answer != "r" && answer != "R")
+                break;
+        }
+    }
+
+    // O que for digitado durante esperas longas não deve virar resposta no próximo menu
+    Platform::DiscardPendingInput();
+
+    if (controller.GetCameras().empty())
+    {
+        g_failureAlreadyReported = !failed.empty();
+        controller.SetVerbose(true);
+        return false;
+    }
+
+    controller.RegisterEventHandlers();
 
     PumpSdkEvents(300);
 

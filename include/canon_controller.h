@@ -3,6 +3,7 @@
 #include "EDSDK.h"
 #include "camera_context.h"
 #include <vector>
+#include <set>
 #include <string>
 #include <filesystem>
 
@@ -16,8 +17,9 @@ public:
 
     bool DetectCameras();
     bool OpenSessions(bool showProgress = true);
-    bool RestartSdk();
     std::vector<std::string> GetFailedCameraNames() const;
+    std::set<std::string> GetFailedCameraPorts() const;
+    int ConnectNewCameras(std::set<std::string>& ignoredPorts);
     void DropFailedCameras();
     void RegisterEventHandlers();
     bool SetSaveToHost();
@@ -51,6 +53,8 @@ private:
     bool verbose = true;
 
     void LogMessage(const std::string& message) const;
+    void RenumberCameras();
+    bool BuildCameraContext(EdsCameraRef camera, CameraContext& ctx) const;
 
     static EdsError EDSCALLBACK HandleObjectEvent(
         EdsObjectEvent event,

@@ -2,6 +2,8 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <mach-o/dyld.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include <climits>
 #include <clocale>
@@ -66,4 +68,9 @@ namespace Platform
 
     void BeginSdkThread() {}
     void EndSdkThread() {}
+
+    void DiscardPendingInput()
+    {
+        tcflush(STDIN_FILENO, TCIFLUSH);
+    }
 }

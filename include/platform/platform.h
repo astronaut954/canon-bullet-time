@@ -25,6 +25,10 @@ namespace Platform
     // No Mac, o SDK da Canon entrega eventos das câmeras por aqui; no Windows não faz nada.
     void ProcessEvents(int milliseconds = 0);
 
+    // Descarta o que foi digitado durante uma espera longa, para não virar
+    // uma resposta acidental no próximo menu.
+    void DiscardPendingInput();
+
     // Preparação/encerramento de uma thread auxiliar que chama o SDK da Canon.
     // No Windows o SDK exige COM inicializado em cada thread; no Mac não faz nada.
     void BeginSdkThread();

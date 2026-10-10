@@ -14,6 +14,7 @@ struct CameraContext
     CanonController* owner = nullptr;
 
     std::string modelName;
+    std::string portName;   // identifica a conexão USB da câmera
     std::string shortName;
     std::string baseShortName;
 

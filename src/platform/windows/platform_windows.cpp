@@ -74,4 +74,9 @@ namespace Platform
     {
         CoUninitialize();
     }
+
+    void DiscardPendingInput()
+    {
+        FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+    }
 }

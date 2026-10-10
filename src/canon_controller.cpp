@@ -45,15 +45,6 @@ bool CanonController::InitializeSdk()
     return true;
 }
 
-bool CanonController::RestartSdk()
-{
-    // Desliga e religa o SDK da Canon. Limpa câmeras "fantasma" que o SDK
-    // mantém na memória depois de uma câmera ser desconectada.
-    CloseSessions();
-    EdsTerminateSDK();
-    return EdsInitializeSDK() == EDS_ERR_OK;
-}
-
 void CanonController::TerminateSdk()
 {
     LogMessage("SDK terminated.");
@@ -256,8 +247,6 @@ bool CanonController::DetectCameras()
 
     LogMessage("Cameras found: " + std::to_string(cameraCount));
 
-    std::unordered_map<std::string, int> modelCounters;
-
     for (EdsUInt32 i = 0; i < cameraCount; i++)
     {
         EdsCameraRef camera = nullptr;
@@ -268,40 +257,21 @@ bool CanonController::DetectCameras()
             continue;
         }
 
-        EdsDeviceInfo deviceInfo{};
-        err = EdsGetDeviceInfo(camera, &deviceInfo);
-        if (err != EDS_ERR_OK)
+        CameraContext ctx;
+        if (!BuildCameraContext(camera, ctx))
         {
             LogMessage("Failed to get camera info for index " + std::to_string(i));
             EdsRelease(camera);
             continue;
         }
 
-        CameraContext ctx;
-        ctx.camera = camera;
-        ctx.owner = this;
-        ctx.connectionLost = false;
-        ctx.modelName = deviceInfo.szDeviceDescription;
-
-        if (ctx.modelName.find("Rebel T7") != std::string::npos)
-            ctx.baseShortName = "T7";
-        else if (ctx.modelName.find("Rebel SL3") != std::string::npos)
-            ctx.baseShortName = "SL3";
-        else
-            ctx.baseShortName = "CAM";
-
-        modelCounters[ctx.baseShortName]++;
-        ctx.modelIndex = modelCounters[ctx.baseShortName];
-        ctx.shortName = ctx.baseShortName + "_" + std::to_string(ctx.modelIndex);
-        ctx.orderPrefix = static_cast<int>(cameras.size()) + 1;
-
         cameras.push_back(ctx);
-
-        LogMessage(
-            "Camera " + std::to_string(i) + ": " +
-            ctx.modelName + " [" + ctx.shortName + "]"
-        );
     }
+
+    RenumberCameras();
+
+    for (const auto& cam : cameras)
+        LogMessage("Camera: " + cam.modelName + " [" + cam.shortName + "]");
 
     EdsRelease(cameraList);
     return !cameras.empty();
@@ -342,7 +312,7 @@ bool CanonController::OpenSessions(bool showProgress)
             done = true;
         });
 
-        static const char* const dotFrames[] = { ".  ", ".. ", "..." };
+        static const char* const dotFrames[] = { "   ", ".  ", ".. ", "..." };
         bool showedTimer = false;
         int tick = 0;
         while (!done)
@@ -357,7 +327,7 @@ bool CanonController::OpenSessions(bool showProgress)
             if (showProgress && secondsSoFar >= 2 && tick % 4 == 0)
             {
                 showedTimer = true;
-                std::cout << "\r" << text << dotFrames[(tick / 4) % 3] << " " << secondsSoFar
+                std::cout << "\r" << text << dotFrames[(tick / 4) % 4] << " " << secondsSoFar
                           << "s (camera is starting up, please wait)" << std::flush;
             }
         }
@@ -395,6 +365,109 @@ bool CanonController::OpenSessions(bool showProgress)
     return anySuccess;
 }
 
+bool CanonController::BuildCameraContext(EdsCameraRef camera, CameraContext& ctx) const
+{
+    EdsDeviceInfo deviceInfo{};
+    if (EdsGetDeviceInfo(camera, &deviceInfo) != EDS_ERR_OK)
+        return false;
+
+    ctx.camera = camera;
+    ctx.owner = const_cast<CanonController*>(this);
+    ctx.connectionLost = false;
+    ctx.modelName = deviceInfo.szDeviceDescription;
+    ctx.portName = deviceInfo.szPortName;
+
+    if (ctx.modelName.find("Rebel T7") != std::string::npos)
+        ctx.baseShortName = "T7";
+    else if (ctx.modelName.find("Rebel SL3") != std::string::npos)
+        ctx.baseShortName = "SL3";
+    else
+        ctx.baseShortName = "CAM";
+
+    return true;
+}
+
+void CanonController::RenumberCameras()
+{
+    // Nomes (T7_1, T7_2...) e ordem (01, 02...) sempre seguidos, sem buracos.
+    std::unordered_map<std::string, int> modelCounters;
+    for (size_t i = 0; i < cameras.size(); ++i)
+    {
+        auto& cam = cameras[i];
+        cam.modelIndex = ++modelCounters[cam.baseShortName];
+        cam.shortName = cam.baseShortName + "_" + std::to_string(cam.modelIndex);
+        cam.orderPrefix = static_cast<int>(i) + 1;
+    }
+}
+
+std::set<std::string> CanonController::GetFailedCameraPorts() const
+{
+    std::set<std::string> ports;
+    for (const auto& cam : cameras)
+    {
+        if (!cam.sessionOpen)
+            ports.insert(cam.portName);
+    }
+    return ports;
+}
+
+int CanonController::ConnectNewCameras(std::set<std::string>& ignoredPorts)
+{
+    // Procura câmeras novas SEM desconectar as que já estão funcionando.
+    // Entradas já conhecidas como falhas (ex.: "fantasmas" que o SDK do Mac mantém
+    // depois de uma câmera ser desconectada) são ignoradas pela conexão USB.
+    Platform::ProcessEvents(1000);
+
+    EdsCameraListRef cameraList = nullptr;
+    if (EdsGetCameraList(&cameraList) != EDS_ERR_OK || cameraList == nullptr)
+        return 0;
+
+    EdsUInt32 cameraCount = 0;
+    EdsGetChildCount(cameraList, &cameraCount);
+
+    size_t added = 0;
+    for (EdsUInt32 i = 0; i < cameraCount; i++)
+    {
+        EdsCameraRef camera = nullptr;
+        if (EdsGetChildAtIndex(cameraList, i, &camera) != EDS_ERR_OK || camera == nullptr)
+            continue;
+
+        CameraContext ctx;
+        const bool known = !BuildCameraContext(camera, ctx)
+            || ignoredPorts.count(ctx.portName) > 0
+            || std::any_of(cameras.begin(), cameras.end(),
+                   [&](const CameraContext& c) { return c.portName == ctx.portName; });
+
+        if (known)
+        {
+            EdsRelease(camera);
+            continue;
+        }
+
+        cameras.push_back(ctx);
+        ++added;
+    }
+    EdsRelease(cameraList);
+
+    if (added == 0)
+        return 0;
+
+    RenumberCameras();
+
+    const size_t openBefore = std::count_if(cameras.begin(), cameras.end(),
+        [](const CameraContext& c) { return c.sessionOpen; });
+
+    std::cout << "\n";
+    OpenSessions(true);
+
+    for (const auto& port : GetFailedCameraPorts())
+        ignoredPorts.insert(port);
+    DropFailedCameras();
+
+    const size_t openAfter = cameras.size();
+    return static_cast<int>(openAfter - openBefore);
+}
+
 std::vector<std::string> CanonController::GetFailedCameraNames() const
 {
     std::vector<std::string> names;
@@ -426,14 +499,7 @@ void CanonController::DropFailedCameras()
         cameras.end()
     );
 
-    std::unordered_map<std::string, int> modelCounters;
-    for (size_t i = 0; i < cameras.size(); ++i)
-    {
-        auto& cam = cameras[i];
-        cam.modelIndex = ++modelCounters[cam.baseShortName];
-        cam.shortName = cam.baseShortName + "_" + std::to_string(cam.modelIndex);
-        cam.orderPrefix = static_cast<int>(i) + 1;
-    }
+    RenumberCameras();
 }
 
 void CanonController::RegisterEventHandlers()
