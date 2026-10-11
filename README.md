@@ -135,7 +135,9 @@ cmake --build --preset macos-arm64-release
 
 Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries (internet required).
 
-The window's look is defined in `assets/ui/style.css` (colors and fonts as variables at the top).
+The window's look follows the [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui) design
+system, ported to plain CSS in `assets/ui/style.css` (colors, font and glow as variables at the top).
+The font (Share Tech Mono) is in `assets/ui/fonts/` and is embedded in the page when the window opens.
 
 ### Window app: where photos go
 

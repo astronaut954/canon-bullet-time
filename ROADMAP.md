@@ -44,8 +44,12 @@ Feitas em 2026-10-11 (aguardando teste no Mac), junto com a limpeza dos textos
    identificada pela sessão) e as fotos aparecem no mesmo modelo do "Reordenar
    por foto" (carrossel no alto, foto selecionada maior abaixo).
 
-Próximo passo da etapa 5: aplicar o design system
-[neo-terminal-ui](https://github.com/Dyltom/neo-terminal-ui) ao visual da janela.
+Design system [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui) aplicado em
+2026-10-11 (aguardando teste no Mac): a biblioteca é React + Tailwind, então os tokens
+(cores, fonte Share Tech Mono, brilho, cantos retos) e os estilos dos componentes foram
+passados para CSS simples em `assets/ui/style.css`, sem mudar o funcionamento da página.
+O "flicker" e a vinheta do efeito CRT ficaram de fora para não atrapalhar a conferência
+das fotos.
 
 ### Critério para fechar uma etapa
 

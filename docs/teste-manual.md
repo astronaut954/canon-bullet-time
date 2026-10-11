@@ -66,6 +66,9 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Fotos em **RAW** (e RAW+JPEG): aparecem nas sessões.
 - [ ] Fechar com sessões não salvas: pergunta se quer salvar ou apagar.
 - [ ] Textos sem emojis em toda a janela (o terminal continua igual).
+- [ ] Visual do design system Neo Terminal UI: fundo preto, verde com brilho, cantos
+      retos e fonte Share Tech Mono em toda a janela (se a fonte não carregar, aparece
+      uma fonte de máquina de escrever comum).
 
 ## Resultado
 

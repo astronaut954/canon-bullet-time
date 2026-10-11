@@ -172,7 +172,7 @@
     ui.dialogActions.innerHTML = "";
     actions.forEach((a) => {
       const b = document.createElement("button");
-      b.className = "btn " + (a.primary ? "btn-primary" : a.link ? "btn-link" : "btn-secondary");
+      b.className = "btn " + (a.danger ? "btn-danger" : a.primary ? "btn-primary" : a.link ? "btn-link" : "btn-secondary");
       b.textContent = a.label;
       b.addEventListener("click", () => { ui.dialogOverlay.classList.add("hidden"); a.onClick && a.onClick(); });
       ui.dialogActions.appendChild(b);
@@ -720,7 +720,7 @@
     dialog("Delete photo " + pad(item.order || sessionGallery.index + 1) + "?",
       what + ". " + (item.files.length > 1 ? "Its RAW and JPEG files are" : "The file is") + " deleted permanently.", [
         { label: "Cancel" },
-        { label: "Delete", primary: true, onClick: () => {
+        { label: "Delete", danger: true, onClick: () => {
           window.deletePhotos(session, item.group);
           log("Photo " + pad(item.order || 0) + " deleted from the session of " + sessionLabel(session).date, "ok");
         } },
@@ -733,7 +733,7 @@
     const label = sessionLabel(name);
     dialog("Delete this session?", "The photos from " + label.date + " will be deleted permanently.", [
       { label: "Cancel" },
-      { label: "Delete", primary: true, onClick: () => window.deleteSession(name) },
+      { label: "Delete", danger: true, onClick: () => window.deleteSession(name) },
     ]);
   }
 
@@ -849,7 +849,7 @@
       plural(count, "session is", "sessions are") + " not saved yet. If you close without saving, the photos are deleted.",
       [
         { label: "Cancel" },
-        { label: "Delete and close", onClick: () => window.exitApp(true) },
+        { label: "Delete and close", danger: true, onClick: () => window.exitApp(true) },
         { label: "Save and close", primary: true, onClick: () => window.saveSessions(true) },
       ]
     );
@@ -862,7 +862,7 @@
       [
         { label: "Delete", link: true, onClick: () => dialog("Delete the kept sessions?", "Their photos will be deleted permanently.", [
           { label: "Cancel" },
-          { label: "Delete", primary: true, onClick: () => window.deleteAllSessions() },
+          { label: "Delete", danger: true, onClick: () => window.deleteAllSessions() },
         ]) },
         { label: "Later" },
         { label: "Save", primary: true, onClick: () => window.saveSessions(false) },

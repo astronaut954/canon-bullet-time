@@ -466,7 +466,13 @@ namespace
             if (pos != std::string::npos)
                 html.replace(pos, marker.size(), content);
         };
-        replace("/*__STYLE__*/", read(dir / "style.css"));
+        // A fonte do design system (Share Tech Mono) vai embutida no CSS, pelo mesmo motivo
+        std::string style = read(dir / "style.css");
+        const std::string font = read(dir / "fonts" / "ShareTechMono-Regular.ttf");
+        const std::string fontMarker = "__FONT_SHARE_TECH_MONO__";
+        if (const auto at = style.find(fontMarker); at != std::string::npos && !font.empty())
+            style.replace(at, fontMarker.size(), "data:font/ttf;base64," + Base64Encode(font));
+        replace("/*__STYLE__*/", style);
         replace("/*__SCRIPT__*/", read(dir / "app.js"));
         return html;
     }
