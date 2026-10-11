@@ -133,6 +133,7 @@ input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .btn-shoot { width: 100%; padding: 14px; font-size: 16px; letter-spacing: .02em; }
 .progress { min-height: 20px; margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+.shoot-note { margin: 8px 0 0; font-size: 12px; color: var(--warn); }
 .storage-note { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
 
 /* ---------- Sessões ---------- */

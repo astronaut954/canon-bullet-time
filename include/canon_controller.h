@@ -37,6 +37,7 @@ struct PendingConnectionInfo
     int order = 0;           // posição atual (0 = câmera nova, ainda sem posição)
     bool reconnecting = false;
     bool retrying = false;   // essa conexão USB já falhou antes (nova tentativa automática)
+    bool queued = false;     // esperando outra câmera terminar de conectar
     int seconds = 0;
 };
 
@@ -58,10 +59,11 @@ public:
     std::vector<std::string> ConnectNewCameras(std::set<std::string>& ignoredPorts, ConnectionObserver* observer = nullptr);
     void DropFailedCameras();
     // Tempo real (interface gráfica). Chamar com frequência (ex.: a cada 0,4 s).
-    // Não bloqueia: cada câmera encontrada conecta numa thread própria, então uma
-    // câmera rápida não espera uma lenta. Marca as que pararam de responder e
-    // conecta as que voltaram ou chegaram; câmeras que voltam assumem o lugar
-    // (nome e ordem) da que tinha caído. Retorna true se a lista mudou.
+    // Não bloqueia: a câmera conecta numa thread própria, uma por vez (o SDK não
+    // aceita outras chamadas enquanto uma sessão abre). Enquanto isso, esta função
+    // não chama o SDK. Marca as que pararam de responder e conecta as que voltaram
+    // ou chegaram; câmeras que voltam assumem o lugar (nome e ordem) da que tinha
+    // caído. Retorna true se a lista mudou.
     bool MonitorTick(ConnectionObserver* observer);
     std::vector<PendingConnectionInfo> GetPendingConnections() const;
     bool HasPendingConnections() const;
@@ -114,6 +116,8 @@ private:
     };
     std::vector<std::unique_ptr<PendingConnection>> pending;
     std::vector<EdsCameraRef> retiredCameras;  // ver RetireCamera()
+    std::vector<PendingConnectionInfo> queued;  // achadas, esperando a vez de conectar
+    std::map<std::string, double> connectSeconds;  // tempo da última conexão de cada modelo
     std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
     std::chrono::steady_clock::time_point lastHealthCheck{};
     std::chrono::steady_clock::time_point lastScan{};

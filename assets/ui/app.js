@@ -13,7 +13,7 @@
     tabs: document.querySelectorAll(".tab"),
     viewCapture: $("view-capture"), viewSessions: $("view-sessions"),
     cameraList: $("cameraList"), noCameras: $("noCameras"), searching: $("searching"),
-    shootBtn: $("shootBtn"), countdown: $("countdown"), sessions: $("sessions"), downloadWait: $("downloadWait"),
+    shootBtn: $("shootBtn"), shootNote: $("shootNote"), countdown: $("countdown"), sessions: $("sessions"), downloadWait: $("downloadWait"),
     progress: $("progress"),
     sessionList: $("sessionList"), noSessions: $("noSessions"),
     viewerEmpty: $("viewerEmpty"), viewerContent: $("viewerContent"),
@@ -108,8 +108,14 @@
   function updateButtons() {
     const connected = cameras.filter((c) => c.connected).length;
     ui.restartBtn.disabled = busy;
-    ui.shootBtn.disabled = busy || connected === 0;
-    document.querySelectorAll(".camera-actions button").forEach((b) => (b.disabled = busy || b.dataset.locked === "1"));
+    // Enquanto uma câmera conecta, o SDK da Canon não aceita outros comandos
+    const connectingNames = cameras.filter((c) => c.state === "connecting").map((c) => c.name);
+    const sdkBusy = connectingNames.length > 0;
+    ui.shootBtn.disabled = busy || connected === 0 || sdkBusy;
+    ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
+    ui.shootNote.textContent = "Available when " + connectingNames.join(", ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
+    document.querySelectorAll(".camera-actions button").forEach((b) =>
+      (b.disabled = busy || b.dataset.locked === "1" || (sdkBusy && b.dataset.sdk === "1")));
     ui.saveBtn.disabled = sessions.length === 0;
     ui.saveBtn.textContent = sessions.length ? "Save sessions (" + sessions.length + ")" : "Save sessions";
     ui.sessionCount.textContent = sessions.length;
@@ -171,6 +177,7 @@
     stateLine.className = "camera-state state-" + state;
     stateLine.textContent =
       state === "connected" ? "Connected"
+      : state === "connecting" && cam.waiting ? "Waiting — another camera is connecting"
       : state === "connecting" ? "Connecting" + (cam.seconds >= 2 ? "… " + cam.seconds + "s (camera is starting up)" : "…")
       : "Disconnected — turn it on to reconnect";
     info.append(name, model, stateLine);
@@ -186,7 +193,7 @@
     actions.className = "camera-actions";
     if (index >= 0) {
       actions.append(
-        smallButton("Identify", () => window.identify(cam.name), state !== "connected"),
+        smallButton("Identify", () => window.identify(cam.name), state !== "connected", true),
         smallButton("↑", () => window.setPrefix(cam.name, cam.order - 1), index === 0),
         smallButton("↓", () => window.setPrefix(cam.name, cam.order + 1), index === placedCount - 1)
       );
@@ -196,11 +203,12 @@
     return li;
   }
 
-  function smallButton(label, onClick, locked) {
+  function smallButton(label, onClick, locked, usesCamera) {
     const b = document.createElement("button");
     b.className = "btn btn-secondary btn-small";
     b.textContent = label;
     b.dataset.locked = locked ? "1" : "0";
+    b.dataset.sdk = usesCamera ? "1" : "0";
     b.disabled = busy || !!locked;
     b.addEventListener("click", onClick);
     return b;
@@ -400,11 +408,15 @@
       if (!busy) readyStatus();
 
       // Rodapé: quem está demorando para conectar
-      const slow = cameras.filter((c) => c.state === "connecting" && c.seconds >= 2);
+      const slow = cameras.filter((c) => c.state === "connecting" && !c.waiting && c.seconds >= 2);
       if (slow.length) {
         ui.logLast.textContent = "⏳ Connecting to " + slow.map((c) => c.name + " " + c.seconds + "s").join(", ") +
           DOTS[tick++ % 4] + " (camera is starting up, please wait)";
       }
+    },
+
+    waitConnecting() {
+      toast("A camera is still connecting. Try again as soon as it finishes.");
     },
 
     sdkFailed() {

@@ -32,6 +32,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdlib>
 #include <map>
 #include <deque>
 #include <fstream>
@@ -378,6 +379,7 @@ namespace
             auto reconnect = std::find_if(pending.begin(), pending.end(),
                 [&](const PendingConnectionInfo& p) { return p.reconnecting && !p.retrying && p.name == cam->shortName; });
             const bool connecting = !connected && reconnect != pending.end();
+            const bool waiting = connecting && reconnect->queued;
 
             Json item("camera");
             item.Add("order", cam->orderPrefix)
@@ -386,6 +388,7 @@ namespace
                 .Add("connected", connected)
                 .Add("state", connected ? "connected" : connecting ? "connecting" : "disconnected")
                 .Add("seconds", connecting ? reconnect->seconds : 0)
+                .Add("waiting", waiting)
                 .Add("compatible", cam->onCompatibilityList);
             addItem(item);
         }
@@ -404,6 +407,7 @@ namespace
                 .Add("connected", false)
                 .Add("state", "connecting")
                 .Add("seconds", p.seconds)
+                .Add("waiting", p.queued)
                 .Add("compatible", IsOnCompatibilityList(p.model));
             addItem(item);
         }
@@ -485,21 +489,33 @@ namespace
         bool sdkReady = false;
         std::atomic<bool> busy{ false };
         std::atomic<bool> allowClose{ false };
+        std::atomic<bool> shuttingDown{ false };
 
         // Tempo real: sem pedidos pendentes, acompanha as câmeras a cada ~0,4 s.
         // Cada câmera conecta em paralelo; a página recebe a lista sempre que algo
         // muda e, enquanto alguma conecta, a cada volta (para mostrar os segundos).
         CameraThread cameras([&]
         {
-            if (!sdkReady || busy)
+            if (!sdkReady || busy || shuttingDown)
                 return;
-            EdsGetEvent();
+            if (!controller.HasPendingConnections())
+                EdsGetEvent();  // com uma câmera conectando, o SDK está ocupado
             if (controller.MonitorTick(&listener) || controller.HasPendingConnections())
                 listener.Emit(CamerasSnapshot(controller));
         });
 
         // Mensagens de texto do núcleo vão para o log da página
         SetLogSink([&listener](const std::string& message) { listener.Emit(Json("log").Add("text", message)); });
+
+        // Enquanto uma câmera conecta, o SDK não aceita outros comandos: disparar
+        // ou identificar teria de esperar a conexão terminar (até dezenas de segundos)
+        auto cameraConnecting = [&]
+        {
+            if (!controller.HasPendingConnections())
+                return false;
+            listener.Emit(Json("waitConnecting"));
+            return true;
+        };
 
         auto emitSessions = [&]
         {
@@ -579,6 +595,8 @@ namespace
             }
             run("shoot", [&, settings]
             {
+                if (cameraConnecting())
+                    return;
                 bulletTime.RunSequence(settings);
                 emitSessions();
             });
@@ -593,6 +611,8 @@ namespace
             const std::string name = args[0];
             run("identify", [&, name]
             {
+                if (cameraConnecting())
+                    return;
                 for (const auto& cam : controller.GetCameras())
                 {
                     if (cam.shortName == name)
@@ -707,14 +727,19 @@ namespace
         window.run();
 
         // Janela fechada: nada mais vai para a página; encerra as câmeras na
-        // própria thread delas. Se alguma ainda estiver conectando, o SDK não pode
-        // ser desligado com segurança: o sistema libera tudo ao fechar o programa.
+        // própria thread delas.
         SetLogSink([](const std::string&) {});
         listener.Close();
+        shuttingDown = true;
         cameras.Post([&]
         {
+            // Uma câmera no meio da conexão segura o SDK, e ele só a libera com a
+            // janela ainda funcionando: esperar travaria o app ao fechar. As fotos
+            // já estão gravadas em disco, então o programa encerra direto.
+            if (controller.HasPendingConnections())
+                std::_Exit(0);
             controller.CloseSessions();
-            if (sdkReady && !controller.HasPendingConnections())
+            if (sdkReady)
                 controller.TerminateSdk();
         });
         return 0;

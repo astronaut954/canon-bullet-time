@@ -36,8 +36,11 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] **0 – Exit** fecha o app normalmente.
 
 ## 7. App com janela (Canon Bullet Time GUI)
-- [ ] Abrir o app **com as câmeras já ligadas**: cada câmera aparece conectada
-      assim que fica pronta (a rápida não espera a lenta).
+- [ ] Abrir o app **com as câmeras já ligadas**: as câmeras conectam uma de cada
+      vez; a que está esperando aparece como "Waiting", a que conecta mostra os segundos.
+- [ ] Enquanto uma câmera conecta, o disparo fica indisponível com o aviso
+      "Available when … finishes connecting".
+- [ ] Fechar o app enquanto uma câmera conecta: fecha na hora, sem travar.
 - [ ] Abrir o app e **depois** ligar as câmeras: elas aparecem sozinhas.
 - [ ] Sem nenhuma câmera: depois de alguns segundos aparece o guia "No cameras found".
 - [ ] Desligar uma câmera: ela fica "Disconnected"; religar: volta conectada no

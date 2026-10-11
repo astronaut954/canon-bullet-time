@@ -148,8 +148,9 @@ The window app keeps every session in its own folder until you choose where to s
 sessions asks whether to save or delete them; if the app closes unexpectedly, the photos
 stay in that folder and the app offers to save them the next time it opens.
 
-Cameras connect by themselves: each one connects in parallel as soon as it is turned on,
-and a camera that is turned off and on again returns to its place in the order. If a camera
+Cameras connect by themselves, one at a time (the Canon SDK accepts no other command while
+a camera is connecting, so shooting waits until it finishes). A camera that is turned off
+and on again returns to its place in the order. If a camera
 is on and plugged in but does not connect, use **Restart camera connections** in the log panel.
 
 The session viewer shows JPEG and RAW photos (CR3, CR2, NEF, ARW, DNG and other formats
