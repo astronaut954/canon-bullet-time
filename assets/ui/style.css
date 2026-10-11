@@ -118,10 +118,16 @@ button { font: inherit; }
 .sessions-panel.fullscreen .session-viewer { padding: 16px 20px 20px; }
 .sessions-panel.fullscreen .stage { border-radius: 6px; }
 
-/* Fora da tela cheia: sem cabeçalho (a sessão já aparece na lista à esquerda) e sem
-   controles; só o botão de tela cheia sobre a foto */
-.sessions-panel:not(.fullscreen) .gallery-head { display: none; }
-.sessions-panel.fullscreen .stage-tools { display: none; }
+/* Fora da tela cheia: sem título (a sessão já aparece na lista à esquerda); os
+   botões ("Delete session" e tela cheia) ficam na mesma linha das miniaturas */
+.sessions-panel:not(.fullscreen) .gallery {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "strip head" "stage stage"; column-gap: 12px; row-gap: 10px;
+}
+.sessions-panel:not(.fullscreen) .gallery-head { grid-area: head; align-self: start; }
+.sessions-panel:not(.fullscreen) .gallery-head > div:first-child { display: none; }
+.sessions-panel:not(.fullscreen) .carousel-wrap { grid-area: strip; min-width: 0; }
+.sessions-panel:not(.fullscreen) .stage { grid-area: stage; }
 .stage-tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
 .btn-overlay { background: rgba(0, 0, 0, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .18); }
 .btn-overlay:hover { background: rgba(0, 0, 0, .75); }

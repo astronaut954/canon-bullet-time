@@ -527,9 +527,14 @@
   });
   const editing = { on: false };  // reordenando as fotos da sessão aberta
   const playBtn = button("", togglePlay, { icon: "play", title: "Play the sequence (space)" });
-  // Fora da tela cheia, só o botão de abrir a tela cheia (sobre a foto). Os
-  // controles da sessão (navegar, play, reordenar, apagar) ficam na tela cheia.
-  const fullBtn = button("", () => setFullscreen(true), { icon: "expand", title: "Full screen (F)", kind: "btn-overlay" });
+  // Fora da tela cheia: só "Delete session" e o botão de tela cheia, ao lado das
+  // miniaturas. Os outros controles (navegar, play, reordenar, apagar foto) ficam
+  // na tela cheia, junto com a data da sessão.
+  const fullBtn = button("", () => setFullscreen(true), { icon: "expand", title: "Full screen (F)" });
+  const compactActions = [
+    button("Delete session", deleteCurrentSession, { kind: "btn-link", title: "Delete this session" }),
+    fullBtn,
+  ];
   const exitFullBtn = button("", () => setFullscreen(false), { icon: "shrink", title: "Exit full screen (Esc)" });
   const viewActions = [
     button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
@@ -546,8 +551,10 @@
     button("Cancel", () => stopReorder(false)),
     button("Save order", () => stopReorder(true), { kind: "btn-primary" }),
   ];
-  sessionGallery.setActions(viewActions);
-  sessionGallery.setStageTools([fullBtn]);
+  function currentActions() {
+    return editing.on ? editActions : isFullscreen() ? viewActions : compactActions;
+  }
+  sessionGallery.setActions(compactActions);
 
   function refreshSessions() {
     Promise.resolve(window.listSessions()).then(setSessions);
@@ -621,10 +628,9 @@
 
   function sessionHead(session) {
     const label = sessionLabel(session.name);
-    const count = sessionItems(session).length;
     sessionGallery.setHead(label.date + (label.time ? label.time.slice(5) : ""),
       editing.on ? "Drag the photos, or select one and use the arrows. Then save the order."
-                 : [plural(count, "photo", "photos"), label.detail].filter(Boolean).join(" · "));
+                 : label.detail);
   }
 
   function showSession(session, keepIndex) {
@@ -656,7 +662,7 @@
   function setEditing(on) {
     editing.on = on;
     sessionGallery.setDraggable(on);
-    sessionGallery.setActions(on ? editActions : viewActions);
+    sessionGallery.setActions(currentActions());
     ui.sessionGallery.classList.toggle("editing", on);
     updateButtons();
   }
@@ -694,6 +700,7 @@
       if (editing.on) stopReorder(false);
     }
     sessionsPanel.classList.toggle("fullscreen", on);
+    sessionGallery.setActions(currentActions());
   }
   function isFullscreen() {
     return sessionsPanel.classList.contains("fullscreen");

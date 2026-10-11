@@ -55,7 +55,8 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       carrossel no alto e a foto selecionada grande embaixo; setas ← → e espaço (play).
 - [ ] **Reorder** numa sessão (na tela cheia): arrastar as miniaturas (ou usar as setas) e **Save
       order** renomeia as fotos da sessão na nova ordem (RAW e JPEG juntos).
-- [ ] Fora da tela cheia, a sessão mostra só as fotos e o botão de tela cheia (sobre a foto).
+- [ ] Fora da tela cheia, a sessão mostra só as fotos e, ao lado das miniaturas,
+      "Delete session" e o botão de tela cheia (sem título nem quantidade de fotos).
 - [ ] Sessão em **tela cheia** (botão sobre a foto ou tecla F; Esc sai): data da sessão,
       play/pausa, setas, **Reorder**, apagar uma foto (lixeira ou tecla Delete) e apagar a sessão.
 - [ ] Rodapé (Activity): enquanto algo acontece (conectando, disparando, recebendo
