@@ -555,11 +555,18 @@ namespace
             SetLogSink([](const std::string&) {});
             listener.Emit(Json("closing"));
 
+            // Segurança: se as câmeras não encerrarem (o SDK da Canon travado), o
+            // programa sai mesmo assim. As fotos já estão gravadas em disco.
+            std::thread([] {
+                std::this_thread::sleep_for(std::chrono::seconds(12));
+                std::_Exit(0);
+            }).detach();
+
             cameras.Post([&]
             {
                 std::thread([] {
                     std::this_thread::sleep_for(std::chrono::seconds(8));
-                    std::_Exit(0);  // segurança: o SDK não respondeu ao encerrar
+                    std::_Exit(0);  // o SDK não respondeu ao encerrar
                 }).detach();
 
                 // Uma câmera no meio da conexão segura o SDK: não dá para encerrar
@@ -777,6 +784,24 @@ namespace
                 std::string error;
                 if (!store.ReorderSession(session, args, error))
                     listener.Emit(Json("reorderFailed").Add("error", error));
+                emitSessions();
+            });
+            return "null";
+        });
+
+        // deletePhotos(sessão, "02_T7_1", ...): apaga fotos de uma sessão
+        window.bind("deletePhotos", [&](const std::string& request) -> std::string
+        {
+            auto args = ParseStringArgs(request);
+            if (args.size() < 2)
+                return "null";
+            const std::string session = args.front();
+            args.erase(args.begin());
+            previews.Post([&, session, args]
+            {
+                std::string error;
+                if (!store.DeletePhotos(session, args, error))
+                    listener.Emit(Json("deleteFailed").Add("error", error));
                 emitSessions();
             });
             return "null";

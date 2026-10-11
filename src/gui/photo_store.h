@@ -41,6 +41,12 @@ public:
 
     bool DeleteSession(const std::string& session) const;
 
+    // Apaga fotos de uma sessão. Cada item é um grupo "ordem_câmera" (ex.: "02_T7_1",
+    // apaga o RAW e o JPEG dessa câmera) ou o nome de um arquivo. Se a sessão ficar
+    // vazia, a pasta é apagada.
+    bool DeletePhotos(const std::string& session, const std::vector<std::string>& groups,
+                      std::string& errorMessage) const;
+
     // Nova ordem das fotos de uma sessão: lista de "ordem_câmera" na ordem desejada
     // (ex.: {"02_T7_1", "01_SL3_1"}). Renomeia os arquivos (02_T7_1_IMG.JPG ->
     // 01_T7_1_IMG.JPG), levando juntos o RAW e o JPEG da mesma câmera.

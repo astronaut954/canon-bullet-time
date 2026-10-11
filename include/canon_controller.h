@@ -123,6 +123,21 @@ private:
     std::vector<EdsCameraRef> retiredCameras;  // ver RetireCamera()
     std::vector<PendingConnectionInfo> queued;  // achadas, esperando a vez de conectar
     std::map<std::string, double> connectSeconds;  // tempo da última conexão de cada modelo
+
+    // Conexões USB de câmeras que caíram: o SDK do Mac mantém a entrada antiga
+    // ("fantasma"), e abrir a sessão nela pode travar o SDK. Só são tentadas de novo
+    // depois que o sistema avisa que uma câmera foi conectada (ver MonitorTick).
+    // Também entram as conexões que falharam 3 vezes seguidas.
+    struct Suspect
+    {
+        int seen = 0;       // avisos de "câmera conectada" já contados
+        bool lost = false;  // era uma câmera conectada que caiu (a entrada pode ser a antiga)
+    };
+    std::map<std::string, Suspect> suspectPorts;
+    std::atomic<int> camerasAdded{ 0 };            // avisos de "câmera conectada" do SDK
+    std::atomic<long long> lastAddedMs{ 0 };       // quando chegou o último (ms desde o início)
+    bool addedHandlerSet = false;
+    static EdsError EDSCALLBACK HandleCameraAdded(EdsVoid* context);
     std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
     std::chrono::steady_clock::time_point lastHealthCheck{};
     std::chrono::steady_clock::time_point lastScan{};

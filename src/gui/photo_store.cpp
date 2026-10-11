@@ -431,6 +431,50 @@ bool PhotoStore::ReorderSession(const std::string& session, const std::vector<st
     return true;
 }
 
+bool PhotoStore::DeletePhotos(const std::string& session, const std::vector<std::string>& groups,
+                              std::string& errorMessage) const
+{
+    const fs::path dir = SessionPath(session);
+    std::error_code ec;
+    if (dir.empty() || !fs::is_directory(dir, ec))
+    {
+        errorMessage = "Session not found.";
+        return false;
+    }
+
+    static const std::regex photoName(R"(^(\d+)_([^_]+_\d+)_.+$)");
+    bool anyLeft = false;
+    std::vector<fs::path> toDelete;
+    for (const auto& entry : fs::directory_iterator(dir, ec))
+    {
+        if (!entry.is_regular_file())
+            continue;
+        const std::string file = entry.path().filename().string();
+        std::smatch match;
+        const std::string group = std::regex_match(file, match, photoName)
+            ? match[1].str() + "_" + match[2].str() : file;
+        if (std::find(groups.begin(), groups.end(), group) != groups.end()
+            || std::find(groups.begin(), groups.end(), file) != groups.end())
+            toDelete.push_back(entry.path());
+        else
+            anyLeft = true;
+    }
+
+    for (const auto& path : toDelete)
+    {
+        fs::remove(path, ec);
+        if (ec)
+        {
+            errorMessage = "Could not delete " + path.filename().string() + ": " + ec.message();
+            return false;
+        }
+    }
+
+    if (!anyLeft)
+        fs::remove_all(dir, ec);
+    return true;
+}
+
 bool PhotoStore::DeleteSession(const std::string& session) const
 {
     const fs::path dir = SessionPath(session);

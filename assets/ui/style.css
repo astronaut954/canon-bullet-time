@@ -107,6 +107,16 @@ button { font: inherit; }
 .folder-date { font-size: 13px; font-weight: 600; }
 .folder-meta { font-size: 12px; color: var(--muted); }
 .session-viewer { padding: 14px 16px; min-height: 0; display: flex; flex-direction: column; }
+
+/* Sessão em tela cheia: ocupa a janela inteira (as pastas ficam escondidas) */
+.sessions-panel.fullscreen {
+  position: fixed; inset: 0; z-index: 8;
+  border: 0; border-radius: 0; background: var(--bg);
+  grid-template-columns: minmax(0, 1fr);
+}
+.sessions-panel.fullscreen .session-folders { display: none; }
+.sessions-panel.fullscreen .session-viewer { padding: 16px 20px 20px; }
+.sessions-panel.fullscreen .stage { border-radius: 6px; }
 .viewer-empty { margin: auto; text-align: center; color: var(--muted); max-width: 320px; }
 
 /* ---------- Galeria (sessões e reordenar por foto) ---------- */

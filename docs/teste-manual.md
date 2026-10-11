@@ -55,6 +55,10 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       carrossel no alto e a foto selecionada grande embaixo; setas ← → e espaço (play).
 - [ ] **Reorder** numa sessão: arrastar as miniaturas (ou usar as setas) e **Save
       order** renomeia as fotos da sessão na nova ordem (RAW e JPEG juntos).
+- [ ] Sessão em **tela cheia** (botão ao lado de "Delete session" ou tecla F; Esc sai):
+      play/pausa, setas, **Reorder** e apagar uma foto (lixeira ou tecla Delete).
+- [ ] Desligar a T7 e depois desligar/religar a SL3: a SL3 volta sozinha e o app
+      continua fechando normalmente; religar a T7: ela volta no mesmo lugar.
 - [ ] Fotos em **RAW** (e RAW+JPEG): aparecem nas sessões.
 - [ ] Fechar com sessões não salvas: pergunta se quer salvar ou apagar.
 - [ ] Textos sem emojis em toda a janela (o terminal continua igual).

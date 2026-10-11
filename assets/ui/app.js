@@ -46,6 +46,9 @@
     play: '<path d="M4 2.5v9l7.5-4.5z" fill="currentColor" stroke="none"/>',
     pause: '<path d="M4 3v8M10 3v8"/>',
     folder: '<path d="M1.5 4.5v7h13v-8.5h-6.5l-1.5-1.5h-5v3z"/>',
+    expand: '<path d="M2 5V2h3M9 2h3v3M12 9v3H9M5 12H2V9"/>',
+    shrink: '<path d="M5 2v3H2M12 5H9V2M9 12V9h3M2 9h3v3"/>',
+    trash: '<path d="M2.5 4h9M5.5 4V2.5h3V4M3.5 4l.6 7.5h5.8l.6-7.5"/>',
   };
   function icon(name, size) {
     const s = size || 14;
@@ -484,12 +487,15 @@
   });
   const editing = { on: false };  // reordenando as fotos da sessão aberta
   const playBtn = button("", togglePlay, { icon: "play", title: "Play the sequence (space)" });
+  const fullBtn = button("", toggleFullscreen, { icon: "expand", title: "Full screen (F)" });
   const viewActions = [
     button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
     playBtn,
     button("", () => { stopPlay(); sessionGallery.next(); }, { icon: "right", title: "Next photo" }),
     button("Reorder", startReorder, { title: "Change the order of the photos in this session" }),
-    button("Delete", deleteCurrentSession, { kind: "btn-link", title: "Delete this session" }),
+    button("", deleteCurrentPhoto, { icon: "trash", title: "Delete this photo (Delete key)" }),
+    button("Delete session", deleteCurrentSession, { kind: "btn-link", title: "Delete this session" }),
+    fullBtn,
   ];
   const editActions = [
     button("", () => sessionGallery.moveSelected(-1), { icon: "left", title: "Move the selected photo earlier" }),
@@ -584,7 +590,10 @@
     renderSessionList();
     ui.viewerEmpty.classList.toggle("hidden", !!session);
     ui.sessionGallery.classList.toggle("hidden", !session);
-    if (!session) return;
+    if (!session) {
+      if (isFullscreen()) setFullscreen(false);
+      return;
+    }
 
     sessionHead(session);
     const items = sessionItems(session);
@@ -630,6 +639,39 @@
     } else {
       showSession(session, true);
     }
+  }
+
+  // ----- Tela cheia -----
+  const sessionsPanel = document.querySelector(".sessions-panel");
+  function setFullscreen(on) {
+    sessionsPanel.classList.toggle("fullscreen", on);
+    fullBtn.innerHTML = icon(on ? "shrink" : "expand");
+    fullBtn.title = on ? "Exit full screen (Esc)" : "Full screen (F)";
+    fullBtn.setAttribute("aria-label", fullBtn.title);
+  }
+  function isFullscreen() {
+    return sessionsPanel.classList.contains("fullscreen");
+  }
+  function toggleFullscreen() {
+    setFullscreen(!isFullscreen());
+  }
+
+  // ----- Apagar uma foto -----
+  function deleteCurrentPhoto() {
+    if (!currentSession || editing.on) return;
+    const item = sessionGallery.items[sessionGallery.index];
+    if (!item) return;
+    stopPlay();
+    const session = currentSession.name;
+    const what = item.title + (item.subtitle ? " (" + item.subtitle + ")" : "");
+    dialog("Delete photo " + pad(item.order || sessionGallery.index + 1) + "?",
+      what + ". " + (item.files.length > 1 ? "Its RAW and JPEG files are" : "The file is") + " deleted permanently.", [
+        { label: "Cancel" },
+        { label: "Delete", primary: true, onClick: () => {
+          window.deletePhotos(session, item.group);
+          log("Photo " + pad(item.order || 0) + " deleted from the session of " + sessionLabel(session).date, "ok");
+        } },
+      ]);
   }
 
   function deleteCurrentSession() {
@@ -735,6 +777,14 @@
     if (e.key === "ArrowLeft") { e.preventDefault(); stopPlay(); target.prev(); }
     if (e.key === "ArrowRight") { e.preventDefault(); stopPlay(); target.next(); }
     if (e.key === " " && !order.open) { e.preventDefault(); togglePlay(); }
+    if (order.open) return;
+    // Sessão: Esc sai da reordenação ou da tela cheia; F tela cheia; Delete apaga a foto
+    if (e.key === "Escape") {
+      if (editing.on) stopReorder(false);
+      else if (isFullscreen()) setFullscreen(false);
+    }
+    if ((e.key === "f" || e.key === "F") && !editing.on) toggleFullscreen();
+    if ((e.key === "Delete" || e.key === "Backspace") && !editing.on) { e.preventDefault(); deleteCurrentPhoto(); }
   });
 
   // =================== Salvar / sair ===================
@@ -806,7 +856,7 @@
       // Rodapé: quem está demorando para conectar
       const slow = cameras.filter((c) => c.state === "connecting" && !c.waiting && c.seconds >= 2);
       if (slow.length) {
-        ui.logLast.textContent = "Connecting " + slow.map((c) => cameraLabel(c.name, c.model) + ", " + c.seconds + " s").join(" and ") +
+        ui.logLast.textContent = "Connecting " + slow.map((c) => cameraLabel(c.name, c.model)).join(" and ") +
           ". Some cameras take up to a minute.";
       }
     },
@@ -828,8 +878,7 @@
     // Conexão
     connecting(e) { log("Connecting " + cameraLabel(e.camera, e.model)); },
     connected(e) {
-      // O tempo só interessa quando a câmera demorou (algumas levam até um minuto)
-      log(cameraLabel(e.camera, e.model) + " connected" + (e.seconds >= 5 ? " after " + Math.round(e.seconds) + " s" : ""), "ok");
+      log(cameraLabel(e.camera, e.model) + " connected", "ok");
       if (!e.compatible) log(e.model + " is not on Canon's compatibility list.", "warn", "It may not work correctly.");
     },
     connectFailed(e) {
@@ -893,6 +942,10 @@
       }
     },
 
+    deleteFailed(e) {
+      toast(e.error, 8000);
+      log("The photo could not be deleted.", "error", e.error);
+    },
     reorderFailed(e) {
       toast(e.error, 8000);
       log("The photo order could not be changed.", "error", e.error);
