@@ -105,6 +105,37 @@
       .replace(/\s+/g, " ").trim();
   }
 
+  // Rodapé: enquanto algo está em andamento (conectando, disparando, salvando...),
+  // mostra o que é com reticências animadas; senão, a última mensagem.
+  const DOTS = ["", ".", "..", "..."];
+  const activity = { last: "", busyText: "", saving: false, closing: false, step: 0 };
+  const BUSY_TEXT = {
+    restart: "Restarting camera connections", shoot: "Shooting", identify: "Identifying the camera",
+    reorder: "Saving the camera order", orderPhotos: "Taking a photo with each camera",
+  };
+
+  function ongoingText() {
+    if (activity.closing) return "Closing";
+    if (activity.saving) return "Saving sessions";
+    if (busy) return activity.busyText || BUSY_TEXT[busyAction] || "Working";
+    const connecting = cameras.filter((c) => c.state === "connecting" && !c.waiting);
+    if (connecting.length) return "Connecting " + connecting.map((c) => cameraLabel(c.name, c.model)).join(" and ");
+    if (!cameras.length && stillSearching()) return "Looking for cameras";
+    return "";
+  }
+
+  function renderActivity() {
+    const text = ongoingText();
+    ui.logLast.innerHTML = '<span></span><span class="dots"></span>';
+    ui.logLast.firstChild.textContent = text || activity.last;
+    ui.logLast.lastChild.textContent = text ? DOTS[activity.step % DOTS.length] : "";
+  }
+
+  setInterval(() => {
+    activity.step++;
+    if (ongoingText() || ui.logLast.lastChild && ui.logLast.lastChild.textContent) renderActivity();
+  }, 400);
+
   // Atividade: frases para a pessoa + detalhes técnicos (ocultos até marcar a opção)
   function log(text, kind, hint) {
     const li = document.createElement("li");
@@ -122,7 +153,10 @@
     const atBottom = ui.logList.scrollTop + ui.logList.clientHeight >= ui.logList.scrollHeight - 4;
     ui.logList.appendChild(li);
     if (atBottom) ui.logList.scrollTop = ui.logList.scrollHeight;
-    if (kind !== "tech") ui.logLast.textContent = text + (hint ? " " + hint : "");
+    if (kind !== "tech") {
+      activity.last = text + (hint ? " " + hint : "");
+      renderActivity();
+    }
   }
 
   function toast(text, ms) {
@@ -178,7 +212,7 @@
     root.innerHTML =
       '<div class="gallery-head"><div><div class="gallery-title"></div><div class="gallery-sub"></div></div><div class="gallery-actions"></div></div>' +
       '<div class="carousel-wrap"><ol class="carousel"></ol><div class="drop-marker hidden"></div></div>' +
-      '<div class="stage"><img alt=""><div class="stage-caption hidden"></div><div class="stage-message hidden"></div></div>';
+      '<div class="stage"><img alt=""><div class="stage-caption hidden"></div><div class="stage-message hidden"></div><div class="stage-tools"></div></div>';
     let draggable = !!opts.draggable;
     root.classList.toggle("draggable", draggable);
 
@@ -359,6 +393,12 @@
       },
       setHead(title, sub) { el.title.textContent = title || ""; el.sub.textContent = sub || ""; },
       setActions(nodes) { el.actions.innerHTML = ""; nodes.forEach((n) => el.actions.appendChild(n)); },
+      // Botões sobre a foto grande (canto superior direito)
+      setStageTools(nodes) {
+        const tools = root.querySelector(".stage-tools");
+        tools.innerHTML = "";
+        nodes.forEach((n) => tools.appendChild(n));
+      },
       setItems(list, selectIndex) {
         items = list.slice();
         index = Math.min(selectIndex || 0, Math.max(0, items.length - 1));
@@ -487,7 +527,10 @@
   });
   const editing = { on: false };  // reordenando as fotos da sessão aberta
   const playBtn = button("", togglePlay, { icon: "play", title: "Play the sequence (space)" });
-  const fullBtn = button("", toggleFullscreen, { icon: "expand", title: "Full screen (F)" });
+  // Fora da tela cheia, só o botão de abrir a tela cheia (sobre a foto). Os
+  // controles da sessão (navegar, play, reordenar, apagar) ficam na tela cheia.
+  const fullBtn = button("", () => setFullscreen(true), { icon: "expand", title: "Full screen (F)", kind: "btn-overlay" });
+  const exitFullBtn = button("", () => setFullscreen(false), { icon: "shrink", title: "Exit full screen (Esc)" });
   const viewActions = [
     button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
     playBtn,
@@ -495,7 +538,7 @@
     button("Reorder", startReorder, { title: "Change the order of the photos in this session" }),
     button("", deleteCurrentPhoto, { icon: "trash", title: "Delete this photo (Delete key)" }),
     button("Delete session", deleteCurrentSession, { kind: "btn-link", title: "Delete this session" }),
-    fullBtn,
+    exitFullBtn,
   ];
   const editActions = [
     button("", () => sessionGallery.moveSelected(-1), { icon: "left", title: "Move the selected photo earlier" }),
@@ -504,6 +547,7 @@
     button("Save order", () => stopReorder(true), { kind: "btn-primary" }),
   ];
   sessionGallery.setActions(viewActions);
+  sessionGallery.setStageTools([fullBtn]);
 
   function refreshSessions() {
     Promise.resolve(window.listSessions()).then(setSessions);
@@ -644,10 +688,12 @@
   // ----- Tela cheia -----
   const sessionsPanel = document.querySelector(".sessions-panel");
   function setFullscreen(on) {
+    if (on && !currentSession) return;
+    if (!on) {
+      stopPlay();
+      if (editing.on) stopReorder(false);
+    }
     sessionsPanel.classList.toggle("fullscreen", on);
-    fullBtn.innerHTML = icon(on ? "shrink" : "expand");
-    fullBtn.title = on ? "Exit full screen (Esc)" : "Full screen (F)";
-    fullBtn.setAttribute("aria-label", fullBtn.title);
   }
   function isFullscreen() {
     return sessionsPanel.classList.contains("fullscreen");
@@ -776,7 +822,7 @@
     if (!target) return;
     if (e.key === "ArrowLeft") { e.preventDefault(); stopPlay(); target.prev(); }
     if (e.key === "ArrowRight") { e.preventDefault(); stopPlay(); target.next(); }
-    if (e.key === " " && !order.open) { e.preventDefault(); togglePlay(); }
+    if (e.key === " " && !order.open && (isFullscreen() || playTimer)) { e.preventDefault(); togglePlay(); }
     if (order.open) return;
     // Sessão: Esc sai da reordenação ou da tela cheia; F tela cheia; Delete apaga a foto
     if (e.key === "Escape") {
@@ -784,7 +830,7 @@
       else if (isFullscreen()) setFullscreen(false);
     }
     if ((e.key === "f" || e.key === "F") && !editing.on) toggleFullscreen();
-    if ((e.key === "Delete" || e.key === "Backspace") && !editing.on) { e.preventDefault(); deleteCurrentPhoto(); }
+    if ((e.key === "Delete" || e.key === "Backspace") && !editing.on && isFullscreen()) { e.preventDefault(); deleteCurrentPhoto(); }
   });
 
   // =================== Salvar / sair ===================
@@ -826,10 +872,12 @@
     busy(e) {
       busy = e.busy;
       busyAction = e.busy ? e.action : "";
+      activity.busyText = "";
+      renderActivity();
       if (busy) {
         const labels = { restart: "Restarting connections", shoot: "Shooting", identify: "Identifying", reorder: "Saving order", orderPhotos: "Taking photos" };
         setStatus(labels[e.action] || "Working", "busy");
-        if (e.action === "restart") log("Restarting camera connections");
+        if (e.action === "restart") log("Camera connections restarted");
       } else {
         if (orderCapture()) {
           // O pedido terminou sem fotos (ex.: uma câmera ainda conectando)
@@ -853,16 +901,12 @@
       readyStatus();
       refreshSessionTitles();
 
-      // Rodapé: quem está demorando para conectar
-      const slow = cameras.filter((c) => c.state === "connecting" && !c.waiting && c.seconds >= 2);
-      if (slow.length) {
-        ui.logLast.textContent = "Connecting " + slow.map((c) => cameraLabel(c.name, c.model)).join(" and ") +
-          ". Some cameras take up to a minute.";
-      }
+      renderActivity();
     },
 
     closing() {
       setStatus("Closing", "busy");
+      activity.closing = true;
       busy = true;
       updateButtons();
     },
@@ -890,6 +934,7 @@
       if (orderCapture()) return;
       if (e.total > 1) log("Session " + e.index + " of " + e.total);
       ui.progress.textContent = e.total > 1 ? "Session " + e.index + " of " + e.total : "Shooting";
+      activity.busyText = e.total > 1 ? "Shooting session " + e.index + " of " + e.total : "Shooting";
     },
     sessionFolderFailed() { log("Could not create the folder for the session.", "error"); },
     countdownStarted() {
@@ -917,11 +962,13 @@
       log(cameraLabel(e.camera) + " did not take the photo.", "warn", hint);
     },
     waitingDownloads() {
+      activity.busyText = "Receiving photos";
       if (orderCapture()) return orderGallery.message("Receiving photos");
       ui.progress.textContent = "Receiving photos";
     },
     downloadProgress(e) {
       const text = "Receiving photos, " + e.done + " of " + e.total;
+      activity.busyText = text;
       if (orderCapture()) return orderGallery.message(text);
       ui.progress.textContent = text;
     },
@@ -956,9 +1003,10 @@
 
     // Fotos guardadas
     sessions(e) { setSessions(e.sessions); },
-    saving() { toast("Saving sessions", 60000); },
+    saving() { activity.saving = true; renderActivity(); },
     saveCancelled() { toast("Save cancelled"); },
     saved(e) {
+      activity.saving = false;
       if (e.error) {
         toast(e.error, 8000);
         log(e.error, "error");

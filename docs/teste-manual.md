@@ -53,10 +53,13 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       muda a ordem; o próximo disparo usa a nova ordem nos nomes dos arquivos.
 - [ ] Sessões na tela principal: pastas à esquerda, a mais recente selecionada;
       carrossel no alto e a foto selecionada grande embaixo; setas ← → e espaço (play).
-- [ ] **Reorder** numa sessão: arrastar as miniaturas (ou usar as setas) e **Save
+- [ ] **Reorder** numa sessão (na tela cheia): arrastar as miniaturas (ou usar as setas) e **Save
       order** renomeia as fotos da sessão na nova ordem (RAW e JPEG juntos).
-- [ ] Sessão em **tela cheia** (botão ao lado de "Delete session" ou tecla F; Esc sai):
-      play/pausa, setas, **Reorder** e apagar uma foto (lixeira ou tecla Delete).
+- [ ] Fora da tela cheia, a sessão mostra só as fotos e o botão de tela cheia (sobre a foto).
+- [ ] Sessão em **tela cheia** (botão sobre a foto ou tecla F; Esc sai): data da sessão,
+      play/pausa, setas, **Reorder**, apagar uma foto (lixeira ou tecla Delete) e apagar a sessão.
+- [ ] Rodapé (Activity): enquanto algo acontece (conectando, disparando, recebendo
+      fotos, salvando), o texto aparece com reticências animadas.
 - [ ] Desligar a T7 e depois desligar/religar a SL3: a SL3 volta sozinha e o app
       continua fechando normalmente; religar a T7: ela volta no mesmo lugar.
 - [ ] Fotos em **RAW** (e RAW+JPEG): aparecem nas sessões.

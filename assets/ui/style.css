@@ -117,6 +117,14 @@ button { font: inherit; }
 .sessions-panel.fullscreen .session-folders { display: none; }
 .sessions-panel.fullscreen .session-viewer { padding: 16px 20px 20px; }
 .sessions-panel.fullscreen .stage { border-radius: 6px; }
+
+/* Fora da tela cheia: sem cabeçalho (a sessão já aparece na lista à esquerda) e sem
+   controles; só o botão de tela cheia sobre a foto */
+.sessions-panel:not(.fullscreen) .gallery-head { display: none; }
+.sessions-panel.fullscreen .stage-tools { display: none; }
+.stage-tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+.btn-overlay { background: rgba(0, 0, 0, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .18); }
+.btn-overlay:hover { background: rgba(0, 0, 0, .75); }
 .viewer-empty { margin: auto; text-align: center; color: var(--muted); max-width: 320px; }
 
 /* ---------- Galeria (sessões e reordenar por foto) ---------- */
@@ -228,6 +236,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 }
 .log-label { text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
 .log-last { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); opacity: .8; }
+.log-last .dots { display: inline-block; width: 1.2em; text-align: left; }  /* largura fixa: o texto não pula */
 .log-chevron { transition: transform .15s ease; }
 .log.expanded .log-chevron { transform: rotate(180deg); }
 .log-body { flex: 1; min-height: 0; display: none; flex-direction: column; padding: 0 18px 12px; }
