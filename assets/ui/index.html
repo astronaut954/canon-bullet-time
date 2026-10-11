@@ -10,120 +10,116 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark">◉</span>
+      <span class="brand-mark" aria-hidden="true"></span>
       <span class="brand-name">Canon Bullet Time</span>
     </div>
-
-    <nav class="tabs">
-      <button class="tab active" data-view="capture">Capture</button>
-      <button class="tab" data-view="sessions">Sessions <span id="sessionCount" class="count hidden">0</span></button>
-    </nav>
-
     <div class="topbar-right">
-      <div id="status" class="status status-idle">Starting…</div>
+      <div id="status" class="status">Starting</div>
       <button id="saveBtn" class="btn btn-primary btn-small" disabled>Save sessions</button>
     </div>
   </header>
 
-  <!-- ====================== CAPTURA ====================== -->
-  <main id="view-capture" class="view capture">
-    <section class="panel cameras">
-      <div class="panel-head">
-        <h2>Cameras</h2>
-        <span class="panel-note">Connect automatically</span>
-      </div>
-      <ul id="cameraList" class="camera-list"></ul>
-      <p id="searching" class="empty">Looking for cameras…</p>
-      <div id="noCameras" class="empty hidden">
-        <p class="empty-title">No cameras found.</p>
-        <p>Check:</p>
-        <ul>
-          <li>Turn the camera off and on again</li>
-          <li>Camera is on and not in movie mode</li>
-          <li>USB cable supports data (not charge-only)</li>
-          <li>No other app is using the camera (EOS Utility, Photos, Image Capture, Google Drive)</li>
-          <li>Your model is supported: see CDC_EDSDK_Compat_List.pdf</li>
-        </ul>
+  <main class="app">
+    <!-- ====================== SESSÕES ====================== -->
+    <section class="panel sessions-panel">
+      <aside class="session-folders">
+        <h2>Sessions <span id="sessionCount" class="count hidden">0</span></h2>
+        <ul id="sessionList" class="folder-list"></ul>
+        <p id="noSessions" class="empty">None yet.</p>
+      </aside>
+      <div class="session-viewer">
+        <div id="viewerEmpty" class="viewer-empty">
+          <p class="empty-title">No sessions yet</p>
+          <p>After you shoot, each session appears here with one photo per camera.</p>
+        </div>
+        <div id="sessionGallery" class="gallery hidden"></div>
       </div>
     </section>
 
-    <section class="panel shoot">
-      <h2>Bullet time</h2>
-      <div class="fields">
-        <label class="field">
-          <span>Countdown (s)</span>
-          <input id="countdown" type="number" min="0" value="0">
-        </label>
-        <label class="field">
-          <span>Sessions</span>
-          <input id="sessions" type="number" min="1" value="1">
-        </label>
-        <label class="field">
-          <span>Download wait (s)</span>
-          <input id="downloadWait" type="number" min="1" value="10">
-        </label>
-      </div>
-      <button id="shootBtn" class="btn btn-primary btn-shoot">It's bullet time</button>
-      <p id="shootNote" class="shoot-note hidden"></p>
-      <p id="progress" class="progress"></p>
-      <p class="storage-note">Photos are kept in the app until you save them.</p>
+    <section class="controls">
+      <!-- ====================== CÂMERAS ====================== -->
+      <section class="panel cameras-panel">
+        <div class="panel-head">
+          <h2>Cameras</h2>
+          <button id="orderBtn" class="btn btn-secondary btn-small" disabled>Reorder by photo</button>
+        </div>
+        <ul id="cameraList" class="camera-list"></ul>
+        <p id="searching" class="empty">Looking for cameras</p>
+        <div id="noCameras" class="empty hidden">
+          <p class="empty-title">No cameras found</p>
+          <ul>
+            <li>Turn the camera off and on again.</li>
+            <li>Make sure it is not in movie mode.</li>
+            <li>Use a USB cable that carries data, not only power.</li>
+            <li>Close other apps that use the camera, such as EOS Utility, Photos, Image Capture or Google Drive.</li>
+            <li>Check that your model is on Canon's list of supported cameras.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ====================== DISPARO ====================== -->
+      <section class="panel shoot-panel">
+        <h2>Bullet time</h2>
+        <div class="fields">
+          <label class="field">
+            <span>Countdown</span>
+            <span class="input-unit"><input id="countdown" type="number" min="0" value="0"><em>sec</em></span>
+          </label>
+          <label class="field">
+            <span>Sessions</span>
+            <span class="input-unit"><input id="sessions" type="number" min="1" value="1"></span>
+          </label>
+          <label class="field">
+            <span>Download wait</span>
+            <span class="input-unit"><input id="downloadWait" type="number" min="1" value="10"><em>sec</em></span>
+          </label>
+        </div>
+        <button id="shootBtn" class="btn btn-primary btn-shoot">It's bullet time</button>
+        <p id="shootNote" class="shoot-note hidden"></p>
+        <p id="progress" class="progress"></p>
+        <p class="storage-note">Photos stay in the app until you save them.</p>
+      </section>
     </section>
   </main>
 
-  <!-- ====================== SESSÕES ====================== -->
-  <main id="view-sessions" class="view sessions hidden">
-    <section class="panel session-list-panel">
-      <div class="panel-head">
-        <h2>Sessions</h2>
-      </div>
-      <ul id="sessionList" class="session-list"></ul>
-      <p id="noSessions" class="empty">No sessions yet. Shoot one in Capture.</p>
-    </section>
-
-    <section class="panel viewer">
-      <div id="viewerEmpty" class="viewer-empty">Select a session to see its sequence.</div>
-      <div id="viewerContent" class="viewer-content hidden">
-        <div class="viewer-head">
-          <div>
-            <div id="viewerTitle" class="viewer-title"></div>
-            <div id="viewerCamera" class="viewer-camera"></div>
-          </div>
-          <div class="viewer-controls">
-            <button id="prevBtn" class="btn btn-secondary btn-small" title="Previous camera (←)">←</button>
-            <button id="playBtn" class="btn btn-secondary btn-small" title="Play sequence (space)">Play</button>
-            <button id="nextBtn" class="btn btn-secondary btn-small" title="Next camera (→)">→</button>
-            <button id="deleteSessionBtn" class="btn btn-link btn-small">Delete session</button>
-          </div>
-        </div>
-        <div class="stage">
-          <img id="stageImage" alt="">
-          <div id="stageMessage" class="stage-message hidden"></div>
-        </div>
-        <input id="scrubber" class="scrubber" type="range" min="0" value="0" step="1">
-        <ol id="filmstrip" class="filmstrip"></ol>
-      </div>
-    </section>
-  </main>
-
-  <!-- ====================== LOG (recolhido) ====================== -->
+  <!-- ====================== ATIVIDADE (recolhida) ====================== -->
   <footer id="log" class="log collapsed">
     <button id="logToggle" class="log-bar">
-      <span class="log-label">Log</span>
-      <span id="logLast" class="log-last">Starting…</span>
-      <span class="log-chevron">▴</span>
+      <span class="log-label">Activity</span>
+      <span id="logLast" class="log-last"></span>
+      <svg class="log-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
     </button>
     <div class="log-body">
       <div class="log-options">
         <label class="log-option"><input id="techToggle" type="checkbox"> Show technical details</label>
-        <button id="restartBtn" class="btn btn-link btn-small" title="If a camera is on and plugged in but does not connect">Restart camera connections</button>
+        <button id="restartBtn" class="btn btn-link btn-small" title="Use when a camera is on and plugged in but does not connect">Restart camera connections</button>
       </div>
       <ol id="logList" class="log-list"></ol>
     </div>
   </footer>
 
   <!-- ====================== SOBREPOSIÇÕES ====================== -->
-  <div id="countdownOverlay" class="overlay hidden">
+  <div id="countdownOverlay" class="overlay countdown hidden">
     <div id="countdownNumber" class="countdown-number"></div>
+  </div>
+  <div id="flash" class="flash hidden"></div>
+
+  <div id="orderOverlay" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div>
+          <h3>Reorder by photo</h3>
+          <p id="orderHelp">Drag the photos into the order the cameras are set up. The first photo becomes camera 01.</p>
+        </div>
+      </div>
+      <div id="orderGallery" class="gallery"></div>
+      <div class="sheet-actions">
+        <button id="orderRetake" class="btn btn-secondary">Take new photos</button>
+        <span class="spacer"></span>
+        <button id="orderCancel" class="btn btn-secondary">Cancel</button>
+        <button id="orderSave" class="btn btn-primary">Save order</button>
+      </div>
+    </div>
   </div>
 
   <div id="dialogOverlay" class="overlay hidden">

@@ -131,7 +131,7 @@ bool BulletTime::TestCamera(const CameraContext& camera)
     return true;
 }
 
-void BulletTime::RunCountdown(int seconds)
+void BulletTime::RunCountdown(int seconds, bool playSounds)
 {
     const auto countdownAudio = GetAssetAudioPath("countdown.wav");
     const auto bulletTimeAudio = GetAssetAudioPath("itsbullettime.wav");
@@ -143,13 +143,15 @@ void BulletTime::RunCountdown(int seconds)
         for (int i = seconds; i >= 1; --i)
         {
             listener.OnCountdownTick(i);
-            AudioPlayer::PlayWavAsync(countdownAudio.string());
+            if (playSounds)
+                AudioPlayer::PlayWavAsync(countdownAudio.string());
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
 
     listener.OnTrigger();
-    AudioPlayer::PlayWavAsync(bulletTimeAudio.string());
+    if (playSounds)
+        AudioPlayer::PlayWavAsync(bulletTimeAudio.string());
 }
 
 std::string BulletTime::GenerateShotId()
@@ -188,7 +190,7 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             break;
         }
 
-        RunCountdown(settings.countdownSeconds);
+        RunCountdown(settings.countdownSeconds, settings.playSounds);
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
 
         controller.ShootAll();

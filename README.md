@@ -151,7 +151,12 @@ stay in that folder and the app offers to save them the next time it opens.
 Cameras connect by themselves, one at a time (the Canon SDK accepts no other command while
 a camera is connecting, so shooting waits until it finishes). A camera that is turned off
 and on again returns to its place in the order. If a camera
-is on and plugged in but does not connect, use **Restart camera connections** in the log panel.
+is on and plugged in but does not connect, use **Restart camera connections** in the Activity panel.
+
+Sessions are shown on the main screen: folders on the left, the photos of the selected
+session in a strip on top and the selected photo large below. **Reorder by photo** (in
+the Cameras panel) takes a test photo with each camera, without sound and without
+creating a session; drag the photos into the order the cameras are set up and save.
 
 The session viewer shows JPEG and RAW photos (CR3, CR2, NEF, ARW, DNG and other formats
 read by LibRaw), using the preview image the camera stores inside each RAW file.

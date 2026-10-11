@@ -1,43 +1,57 @@
 // Canon Bullet Time — comportamento da interface.
 // Recebe os avisos do programa em window.onCoreEvent e chama o programa pelas
 // funções que o C++ disponibiliza para a página: uiReady, shoot, identify,
-// setPrefix, restartConnections, listSessions, getPhoto, saveSessions,
-// deleteSession, deleteAllSessions e exitApp.
+// setPrefix, setOrder, takeOrderPhotos, getOrderPhoto, discardOrderPhotos,
+// restartConnections, listSessions, getPhoto, saveSessions, deleteSession,
+// deleteAllSessions e exitApp.
 // As câmeras conectam sozinhas: a lista chega pelo aviso "cameras" sempre que muda.
+//
+// Textos da tela: frases curtas, sem emojis e sem cara de terminal.
 
 (function () {
   const $ = (id) => document.getElementById(id);
 
   const ui = {
     status: $("status"), saveBtn: $("saveBtn"), sessionCount: $("sessionCount"),
-    tabs: document.querySelectorAll(".tab"),
-    viewCapture: $("view-capture"), viewSessions: $("view-sessions"),
-    cameraList: $("cameraList"), noCameras: $("noCameras"), searching: $("searching"),
+    sessionList: $("sessionList"), noSessions: $("noSessions"),
+    viewerEmpty: $("viewerEmpty"), sessionGallery: $("sessionGallery"),
+    cameraList: $("cameraList"), noCameras: $("noCameras"), searching: $("searching"), orderBtn: $("orderBtn"),
     shootBtn: $("shootBtn"), shootNote: $("shootNote"), countdown: $("countdown"), sessions: $("sessions"), downloadWait: $("downloadWait"),
     progress: $("progress"),
-    sessionList: $("sessionList"), noSessions: $("noSessions"),
-    viewerEmpty: $("viewerEmpty"), viewerContent: $("viewerContent"),
-    viewerTitle: $("viewerTitle"), viewerCamera: $("viewerCamera"),
-    prevBtn: $("prevBtn"), playBtn: $("playBtn"), nextBtn: $("nextBtn"), deleteSessionBtn: $("deleteSessionBtn"),
-    stageImage: $("stageImage"), stageMessage: $("stageMessage"), scrubber: $("scrubber"), filmstrip: $("filmstrip"),
     log: $("log"), logToggle: $("logToggle"), logLast: $("logLast"), logList: $("logList"), techToggle: $("techToggle"),
     restartBtn: $("restartBtn"),
-    countdownOverlay: $("countdownOverlay"), countdownNumber: $("countdownNumber"),
+    countdownOverlay: $("countdownOverlay"), countdownNumber: $("countdownNumber"), flash: $("flash"),
+    orderOverlay: $("orderOverlay"), orderGallery: $("orderGallery"), orderHelp: $("orderHelp"),
+    orderRetake: $("orderRetake"), orderCancel: $("orderCancel"), orderSave: $("orderSave"),
     dialogOverlay: $("dialogOverlay"), dialogTitle: $("dialogTitle"), dialogText: $("dialogText"), dialogActions: $("dialogActions"),
     toast: $("toast"),
   };
 
-  const DOTS = ["   ", ".  ", ".. ", "..."];
-  let busy = false;
-  let cameras = [];          // última lista recebida do programa (inclui as que estão conectando)
-  const SEARCH_GRACE_MS = 4000; // tempo procurando antes de mostrar "nenhuma câmera"
+  const SEARCH_GRACE_MS = 4000;  // tempo procurando antes de mostrar "nenhuma câmera"
   const startedAt = Date.now();
+  let busy = false;
+  let busyAction = "";
+  let cameras = [];              // última lista recebida (inclui as que estão conectando)
   let sessions = [];
   let currentSession = null;
-  let currentIndex = 0;
   let playTimer = null;
-  const photoCache = {};     // "sessão/arquivo/tamanho" -> Promise<dataURL|null>
-  let tick = 0;
+  const photoCache = {};         // "loja/sessão/arquivo/tamanho" -> Promise<dataURL|null>
+
+  // =================== Ícones ===================
+  const ICONS = {
+    up: '<path d="M3 9l4-4 4 4"/>',
+    down: '<path d="M3 5l4 4 4-4"/>',
+    left: '<path d="M9 3L5 7l4 4"/>',
+    right: '<path d="M5 3l4 4-4 4"/>',
+    play: '<path d="M4 2.5v9l7.5-4.5z" fill="currentColor" stroke="none"/>',
+    pause: '<path d="M4 3v8M10 3v8"/>',
+    folder: '<path d="M1.5 4.5v7h13v-8.5h-6.5l-1.5-1.5h-5v3z"/>',
+  };
+  function icon(name, size) {
+    const s = size || 14;
+    const box = name === "folder" ? "0 0 16 14" : "0 0 14 14";
+    return '<svg width="' + s + '" height="' + s + '" viewBox="' + box + '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + "</svg>";
+  }
 
   // =================== Utilitários ===================
   function setStatus(text, kind) {
@@ -49,30 +63,63 @@
     return Date.now() - startedAt < SEARCH_GRACE_MS;
   }
 
+  function plural(n, one, many) {
+    return n + " " + (n === 1 ? one : many);
+  }
+
+  function pad(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  // Nome do modelo sem "Canon " (cabe melhor nas miniaturas)
+  function shortModel(model) {
+    return (model || "").replace(/^Canon\s+/i, "");
+  }
+
+  // Modelo da câmera pelo apelido (T7_1); se for o único daquele modelo, só o modelo
+  function cameraLabel(name, model) {
+    const cam = cameras.find((c) => c.name === name);
+    const m = model || (cam && cam.model) || "";
+    if (!m) return name;
+    const sameModel = cameras.filter((c) => c.model === m).length;
+    return sameModel > 1 ? m + " (" + name + ")" : m;
+  }
+
   function readyStatus() {
-    const n = cameras.filter((c) => c.connected).length;
-    const connectingNow = cameras.filter((c) => c.state === "connecting").length;
-    if (n) setStatus(n + (n === 1 ? " camera ready" : " cameras ready") + (connectingNow ? " · " + connectingNow + " connecting" : ""), "ok");
-    else if (connectingNow) setStatus("Connecting…", "busy");
-    else if (stillSearching()) setStatus("Looking for cameras…", "busy");
+    if (busy) return;
+    const ready = cameras.filter((c) => c.connected).length;
+    const connecting = cameras.filter((c) => c.state === "connecting").length;
+    if (ready && connecting) setStatus(ready + " ready, " + connecting + " connecting", "ok");
+    else if (ready) setStatus(plural(ready, "camera ready", "cameras ready"), "ok");
+    else if (connecting) setStatus("Connecting", "busy");
+    else if (stillSearching()) setStatus("Looking for cameras", "busy");
     else setStatus("No cameras", "idle");
   }
 
-  // Log: linhas amigáveis + detalhes técnicos (ocultos até marcar a opção)
+  // Mensagens do núcleo trazem emojis e espaços do terminal: só para os detalhes técnicos
+  function plainText(text) {
+    return text.replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, "")
+      .replace(/\s+/g, " ").trim();
+  }
+
+  // Atividade: frases para a pessoa + detalhes técnicos (ocultos até marcar a opção)
   function log(text, kind, hint) {
     const li = document.createElement("li");
-    li.textContent = text;
     if (kind) li.className = kind;
+    const now = new Date();
+    li.innerHTML = '<span class="log-time"></span><span class="log-mark"></span><span class="log-text"></span>';
+    li.children[0].textContent = pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+    li.children[2].textContent = text;
     if (hint) {
       const span = document.createElement("span");
-      span.className = "hint";
+      span.className = "log-hint";
       span.textContent = hint;
-      li.appendChild(span);
+      li.children[2].appendChild(span);
     }
+    const atBottom = ui.logList.scrollTop + ui.logList.clientHeight >= ui.logList.scrollHeight - 4;
     ui.logList.appendChild(li);
-    ui.logList.scrollTop = ui.logList.scrollHeight;
-    if (kind !== "tech") ui.logLast.textContent = text + (hint ? " — " + hint : "");
-    return li;
+    if (atBottom) ui.logList.scrollTop = ui.logList.scrollHeight;
+    if (kind !== "tech") ui.logLast.textContent = text + (hint ? " " + hint : "");
   }
 
   function toast(text, ms) {
@@ -97,29 +144,15 @@
   }
 
   function sessionLabel(name) {
-    // "2026-10-10_18-46-12_AB12_session_01" -> "Oct 10, 18:46:12 · session 1"
+    // "2026-10-10_18-46-12_AB12_session_01" -> { date: "Oct 10, 18:46", detail: "Session 1" }
     const m = /^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})(?:_[A-Z0-9]+_session_(\d+))?/.exec(name);
-    if (!m) return name;
+    if (!m) return { date: name, time: "", detail: "" };
     const date = new Date(+m[1], +m[2] - 1, +m[3]);
-    const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    return day + ", " + m[4] + ":" + m[5] + ":" + m[6] + (m[7] ? " · session " + (+m[7]) : "");
-  }
-
-  function updateButtons() {
-    const connected = cameras.filter((c) => c.connected).length;
-    ui.restartBtn.disabled = busy;
-    // Enquanto uma câmera conecta, o SDK da Canon não aceita outros comandos
-    const connectingNames = cameras.filter((c) => c.state === "connecting").map((c) => c.name);
-    const sdkBusy = connectingNames.length > 0;
-    ui.shootBtn.disabled = busy || connected === 0 || sdkBusy;
-    ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
-    ui.shootNote.textContent = "Available when " + connectingNames.join(", ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
-    document.querySelectorAll(".camera-actions button").forEach((b) =>
-      (b.disabled = busy || b.dataset.locked === "1" || (sdkBusy && b.dataset.sdk === "1")));
-    ui.saveBtn.disabled = sessions.length === 0;
-    ui.saveBtn.textContent = sessions.length ? "Save sessions (" + sessions.length + ")" : "Save sessions";
-    ui.sessionCount.textContent = sessions.length;
-    ui.sessionCount.classList.toggle("hidden", sessions.length === 0);
+    return {
+      date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + ", " + m[4] + ":" + m[5],
+      time: m[4] + ":" + m[5] + ":" + m[6],
+      detail: m[7] ? "Session " + (+m[7]) : "",
+    };
   }
 
   function intValue(input, min, fallback) {
@@ -127,18 +160,226 @@
     return Number.isFinite(n) && n >= min ? n : fallback;
   }
 
-  // =================== Abas ===================
-  function showView(view) {
-    ui.tabs.forEach((t) => t.classList.toggle("active", t.dataset.view === view));
-    ui.viewCapture.classList.toggle("hidden", view !== "capture");
-    ui.viewSessions.classList.toggle("hidden", view !== "sessions");
-    if (view === "sessions") refreshSessions();
-    else stopPlay();
+  function photo(loader, store, session, file, size) {
+    const key = store + "/" + session + "/" + file + "/" + size;
+    if (!photoCache[key]) photoCache[key] = Promise.resolve(loader(session, file, size));
+    return photoCache[key];
   }
-  ui.tabs.forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
+  const sessionPhoto = (s, f, size) => photo(window.getPhoto, "sessions", s, f, size);
+  const orderPhoto = (s, f, size) => photo(window.getOrderPhoto, "order", s, f, size);
+
+  // =================== Galeria: carrossel + foto grande ===================
+  // Usada nas sessões e no "Reorder by photo". Com draggable, as miniaturas podem
+  // ser arrastadas para mudar a ordem.
+  function Gallery(root, opts) {
+    root.innerHTML =
+      '<div class="gallery-head"><div><div class="gallery-title"></div><div class="gallery-sub"></div></div><div class="gallery-actions"></div></div>' +
+      '<div class="carousel-wrap"><ol class="carousel"></ol><div class="drop-marker hidden"></div></div>' +
+      '<div class="stage"><img alt=""><div class="stage-caption hidden"></div><div class="stage-message hidden"></div></div>';
+    root.classList.toggle("draggable", !!opts.draggable);
+
+    const el = {
+      title: root.querySelector(".gallery-title"), sub: root.querySelector(".gallery-sub"),
+      actions: root.querySelector(".gallery-actions"), carousel: root.querySelector(".carousel"),
+      wrap: root.querySelector(".carousel-wrap"), marker: root.querySelector(".drop-marker"),
+      img: root.querySelector(".stage img"), caption: root.querySelector(".stage-caption"),
+      message: root.querySelector(".stage-message"),
+    };
+    let items = [];
+    let index = 0;
+    let drag = null;
+
+    function badge(item, i) {
+      return pad(opts.draggable ? i + 1 : item.order || i + 1);
+    }
+
+    function render() {
+      el.carousel.innerHTML = "";
+      items.forEach((item, i) => el.carousel.appendChild(frame(item, i)));
+      markSelected(false);
+    }
+
+    function frame(item, i) {
+      const li = document.createElement("li");
+      li.className = "frame";
+      li.innerHTML = '<div class="frame-img"><span class="frame-badge"></span></div><div class="frame-title"></div><div class="frame-sub"></div>';
+      li.querySelector(".frame-badge").textContent = badge(item, i);
+      li.querySelector(".frame-title").textContent = item.title;
+      li.querySelector(".frame-sub").textContent = item.subtitle || "";
+      li.title = item.title + (item.subtitle ? " · " + item.subtitle : "");
+      const img = li.querySelector(".frame-img");
+      if (item.file && item.previewable) {
+        opts.load(item, 320).then((url) => { if (url) img.style.backgroundImage = "url(" + url + ")"; });
+      } else {
+        img.appendChild(document.createTextNode(item.file ? "No preview" : "No photo"));
+      }
+
+      if (opts.draggable) {
+        li.addEventListener("pointerdown", (e) => onPointerDown(e, li, i));
+      } else {
+        li.addEventListener("click", () => select(i));
+      }
+      return li;
+    }
+
+    function markSelected(scroll) {
+      [...el.carousel.children].forEach((li, i) => li.classList.toggle("selected", i === index));
+      const active = el.carousel.children[index];
+      if (scroll && active) active.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+
+    function message(text) {
+      el.message.textContent = text;
+      el.message.classList.toggle("hidden", !text);
+    }
+
+    function showLarge() {
+      const item = items[index];
+      if (!item) {
+        el.img.removeAttribute("src");
+        el.caption.classList.add("hidden");
+        return;
+      }
+      el.caption.innerHTML = "<b></b><span></span>";
+      el.caption.firstChild.textContent = badge(item, index);
+      el.caption.lastChild.textContent = item.title + (item.subtitle ? " · " + item.subtitle : "");
+      el.caption.classList.remove("hidden");
+
+      if (!item.file) { el.img.removeAttribute("src"); return message("This camera did not send a photo."); }
+      if (!item.previewable) { el.img.removeAttribute("src"); return message("No preview for this file type (" + item.file + ")."); }
+      message(el.img.getAttribute("src") ? "" : "Loading");
+      const wanted = item;
+      opts.load(item, 1600).then((url) => {
+        if (items[index] !== wanted) return;
+        if (url) { el.img.src = url; message(""); }
+        else { el.img.removeAttribute("src"); message("Could not open " + item.file + "."); }
+      });
+      // Pré-carrega as próximas para a reprodução ficar fluida
+      for (let k = 1; k <= 2 && items.length > 1; k++) {
+        const next = items[(index + k) % items.length];
+        if (next.file && next.previewable) opts.load(next, 1600);
+      }
+    }
+
+    function select(i) {
+      if (!items.length) return;
+      index = (i + items.length) % items.length;
+      markSelected(true);
+      showLarge();
+    }
+
+    // ----- Arrastar para reordenar -----
+    function others() {
+      return [...el.carousel.children].filter((li) => !li.classList.contains("dragging"));
+    }
+
+    function insertionIndex(x) {
+      return others().filter((li) => {
+        const r = li.getBoundingClientRect();
+        return r.left + r.width / 2 < x;
+      }).length;
+    }
+
+    function showMarker(target) {
+      const list = others();
+      const wrapRect = el.wrap.getBoundingClientRect();
+      let x;
+      if (!list.length) x = 0;
+      else if (target < list.length) x = list[target].getBoundingClientRect().left - 5;
+      else x = list[list.length - 1].getBoundingClientRect().right + 5;
+      el.marker.style.left = (x - wrapRect.left) + "px";
+      el.marker.classList.remove("hidden");
+    }
+
+    function onPointerDown(e, li, i) {
+      if (e.button !== 0) return;
+      drag = { li, i, x: e.clientX, y: e.clientY, scroll: el.carousel.scrollLeft, moved: false };
+      li.setPointerCapture(e.pointerId);
+      li.onpointermove = onPointerMove;
+      li.onpointerup = onPointerUp;
+      li.onpointercancel = () => endDrag(null);
+    }
+
+    function onPointerMove(e) {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) < 6 && Math.abs(e.clientY - drag.y) < 6) return;
+      drag.moved = true;
+      drag.li.classList.add("dragging");
+
+      // Rola o carrossel quando o arraste chega perto das bordas
+      const r = el.carousel.getBoundingClientRect();
+      if (e.clientX < r.left + 40) el.carousel.scrollLeft -= 12;
+      if (e.clientX > r.right - 40) el.carousel.scrollLeft += 12;
+
+      drag.li.style.transform = "translateX(" + (dx + el.carousel.scrollLeft - drag.scroll) + "px)";
+      showMarker(insertionIndex(e.clientX));
+    }
+
+    function onPointerUp(e) {
+      if (!drag) return;
+      endDrag(drag.moved ? insertionIndex(e.clientX) : null);
+    }
+
+    function endDrag(target) {
+      const d = drag;
+      drag = null;
+      if (!d) return;
+      d.li.onpointermove = d.li.onpointerup = d.li.onpointercancel = null;
+      d.li.classList.remove("dragging");
+      d.li.style.transform = "";
+      el.marker.classList.add("hidden");
+      if (target === null) {
+        if (!d.moved) select(d.i);
+        return;
+      }
+      move(d.i, target);
+    }
+
+    function move(from, to) {
+      if (to < 0 || to >= items.length || from === to) { select(from); return; }
+      const [item] = items.splice(from, 1);
+      items.splice(to, 0, item);
+      index = to;
+      render();
+      showLarge();
+      markSelected(true);
+      if (opts.onReorder) opts.onReorder(items);
+    }
+
+    return {
+      setHead(title, sub) { el.title.textContent = title || ""; el.sub.textContent = sub || ""; },
+      setActions(nodes) { el.actions.innerHTML = ""; nodes.forEach((n) => el.actions.appendChild(n)); },
+      setItems(list, selectIndex) {
+        items = list.slice();
+        index = Math.min(selectIndex || 0, Math.max(0, items.length - 1));
+        el.img.removeAttribute("src");
+        render();
+        showLarge();
+        if (!items.length) message("");
+      },
+      message,
+      select,
+      next() { select(index + 1); },
+      prev() { select(index - 1); },
+      moveSelected(delta) { move(index, index + delta); },
+      get items() { return items; },
+      get index() { return index; },
+    };
+  }
+
+  function button(label, onClick, opts) {
+    const b = document.createElement("button");
+    const o = opts || {};
+    b.className = "btn btn-small " + (o.kind || "btn-secondary") + (o.icon && !label ? " btn-icon" : "");
+    b.innerHTML = o.icon ? icon(o.icon) : "";
+    if (label) b.appendChild(document.createTextNode(label));
+    if (o.title) { b.title = o.title; b.setAttribute("aria-label", o.title); }
+    b.addEventListener("click", onClick);
+    return b;
+  }
 
   // =================== Câmeras (tempo real) ===================
-  // Câmeras com posição na ordem (conectadas ou que caíram) e, no fim, as novas conectando
   function placedCameras() {
     return cameras.filter((c) => c.order > 0);
   }
@@ -163,24 +404,25 @@
 
     const order = document.createElement("div");
     order.className = "camera-order";
-    order.textContent = cam.order ? String(cam.order).padStart(2, "0") : "··";
+    order.textContent = cam.order ? pad(cam.order) : "";
 
     const info = document.createElement("div");
-    const name = document.createElement("div");
-    name.className = "camera-name";
-    name.innerHTML = '<span class="dot dot-' + state + '"></span>';
-    name.appendChild(document.createTextNode(cam.name));
+    info.style.minWidth = "0";
     const model = document.createElement("div");
     model.className = "camera-model";
-    model.textContent = cam.model;
-    const stateLine = document.createElement("div");
-    stateLine.className = "camera-state state-" + state;
-    stateLine.textContent =
-      state === "connected" ? "Connected"
-      : state === "connecting" && cam.waiting ? "Waiting — another camera is connecting"
-      : state === "connecting" ? "Connecting" + (cam.seconds >= 2 ? "… " + cam.seconds + "s (camera is starting up)" : "…")
-      : "Disconnected — turn it on to reconnect";
-    info.append(name, model, stateLine);
+    model.innerHTML = '<span class="dot dot-' + state + '"></span>';
+    model.appendChild(document.createTextNode(cam.model || cam.name));
+    const meta = document.createElement("div");
+    meta.className = "camera-meta";
+    const stateText =
+      state === "connected" ? "Ready"
+      : state === "connecting" && cam.waiting ? "Waiting for another camera"
+      : state === "connecting" ? "Connecting" + (cam.seconds >= 2 ? ", " + cam.seconds + " s" : "")
+      : "Disconnected, turn it on to reconnect";
+    meta.innerHTML = '<span></span> · <span class="state-' + state + '"></span>';
+    meta.firstChild.textContent = cam.name;
+    meta.lastChild.textContent = stateText;
+    info.append(model, meta);
 
     if (!cam.compatible) {
       const warn = document.createElement("div");
@@ -193,9 +435,9 @@
     actions.className = "camera-actions";
     if (index >= 0) {
       actions.append(
-        smallButton("Identify", () => window.identify(cam.name), state !== "connected", true),
-        smallButton("↑", () => window.setPrefix(cam.name, cam.order - 1), index === 0),
-        smallButton("↓", () => window.setPrefix(cam.name, cam.order + 1), index === placedCount - 1)
+        smallButton(button("Identify", () => window.identify(cam.name), { title: "Half-press the shutter of this camera" }), state !== "connected", true),
+        smallButton(button("", () => window.setPrefix(cam.name, cam.order - 1), { icon: "up", title: "Move up" }), index === 0),
+        smallButton(button("", () => window.setPrefix(cam.name, cam.order + 1), { icon: "down", title: "Move down" }), index === placedCount - 1)
       );
     }
 
@@ -203,21 +445,47 @@
     return li;
   }
 
-  function smallButton(label, onClick, locked, usesCamera) {
-    const b = document.createElement("button");
-    b.className = "btn btn-secondary btn-small";
-    b.textContent = label;
+  function smallButton(b, locked, usesCamera) {
     b.dataset.locked = locked ? "1" : "0";
     b.dataset.sdk = usesCamera ? "1" : "0";
     b.disabled = busy || !!locked;
-    b.addEventListener("click", onClick);
     return b;
   }
 
-  // =================== Sessões e fotos ===================
+  function updateButtons() {
+    const connected = cameras.filter((c) => c.connected).length;
+    // Enquanto uma câmera conecta, o SDK da Canon não aceita outros comandos
+    const connectingNames = cameras.filter((c) => c.state === "connecting").map((c) => cameraLabel(c.name, c.model));
+    const sdkBusy = connectingNames.length > 0;
+
+    ui.restartBtn.disabled = busy;
+    ui.shootBtn.disabled = busy || connected === 0 || sdkBusy;
+    ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
+    ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
+    ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
+    document.querySelectorAll(".camera-actions button").forEach((b) =>
+      (b.disabled = busy || b.dataset.locked === "1" || (sdkBusy && b.dataset.sdk === "1")));
+
+    ui.saveBtn.disabled = sessions.length === 0;
+    ui.saveBtn.textContent = sessions.length ? "Save sessions (" + sessions.length + ")" : "Save sessions";
+    ui.sessionCount.textContent = sessions.length;
+    ui.sessionCount.classList.toggle("hidden", sessions.length === 0);
+  }
+
+  // =================== Sessões ===================
+  const sessionGallery = Gallery(ui.sessionGallery, {
+    load: (item, size) => sessionPhoto(item.session, item.file, size),
+  });
+  const playBtn = button("", togglePlay, { icon: "play", title: "Play the sequence (space)" });
+  sessionGallery.setActions([
+    button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
+    playBtn,
+    button("", () => { stopPlay(); sessionGallery.next(); }, { icon: "right", title: "Next photo" }),
+    button("Delete", deleteCurrentSession, { kind: "btn-link", title: "Delete this session" }),
+  ]);
+
   function refreshSessions() {
-    const list = window.listSessions();
-    (list && list.then ? list : Promise.resolve(list)).then(setSessions);
+    Promise.resolve(window.listSessions()).then(setSessions);
   }
 
   // A sessão mais recente fica selecionada: ao abrir, quando chega uma sessão
@@ -229,127 +497,167 @@
 
     const newest = sessions[0] || null;
     const current = currentSession && sessions.find((x) => x.name === currentSession.name);
-    const arrivedNewer = newest && known.length > 0 && !known.includes(newest.name);
+    const arrivedNewer = newest && !known.includes(newest.name);
 
-    if (!newest) {
-      currentSession = null;
-      showSession(null);
-    } else if (!current || arrivedNewer) {
-      showSession(newest);
-    } else {
-      currentSession = current;
-      renderSessionList();
-    }
+    if (!newest) showSession(null);
+    else if (!current || arrivedNewer) showSession(newest);
+    else { currentSession = current; renderSessionList(); }
   }
 
   function renderSessionList() {
     ui.sessionList.innerHTML = "";
     ui.noSessions.classList.toggle("hidden", sessions.length > 0);
     sessions.forEach((s) => {
+      const label = sessionLabel(s.name);
       const li = document.createElement("li");
-      li.className = "session-item" + (currentSession && currentSession.name === s.name ? " active" : "");
-      li.innerHTML = '<div class="session-date"></div><div class="session-meta"></div>';
-      li.firstChild.textContent = sessionLabel(s.name);
-      li.lastChild.textContent = s.photos.length + (s.photos.length === 1 ? " photo" : " photos");
+      li.className = "folder" + (currentSession && currentSession.name === s.name ? " active" : "");
+      li.innerHTML = icon("folder", 16) + '<div><div class="folder-date"></div><div class="folder-meta"></div></div>';
+      li.querySelector(".folder-date").textContent = label.date;
+      li.querySelector(".folder-meta").textContent = [plural(s.photos.length, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
       li.addEventListener("click", () => showSession(s));
       ui.sessionList.appendChild(li);
     });
   }
 
-  function photo(session, file, size) {
-    const key = session + "/" + file + "/" + size;
-    if (!photoCache[key]) photoCache[key] = window.getPhoto(session, file, size);
-    return photoCache[key];
+  // Nome de cada foto: o modelo da câmera (quando ela é conhecida) e o apelido
+  function sessionItems(session) {
+    return session.photos.map((p) => {
+      const cam = cameras.find((c) => c.name === p.camera);
+      return {
+        session: session.name, file: p.file, previewable: p.previewable, order: p.order,
+        title: cam ? shortModel(cam.model) : p.camera || p.file,
+        subtitle: cam ? p.camera : "",
+      };
+    });
   }
+  let sessionTitles = "";
 
-  function showSession(session) {
+  function showSession(session, keepIndex) {
     stopPlay();
     currentSession = session;
     renderSessionList();
     ui.viewerEmpty.classList.toggle("hidden", !!session);
-    ui.viewerContent.classList.toggle("hidden", !session);
+    ui.sessionGallery.classList.toggle("hidden", !session);
     if (!session) return;
 
-    ui.viewerTitle.textContent = sessionLabel(session.name);
-    ui.scrubber.max = Math.max(0, session.photos.length - 1);
-    ui.filmstrip.innerHTML = "";
-    session.photos.forEach((p, i) => {
-      const li = document.createElement("li");
-      li.className = "thumb";
-      li.innerHTML = '<div class="thumb-image"></div><div class="thumb-label"></div>';
-      li.lastChild.textContent = String(p.order).padStart(2, "0") + " · " + (p.camera || p.file);
-      li.addEventListener("click", () => showPhoto(i));
-      ui.filmstrip.appendChild(li);
-      if (p.previewable) {
-        photo(session.name, p.file, 320).then((url) => { if (url) li.firstChild.style.backgroundImage = "url(" + url + ")"; });
-      }
-    });
-    showPhoto(0);
+    const label = sessionLabel(session.name);
+    sessionGallery.setHead(label.date + (label.time ? label.time.slice(5) : ""),
+      [plural(session.photos.length, "photo", "photos"), label.detail].filter(Boolean).join(" · "));
+    const items = sessionItems(session);
+    sessionTitles = items.map((i) => i.title).join("|");
+    sessionGallery.setItems(items, keepIndex ? sessionGallery.index : 0);
   }
 
-  function showPhoto(index) {
-    const s = currentSession;
-    if (!s || !s.photos.length) return;
-    currentIndex = (index + s.photos.length) % s.photos.length;
-    const p = s.photos[currentIndex];
+  // As câmeras podem conectar depois que a sessão já está na tela: atualiza os nomes
+  function refreshSessionTitles() {
+    if (!currentSession || playTimer) return;
+    const titles = sessionItems(currentSession).map((i) => i.title).join("|");
+    if (titles !== sessionTitles) showSession(currentSession, true);
+  }
 
-    ui.scrubber.value = currentIndex;
-    ui.viewerCamera.textContent = String(p.order).padStart(2, "0") + " · " + (p.camera || "?") + " — " + (currentIndex + 1) + " of " + s.photos.length;
-    ui.filmstrip.querySelectorAll(".thumb").forEach((t, i) => t.classList.toggle("active", i === currentIndex));
-    const active = ui.filmstrip.children[currentIndex];
-    if (active) active.scrollIntoView({ block: "nearest", inline: "nearest" });
-
-    if (!p.previewable) {
-      ui.stageImage.removeAttribute("src");
-      ui.stageMessage.textContent = "No preview for this file type (" + p.file + ").";
-      ui.stageMessage.classList.remove("hidden");
-      return;
-    }
-    ui.stageMessage.textContent = "Loading…";
-    ui.stageMessage.classList.remove("hidden");
-    const wanted = currentIndex;
-    photo(s.name, p.file, 1600).then((url) => {
-      if (currentSession !== s || currentIndex !== wanted) return;
-      if (url) { ui.stageImage.src = url; ui.stageMessage.classList.add("hidden"); }
-      else { ui.stageImage.removeAttribute("src"); ui.stageMessage.textContent = "Could not open " + p.file + "."; }
-    });
-    // Pré-carrega as próximas para a reprodução ficar fluida
-    for (let k = 1; k <= 2; k++) {
-      const next = s.photos[(currentIndex + k) % s.photos.length];
-      if (next.previewable) photo(s.name, next.file, 1600);
-    }
+  function deleteCurrentSession() {
+    if (!currentSession) return;
+    const name = currentSession.name;
+    const label = sessionLabel(name);
+    dialog("Delete this session?", "The photos from " + label.date + " will be deleted permanently.", [
+      { label: "Cancel" },
+      { label: "Delete", primary: true, onClick: () => window.deleteSession(name) },
+    ]);
   }
 
   function stopPlay() {
     clearInterval(playTimer);
     playTimer = null;
-    ui.playBtn.textContent = "Play";
+    playBtn.innerHTML = icon("play");
   }
 
   function togglePlay() {
     if (playTimer) return stopPlay();
     if (!currentSession) return;
-    ui.playBtn.textContent = "Pause";
-    playTimer = setInterval(() => showPhoto(currentIndex + 1), 220);
+    playBtn.innerHTML = icon("pause");
+    playTimer = setInterval(() => sessionGallery.next(), 220);
   }
 
-  ui.prevBtn.addEventListener("click", () => { stopPlay(); showPhoto(currentIndex - 1); });
-  ui.nextBtn.addEventListener("click", () => { stopPlay(); showPhoto(currentIndex + 1); });
-  ui.playBtn.addEventListener("click", togglePlay);
-  ui.scrubber.addEventListener("input", () => { stopPlay(); showPhoto(+ui.scrubber.value); });
-  ui.deleteSessionBtn.addEventListener("click", () => {
-    if (!currentSession) return;
-    const name = currentSession.name;
-    dialog("Delete this session?", sessionLabel(name) + " — its photos will be deleted permanently.", [
-      { label: "Cancel" },
-      { label: "Delete", primary: true, onClick: () => window.deleteSession(name) },
-    ]);
+  // =================== Reordenar por foto ===================
+  const order = { open: false, capturing: false, session: null };
+  const orderGallery = Gallery(ui.orderGallery, {
+    draggable: true,
+    load: (item, size) => orderPhoto(item.session, item.file, size),
   });
+  orderGallery.setActions([
+    button("Move earlier", () => orderGallery.moveSelected(-1), { icon: "left" }),
+    button("Move later", () => orderGallery.moveSelected(1), { icon: "right" }),
+  ]);
+
+  function openOrder() {
+    order.open = true;
+    ui.orderOverlay.classList.remove("hidden");
+    takeOrderPhotos();
+  }
+
+  function takeOrderPhotos() {
+    order.capturing = true;
+    order.session = null;
+    orderGallery.setItems([]);
+    orderGallery.setHead("Taking a photo with each camera", "");
+    orderGallery.message("Taking a photo with each camera");
+    updateOrderButtons();
+    window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
+  }
+
+  function showOrderPhotos(list) {
+    order.capturing = false;
+    const session = (list || [])[0];
+    order.session = session ? session.name : null;
+
+    // Uma foto por câmera conectada, na ordem atual (JPEG quando houver RAW + JPEG)
+    const items = placedCameras().filter((c) => c.connected).map((cam) => {
+      const photos = session ? session.photos.filter((p) => p.camera === cam.name) : [];
+      const pick = photos.find((p) => /\.jpe?g$/i.test(p.file)) || photos.find((p) => p.previewable) || photos[0];
+      return {
+        name: cam.name, session: order.session,
+        file: pick ? pick.file : "", previewable: pick ? pick.previewable : false,
+        title: shortModel(cam.model), subtitle: cam.name,
+      };
+    });
+    orderGallery.setItems(items, 0);
+    const missing = items.filter((i) => !i.file).length;
+    orderGallery.setHead(plural(items.length, "camera", "cameras"),
+      missing ? plural(missing, "camera", "cameras") + " did not send a photo" : "Drag a photo, or select it and use Move earlier / Move later");
+    updateOrderButtons();
+  }
+
+  function closeOrder(save) {
+    if (save) {
+      const names = orderGallery.items.map((i) => i.name);
+      window.setOrder(...names);
+      log("Camera order updated from photos", "ok");
+    }
+    order.open = false;
+    order.capturing = false;
+    ui.orderOverlay.classList.add("hidden");
+    window.discardOrderPhotos();
+    Object.keys(photoCache).filter((k) => k.startsWith("order/")).forEach((k) => delete photoCache[k]);
+  }
+
+  function updateOrderButtons() {
+    ui.orderRetake.disabled = order.capturing;
+    ui.orderSave.disabled = order.capturing || orderGallery.items.length < 1;
+  }
+
+  ui.orderBtn.addEventListener("click", openOrder);
+  ui.orderRetake.addEventListener("click", takeOrderPhotos);
+  ui.orderCancel.addEventListener("click", () => closeOrder(false));
+  ui.orderSave.addEventListener("click", () => closeOrder(true));
+
+  // =================== Teclado ===================
   document.addEventListener("keydown", (e) => {
-    if (ui.viewSessions.classList.contains("hidden") || e.target.tagName === "INPUT") return;
-    if (e.key === "ArrowLeft") { stopPlay(); showPhoto(currentIndex - 1); }
-    if (e.key === "ArrowRight") { stopPlay(); showPhoto(currentIndex + 1); }
-    if (e.key === " ") { e.preventDefault(); togglePlay(); }
+    if (e.target.tagName === "INPUT" || !ui.dialogOverlay.classList.contains("hidden")) return;
+    const target = order.open ? orderGallery : currentSession ? sessionGallery : null;
+    if (!target) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); stopPlay(); target.prev(); }
+    if (e.key === "ArrowRight") { e.preventDefault(); stopPlay(); target.next(); }
+    if (e.key === " " && !order.open) { e.preventDefault(); togglePlay(); }
   });
 
   // =================== Salvar / sair ===================
@@ -357,147 +665,180 @@
 
   function confirmExit(count) {
     dialog(
-      count === 1 ? "You have 1 unsaved session." : "You have " + count + " unsaved sessions.",
-      "Save them before closing, or exit and delete the photos.",
+      "Save your sessions before closing?",
+      plural(count, "session is", "sessions are") + " not saved yet. If you close without saving, the photos are deleted.",
       [
         { label: "Cancel" },
-        { label: "Exit and delete photos", onClick: () => window.exitApp(true) },
-        { label: "Save and exit", primary: true, onClick: () => window.saveSessions(true) },
+        { label: "Delete and close", onClick: () => window.exitApp(true) },
+        { label: "Save and close", primary: true, onClick: () => window.saveSessions(true) },
       ]
     );
   }
 
   function offerRecovery(count) {
     dialog(
-      count === 1 ? "1 session from last time was kept." : count + " sessions from last time were kept.",
-      "The app closed before they were saved. They are safe in the app's folder until you save or delete them.",
+      "Sessions from last time",
+      "The app closed before " + plural(count, "session was", "sessions were") + " saved. The photos are safe and shown in Sessions.",
       [
-        { label: "Delete them", link: true, onClick: () => dialog("Delete the kept sessions?", "Their photos will be deleted permanently.", [
+        { label: "Delete", link: true, onClick: () => dialog("Delete the kept sessions?", "Their photos will be deleted permanently.", [
           { label: "Cancel" },
           { label: "Delete", primary: true, onClick: () => window.deleteAllSessions() },
         ]) },
         { label: "Later" },
-        { label: "Review", onClick: () => showView("sessions") },
-        { label: "Save…", primary: true, onClick: () => window.saveSessions(false) },
+        { label: "Save", primary: true, onClick: () => window.saveSessions(false) },
       ]
     );
   }
 
   // =================== Avisos do programa ===================
+  // Enquanto as fotos do "Reorder by photo" são tiradas, os avisos de disparo
+  // vão para essa janela, não para a atividade nem para a contagem.
+  const orderCapture = () => order.open && order.capturing;
+
   const handlers = {
     busy(e) {
       busy = e.busy;
+      busyAction = e.busy ? e.action : "";
       if (busy) {
-        const labels = { restart: "Restarting connections…", shoot: "Shooting…", identify: "Identifying…", reorder: "Reordering…" };
-        setStatus(labels[e.action] || "Working…", "busy");
-        if (e.action === "restart") log("🔄 Restarting camera connections...", "muted");
+        const labels = { restart: "Restarting connections", shoot: "Shooting", identify: "Identifying", reorder: "Saving order", orderPhotos: "Taking photos" };
+        setStatus(labels[e.action] || "Working", "busy");
+        if (e.action === "restart") log("Restarting camera connections");
       } else {
+        if (orderCapture()) {
+          // O pedido terminou sem fotos (ex.: uma câmera ainda conectando)
+          order.capturing = false;
+          orderGallery.setHead("No photos", "");
+          orderGallery.message("The photos could not be taken. Try again when all cameras are ready.");
+          updateOrderButtons();
+        }
         readyStatus();
       }
       updateButtons();
     },
 
     cameras(e) {
-      // Tempo real: avisa no log quando uma câmera cai
       e.cameras.forEach((cam) => {
         const before = cameras.find((c) => c.name === cam.name);
-        if (before && before.connected && !cam.connected) log("🔌 " + cam.name + " disconnected — turn it on to reconnect.", "warn");
+        if (before && before.connected && !cam.connected) log(cameraLabel(cam.name, cam.model) + " turned off or disconnected. Turn it on to reconnect.", "warn");
       });
       cameras = e.cameras;
       renderCameras();
-      if (!busy) readyStatus();
+      readyStatus();
+      refreshSessionTitles();
 
       // Rodapé: quem está demorando para conectar
       const slow = cameras.filter((c) => c.state === "connecting" && !c.waiting && c.seconds >= 2);
       if (slow.length) {
-        ui.logLast.textContent = "⏳ Connecting to " + slow.map((c) => c.name + " " + c.seconds + "s").join(", ") +
-          DOTS[tick++ % 4] + " (camera is starting up, please wait)";
+        ui.logLast.textContent = "Connecting " + slow.map((c) => cameraLabel(c.name, c.model) + ", " + c.seconds + " s").join(" and ") +
+          ". Some cameras take up to a minute.";
       }
     },
 
     closing() {
-      setStatus("Closing…", "busy");
+      setStatus("Closing", "busy");
       busy = true;
       updateButtons();
     },
     waitConnecting() {
-      toast("A camera is still connecting. Try again as soon as it finishes.");
+      toast("A camera is still connecting. Try again when it is ready.");
     },
 
     sdkFailed() {
       setStatus("Canon SDK error", "error");
-      log("⚠️ Failed to initialize the Canon SDK.", "error");
+      log("The Canon SDK could not start.", "error");
     },
 
     // Conexão
-    connecting(e) {
-      log("⏳ Connecting to " + e.camera + " (" + e.model + ")...", "muted");
-    },
+    connecting(e) { log("Connecting " + cameraLabel(e.camera, e.model)); },
     connected(e) {
-      log("✅ " + e.camera + " connected (" + e.seconds.toFixed(1) + "s)", "ok");
-      if (!e.compatible) log("⚠️ " + e.model + " is not on Canon's compatibility list for this app.", "warn", "It may not work correctly.");
+      // O tempo só interessa quando a câmera demorou (algumas levam até um minuto)
+      log(cameraLabel(e.camera, e.model) + " connected" + (e.seconds >= 5 ? " after " + Math.round(e.seconds) + " s" : ""), "ok");
+      if (!e.compatible) log(e.model + " is not on Canon's compatibility list.", "warn", "It may not work correctly.");
     },
     connectFailed(e) {
-      log("⚠️ " + e.camera + " failed to connect, error " + e.error + " (" + e.seconds.toFixed(1) + "s). Trying again automatically.", "warn", e.hint);
+      log(cameraLabel(e.camera, e.model) + " did not connect. Trying again automatically.", "warn", e.hint);
     },
 
     // Sequência
     sessionStarted(e) {
-      log("🎞️ Session " + e.index + " of " + e.total);
-      ui.progress.textContent = "Session " + e.index + " of " + e.total;
+      if (orderCapture()) return;
+      if (e.total > 1) log("Session " + e.index + " of " + e.total);
+      ui.progress.textContent = e.total > 1 ? "Session " + e.index + " of " + e.total : "Shooting";
     },
-    sessionFolderFailed() { log("⚠️ Failed to prepare session folder.", "error"); },
+    sessionFolderFailed() { log("Could not create the folder for the session.", "error"); },
     countdownStarted() {
-      ui.countdownNumber.classList.remove("fire");
+      if (orderCapture()) return;
       ui.countdownOverlay.classList.remove("hidden");
     },
     countdownTick(e) {
+      if (orderCapture()) return;
       ui.countdownOverlay.classList.remove("hidden");
       ui.countdownNumber.textContent = e.seconds;
     },
     trigger() {
-      ui.countdownOverlay.classList.remove("hidden");
-      ui.countdownNumber.classList.add("fire");
-      ui.countdownNumber.textContent = "IT'S BULLET TIME!";
-      log("📸 IT'S BULLET TIME!");
-      setTimeout(() => ui.countdownOverlay.classList.add("hidden"), 700);
+      ui.countdownOverlay.classList.add("hidden");
+      if (orderCapture()) return;
+      // Clarão rápido no lugar de texto
+      ui.flash.classList.remove("hidden");
+      ui.flash.style.animation = "none";
+      void ui.flash.offsetWidth;
+      ui.flash.style.animation = "";
+      setTimeout(() => ui.flash.classList.add("hidden"), 500);
     },
-    shotFailed(e) { log("⚠️ " + e.camera + " did not take the picture: " + (e.hint || "error " + e.error) + ".", "warn"); },
-    waitingDownloads() { ui.progress.textContent = "📥 Waiting for downloads..."; },
-    downloadProgress(e) { ui.progress.textContent = "📥 " + e.done + "/" + e.total + " photos downloaded"; },
+    shotFailed(e) {
+      // As explicações do núcleo vêm em minúsculas ("no memory card"): vira frase
+      const hint = e.hint ? e.hint.charAt(0).toUpperCase() + e.hint.slice(1) + "." : "";
+      log(cameraLabel(e.camera) + " did not take the photo.", "warn", hint);
+    },
+    waitingDownloads() {
+      if (orderCapture()) return orderGallery.message("Receiving photos");
+      ui.progress.textContent = "Receiving photos";
+    },
+    downloadProgress(e) {
+      const text = "Receiving photos, " + e.done + " of " + e.total;
+      if (orderCapture()) return orderGallery.message(text);
+      ui.progress.textContent = text;
+    },
     downloadTimeout(e) {
-      log("⚠️ Timeout reached.", "error");
-      if (e.lost.length) log("🔌 Lost connection on cameras: " + e.lost.join(", "), "error");
-      else log("ℹ️ No disconnected cameras detected.", "muted");
+      log("Some photos did not arrive in time.", "error",
+        e.lost.length ? "Lost connection: " + e.lost.map((n) => cameraLabel(n)).join(", ") + "." : "No camera was disconnected. Try a longer download wait.");
     },
-    sessionInterrupted() { log("⚠️ Session interrupted.", "error"); },
-    sessionCompleted() { log("✅ Session completed.", "ok"); },
+    sessionInterrupted() { if (!orderCapture()) log("The session stopped before the end.", "error"); },
+    sessionCompleted() {},
     sequenceFinished(e) {
+      if (orderCapture()) return;
       if (e.completed) {
-        log("🏁 Sequence completed successfully.", "ok");
-        ui.progress.textContent = "🏁 Done — see it in Sessions";
+        log("Bullet time complete", "ok");
+        ui.progress.textContent = "Done. The new session is shown above.";
       } else {
-        log("⚠️ Sequence interrupted.", "error");
+        log("Bullet time stopped before the end.", "error");
         ui.progress.textContent = "";
       }
     },
 
+    // Reordenar por foto
+    orderPhotos(e) { if (order.open) showOrderPhotos(e.sessions); },
+
     // Fotos guardadas
     sessions(e) { setSessions(e.sessions); },
-    saving() { toast("Saving sessions…", 60000); },
-    saveCancelled() { toast("Save cancelled."); },
+    saving() { toast("Saving sessions", 60000); },
+    saveCancelled() { toast("Save cancelled"); },
     saved(e) {
       if (e.error) {
-        toast("⚠️ " + e.error, 8000);
-        log("⚠️ " + e.error, "error");
+        toast(e.error, 8000);
+        log(e.error, "error");
       } else {
-        toast("Saved " + e.count + (e.count === 1 ? " session" : " sessions") + " to " + e.folder);
-        log("💾 Saved " + e.count + (e.count === 1 ? " session" : " sessions") + " to " + e.folder, "ok");
+        const text = "Saved " + plural(e.count, "session", "sessions") + " to " + e.folder;
+        toast(text);
+        log(text, "ok");
       }
     },
     confirmExit(e) { confirmExit(e.unsavedSessions); },
 
-    log(e) { log(e.text.replace(/^\n+/, ""), "tech"); },
+    log(e) {
+      const text = plainText(e.text);
+      if (text) log(text, "tech");
+    },
   };
 
   window.onCoreEvent = function (event) {
@@ -507,7 +848,7 @@
 
   // =================== Ações ===================
   ui.restartBtn.addEventListener("click", () => {
-    dialog("Restart camera connections?", "Use this if a camera is on and plugged in but does not connect. All cameras will reconnect.", [
+    dialog("Restart camera connections?", "Use this when a camera is on and plugged in but does not connect. All cameras reconnect.", [
       { label: "Cancel" },
       { label: "Restart", primary: true, onClick: () => window.restartConnections() },
     ]);
@@ -526,8 +867,8 @@
   renderCameras();
   readyStatus();
   // Ao fim da procura inicial, mostra o guia se nenhuma câmera apareceu
-  setTimeout(() => { renderCameras(); if (!busy) readyStatus(); }, SEARCH_GRACE_MS + 100);
-  window.uiReady().then((info) => {
+  setTimeout(() => { renderCameras(); readyStatus(); }, SEARCH_GRACE_MS + 100);
+  Promise.resolve(window.uiReady()).then((info) => {
     refreshSessions();
     if (info && info.unsavedSessions > 0) offerRecovery(info.unsavedSessions);
   });

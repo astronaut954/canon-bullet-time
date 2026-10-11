@@ -1175,6 +1175,34 @@ void CanonController::ResetCameraPrefixesSequential()
     Log("\nPrefixes reorganized sequentially.\n");
 }
 
+void CanonController::SetCameraOrder(const std::vector<std::string>& shortNames)
+{
+    std::vector<CameraContext*> ordered;
+    for (const auto& name : shortNames)
+    {
+        for (auto& cam : cameras)
+        {
+            if (cam.shortName == name && std::find(ordered.begin(), ordered.end(), &cam) == ordered.end())
+                ordered.push_back(&cam);
+        }
+    }
+
+    std::vector<CameraContext*> rest;
+    for (auto& cam : cameras)
+    {
+        if (std::find(ordered.begin(), ordered.end(), &cam) == ordered.end())
+            rest.push_back(&cam);
+    }
+    std::sort(rest.begin(), rest.end(),
+        [](const CameraContext* a, const CameraContext* b) { return a->orderPrefix < b->orderPrefix; });
+    ordered.insert(ordered.end(), rest.begin(), rest.end());
+
+    for (size_t i = 0; i < ordered.size(); ++i)
+        ordered[i]->orderPrefix = static_cast<int>(i) + 1;
+
+    LogMessage("Camera order updated.");
+}
+
 int CanonController::GetExpectedDownloads() const
 {
     return expectedDownloads.load();

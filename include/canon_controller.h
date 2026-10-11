@@ -86,6 +86,9 @@ public:
     void PrintCameraOrder() const;
     bool SetCameraPrefix(const std::string& shortName, int newPrefix);
     void ResetCameraPrefixesSequential();
+    // Define a ordem inteira de uma vez (01, 02...) pelos nomes (T7_1, SL3_1...).
+    // Câmeras fora da lista ficam depois, na ordem em que já estavam.
+    void SetCameraOrder(const std::vector<std::string>& shortNames);
 
     int GetExpectedDownloads() const;
     int GetCompletedDownloads() const;

@@ -30,7 +30,8 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
-Fazer depois de corrigir os problemas de conexão/fechamento no Mac:
+Feitas em 2026-10-11 (aguardando teste no Mac), junto com a limpeza dos textos
+(sem emojis e sem cara de terminal; o terminal continua igual):
 
 1. **Nome da câmera:** o modelo (ex.: "Canon EOS Rebel T7") em destaque e o
    apelido (`T7_1`) em segundo plano — o inverso de hoje.
@@ -42,6 +43,9 @@ Fazer depois de corrigir os problemas de conexão/fechamento no Mac:
    "Bullet time", a navegação por pastas fica à esquerda (cada pasta
    identificada pela sessão) e as fotos aparecem no mesmo modelo do "Reordenar
    por foto" (carrossel no alto, foto selecionada maior abaixo).
+
+Próximo passo da etapa 5: aplicar o design system
+[neo-terminal-ui](https://github.com/Dyltom/neo-terminal-ui) ao visual da janela.
 
 ### Critério para fechar uma etapa
 

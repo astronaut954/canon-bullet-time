@@ -477,13 +477,16 @@ namespace
 
         webview::webview window(false, nullptr);
         window.set_title("Canon Bullet Time");
-        window.set_size(1120, 760, WEBVIEW_HINT_NONE);
-        window.set_size(900, 600, WEBVIEW_HINT_MIN);
+        window.set_size(1200, 840, WEBVIEW_HINT_NONE);
+        window.set_size(960, 680, WEBVIEW_HINT_MIN);
 
         GuiListener listener(window);
         CanonController controller;
         BulletTime bulletTime(controller, listener);
         PhotoStore store(Platform::AppDataFolder() / "Photos");
+        // Fotos de teste do "Reorder by photo": só servem para ordenar, são apagadas depois
+        PhotoStore orderStore(Platform::AppDataFolder() / "Order photos");
+        orderStore.DeleteAll();
         PreviewThread previews;
 
         bool sdkReady = false;
@@ -675,20 +678,66 @@ namespace
         });
 
         // getPhoto(sessão, arquivo, tamanho) -> "data:image/jpeg;base64,..." (ou null)
-        window.bind("getPhoto", [&](const std::string& id, const std::string& request, void*)
+        auto bindPhotos = [&](const std::string& name, PhotoStore& source)
         {
-            const auto args = ParseStringArgs(request);
-            const auto numbers = ParseIntArgs(request);
-            const std::string session = args.size() > 0 ? args[0] : "";
-            const std::string file = args.size() > 1 ? args[1] : "";
-            const int size = numbers.empty() ? 1600 : std::clamp(numbers.back(), 64, 4000);
-
-            previews.Post([&, id, session, file, size]
+            PhotoStore* from = &source;
+            window.bind(name, [&, from](const std::string& id, const std::string& request, void*)
             {
-                const std::string jpeg = store.Preview(session, file, size);
-                window.resolve(id, 0, jpeg.empty() ? "null" : JsonString("data:image/jpeg;base64," + Base64Encode(jpeg)));
+                const auto args = ParseStringArgs(request);
+                const auto numbers = ParseIntArgs(request);
+                const std::string session = args.size() > 0 ? args[0] : "";
+                const std::string file = args.size() > 1 ? args[1] : "";
+                const int size = numbers.empty() ? 1600 : std::clamp(numbers.back(), 64, 4000);
+
+                previews.Post([&, from, id, session, file, size]
+                {
+                    const std::string jpeg = from->Preview(session, file, size);
+                    window.resolve(id, 0, jpeg.empty() ? "null" : JsonString("data:image/jpeg;base64," + Base64Encode(jpeg)));
+                });
+            }, nullptr);
+        };
+        bindPhotos("getPhoto", store);
+        bindPhotos("getOrderPhoto", orderStore);
+
+        // --- Reordenar por foto ---
+
+        // takeOrderPhotos(espera de download): uma foto de cada câmera, sem som,
+        // guardada à parte (não vira sessão)
+        window.bind("takeOrderPhotos", [&](const std::string& request) -> std::string
+        {
+            const auto values = ParseIntArgs(request);
+            SequenceSettings settings;
+            settings.countdownSeconds = 0;
+            settings.sessionCount = 1;
+            settings.downloadWaitSeconds = values.empty() ? 10 : std::max(1, values[0]);
+            settings.playSounds = false;
+            run("orderPhotos", [&, settings]
+            {
+                if (cameraConnecting())
+                    return;
+                orderStore.DeleteAll();
+                const std::string previous = controller.GetOutputFolder();
+                controller.SetOutputFolder(orderStore.Root().string());
+                bulletTime.RunSequence(settings);
+                controller.SetOutputFolder(previous);
+                listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
             });
-        }, nullptr);
+            return "null";
+        });
+
+        // setOrder(["SL3_1", "T7_1", ...]): nova ordem completa
+        window.bind("setOrder", [&](const std::string& request) -> std::string
+        {
+            const auto names = ParseStringArgs(request);
+            run("reorder", [&, names] { controller.SetCameraOrder(names); });
+            return "null";
+        });
+
+        window.bind("discardOrderPhotos", [&](const std::string&) -> std::string
+        {
+            previews.Post([&] { orderStore.DeleteAll(); });
+            return "null";
+        });
 
         // saveSessions(exitAfter): escolhe a pasta e move todas as sessões para lá
         window.bind("saveSessions", [&](const std::string& request) -> std::string

@@ -37,7 +37,8 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 
 ## 7. App com janela (Canon Bullet Time GUI)
 - [ ] Abrir o app **com as câmeras já ligadas**: as câmeras conectam uma de cada
-      vez; a que está esperando aparece como "Waiting", a que conecta mostra os segundos.
+      vez; a que está esperando aparece como "Waiting for another camera", a que
+      conecta mostra os segundos. O modelo aparece em destaque e o apelido (T7_1) embaixo.
 - [ ] Enquanto uma câmera conecta, o disparo fica indisponível com o aviso
       "Available when … finishes connecting".
 - [ ] Fechar o app enquanto uma câmera conecta: fecha na hora, sem travar.
@@ -46,9 +47,15 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Desligar uma câmera: ela fica "Disconnected"; religar: volta conectada no
       mesmo lugar (mesmo nome e ordem), sem clicar em nada.
 - [ ] Disparar depois de religar uma câmera: a foto dela também chega.
-- [ ] **Restart camera connections** (no painel do log): todas reconectam.
-- [ ] Fotos em **RAW** (e RAW+JPEG): aparecem na aba Sessions.
+- [ ] **Restart camera connections** (no painel Activity, no rodapé): todas reconectam.
+- [ ] **Reorder by photo**: tira uma foto de cada câmera (sem som e sem criar
+      sessão); arrastar as miniaturas (ou "Move earlier/later") e **Save order**
+      muda a ordem; o próximo disparo usa a nova ordem nos nomes dos arquivos.
+- [ ] Sessões na tela principal: pastas à esquerda, a mais recente selecionada;
+      carrossel no alto e a foto selecionada grande embaixo; setas ← → e espaço (play).
+- [ ] Fotos em **RAW** (e RAW+JPEG): aparecem nas sessões.
 - [ ] Fechar com sessões não salvas: pergunta se quer salvar ou apagar.
+- [ ] Textos sem emojis em toda a janela (o terminal continua igual).
 
 ## Resultado
 

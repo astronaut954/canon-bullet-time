@@ -15,6 +15,7 @@ struct SequenceSettings
     int countdownSeconds = 0;     // contagem antes de cada disparo
     int sessionCount = 1;         // quantos disparos seguidos
     int downloadWaitSeconds = 10; // tempo máximo esperando as fotos
+    bool playSounds = true;       // áudio da contagem e do disparo (desligado nas fotos de teste)
 };
 
 // Avisos do núcleo para a interface. Todos têm implementação vazia por padrão.
@@ -70,7 +71,7 @@ public:
     void PumpEvents(int totalMs, int stepMs = 50);
 
 private:
-    void RunCountdown(int seconds);
+    void RunCountdown(int seconds, bool playSounds);
     static std::string GenerateShotId();
 
     CanonController& controller;
