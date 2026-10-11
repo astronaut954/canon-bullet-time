@@ -537,11 +537,42 @@ namespace
             });
         };
 
-        // Fecha o app de fato (depois que a página já resolveu as fotos)
+        // Fecha o app de fato (depois que a página já resolveu as fotos).
+        //
+        // Dado observado no Mac: ao encerrar as câmeras, o SDK da Canon precisa que
+        // a thread da janela continue funcionando. Se a janela fechar primeiro e
+        // ficar esperando as câmeras, os dois esperam um pelo outro e o app trava.
+        // Por isso: a janela continua aberta, a thread das câmeras encerra tudo e
+        // só então manda a janela fechar. Se demorar demais, o programa sai mesmo assim.
+        std::atomic<bool> camerasClosed{ false };
         auto closeNow = [&]
         {
-            allowClose = true;
-            window.terminate();
+            if (shuttingDown.exchange(true))
+                return;
+            SetLogSink([](const std::string&) {});
+            listener.Emit(Json("closing"));
+
+            cameras.Post([&]
+            {
+                std::thread([] {
+                    std::this_thread::sleep_for(std::chrono::seconds(8));
+                    std::_Exit(0);  // segurança: o SDK não respondeu ao encerrar
+                }).detach();
+
+                // Uma câmera no meio da conexão segura o SDK: não dá para encerrar
+                // direito. As fotos já estão gravadas em disco.
+                if (controller.HasPendingConnections())
+                    std::_Exit(0);
+                controller.CloseSessions();
+                if (sdkReady)
+                    controller.TerminateSdk();
+                camerasClosed = true;
+                window.dispatch([&]
+                {
+                    allowClose = true;
+                    window.terminate();
+                });
+            });
         };
 
         // --- Câmeras e disparo ---
@@ -569,16 +600,18 @@ namespace
             return Json("startup").Add("unsavedSessions", store.CountSessions()).Str();
         });
 
-        // Solução de problemas: desliga e liga de novo a conexão com todas as câmeras
+        // Solução de problemas: fecha a conexão com todas as câmeras e deixa a
+        // procura automática conectar de novo (o SDK continua ligado: desligar e
+        // religar o SDK no Mac fazia as câmeras não voltarem)
         window.bind("restartConnections", [&](const std::string&) -> std::string
         {
             run("restart", [&]
             {
                 controller.WaitPendingConnections();
                 controller.CloseSessions();
-                if (sdkReady)
-                    controller.TerminateSdk();
-                startSdk();
+                controller.ResetConnectionHistory();
+                if (!sdkReady)
+                    startSdk();
             });
             return "null";
         });
@@ -717,8 +750,9 @@ namespace
                     return true;
                 const int unsaved = store.CountSessions();
                 if (unsaved == 0)
-                    return true;
-                listener.Emit(Json("confirmExit").Add("unsavedSessions", unsaved));
+                    closeNow();  // encerra as câmeras antes de fechar a janela
+                else
+                    listener.Emit(Json("confirmExit").Add("unsavedSessions", unsaved));
                 return false;
             });
         }
@@ -726,22 +760,13 @@ namespace
         window.set_html(LoadUi());
         window.run();
 
-        // Janela fechada: nada mais vai para a página; encerra as câmeras na
-        // própria thread delas.
+        // Janela fechada. Se as câmeras não foram encerradas pelo caminho normal
+        // (ex.: o sistema fechou o app), não esperar por elas: esperar pode travar.
         SetLogSink([](const std::string&) {});
         listener.Close();
         shuttingDown = true;
-        cameras.Post([&]
-        {
-            // Uma câmera no meio da conexão segura o SDK, e ele só a libera com a
-            // janela ainda funcionando: esperar travaria o app ao fechar. As fotos
-            // já estão gravadas em disco, então o programa encerra direto.
-            if (controller.HasPendingConnections())
-                std::_Exit(0);
-            controller.CloseSessions();
-            if (sdkReady)
-                controller.TerminateSdk();
-        });
+        if (!camerasClosed)
+            std::_Exit(0);
         return 0;
     }
 }

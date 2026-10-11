@@ -415,6 +415,11 @@
       }
     },
 
+    closing() {
+      setStatus("Closing…", "busy");
+      busy = true;
+      updateButtons();
+    },
     waitConnecting() {
       toast("A camera is still connecting. Try again as soon as it finishes.");
     },

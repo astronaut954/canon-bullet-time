@@ -69,6 +69,8 @@ public:
     bool HasPendingConnections() const;
     // Espera as conexões em andamento terminarem e descarta o resultado.
     void WaitPendingConnections();
+    // Esquece falhas e tempos anteriores: todas as câmeras são tentadas de novo já.
+    void ResetConnectionHistory();
     void RegisterEventHandlers();
     bool SetSaveToHost();
     bool SetCapacityForAll();

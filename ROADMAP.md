@@ -28,6 +28,21 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual ajustável em `assets/ui/style.css`. | em andamento |
 
+### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
+
+Fazer depois de corrigir os problemas de conexão/fechamento no Mac:
+
+1. **Nome da câmera:** o modelo (ex.: "Canon EOS Rebel T7") em destaque e o
+   apelido (`T7_1`) em segundo plano — o inverso de hoje.
+2. **Reordenar por foto:** botão junto aos controles de ordem. Tira uma foto de
+   cada câmera e mostra um carrossel de miniaturas no alto, cada uma com o nome
+   da câmera e o número na ordem; arrastar as miniaturas muda a ordem. A foto
+   selecionada fica destacada e aparece maior logo abaixo do carrossel.
+3. **Sessões na tela principal:** sem aba separada. Acima de "Cameras" e
+   "Bullet time", a navegação por pastas fica à esquerda (cada pasta
+   identificada pela sessão) e as fotos aparecem no mesmo modelo do "Reordenar
+   por foto" (carrossel no alto, foto selecionada maior abaixo).
+
 ### Critério para fechar uma etapa
 
 1. Compila nos sistemas que a etapa toca.

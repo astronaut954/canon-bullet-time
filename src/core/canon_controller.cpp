@@ -687,6 +687,14 @@ std::vector<PendingConnectionInfo> CanonController::GetPendingConnections() cons
     return list;
 }
 
+void CanonController::ResetConnectionHistory()
+{
+    portRetry.clear();
+    queued.clear();
+    lastScan = {};
+    lastHealthCheck = {};
+}
+
 bool CanonController::HasPendingConnections() const
 {
     return !pending.empty();
