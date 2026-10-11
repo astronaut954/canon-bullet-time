@@ -120,7 +120,6 @@ function(cbt_copy_runtime_files target)
     if(WIN32)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${EDSDK_DLLS} "$<TARGET_FILE_DIR:${target}>"
-            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${target}>/assets"
             VERBATIM
         )
     else()
@@ -134,10 +133,19 @@ function(cbt_copy_runtime_files target)
             COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:${target}>/Frameworks/EDSDK.framework"
             COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${target}>/Frameworks"
             COMMAND ditto "${EDSDK_FRAMEWORK}" "$<TARGET_FILE_DIR:${target}>/Frameworks/EDSDK.framework"
-            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${target}>/assets"
             VERBATIM
         )
     endif()
+
+    # assets/ (sons e a página da interface) é copiada em TODA compilação, não só
+    # quando o programa é refeito: assim uma mudança só em assets/ui (HTML/CSS/JS)
+    # também chega à pasta do app.
+    add_custom_target(${target}_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${target}>/assets"
+        COMMENT "Copying assets for ${target}"
+        VERBATIM
+    )
+    add_dependencies(${target}_assets ${target})
 endfunction()
 
 # ---------------------------------------------------------------------------
