@@ -763,6 +763,25 @@ namespace
             return "null";
         });
 
+        // reorderSession(sessão, "02_T7_1", "01_SL3_1", ...): muda a ordem das fotos
+        // de uma sessão já feita (renomeia os arquivos)
+        window.bind("reorderSession", [&](const std::string& request) -> std::string
+        {
+            auto args = ParseStringArgs(request);
+            if (args.size() < 2)
+                return "null";
+            const std::string session = args.front();
+            args.erase(args.begin());
+            previews.Post([&, session, args]
+            {
+                std::string error;
+                if (!store.ReorderSession(session, args, error))
+                    listener.Emit(Json("reorderFailed").Add("error", error));
+                emitSessions();
+            });
+            return "null";
+        });
+
         window.bind("deleteSession", [&](const std::string& request) -> std::string
         {
             const auto args = ParseStringArgs(request);

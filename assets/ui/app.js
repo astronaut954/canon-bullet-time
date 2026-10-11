@@ -176,7 +176,8 @@
       '<div class="gallery-head"><div><div class="gallery-title"></div><div class="gallery-sub"></div></div><div class="gallery-actions"></div></div>' +
       '<div class="carousel-wrap"><ol class="carousel"></ol><div class="drop-marker hidden"></div></div>' +
       '<div class="stage"><img alt=""><div class="stage-caption hidden"></div><div class="stage-message hidden"></div></div>';
-    root.classList.toggle("draggable", !!opts.draggable);
+    let draggable = !!opts.draggable;
+    root.classList.toggle("draggable", draggable);
 
     const el = {
       title: root.querySelector(".gallery-title"), sub: root.querySelector(".gallery-sub"),
@@ -190,7 +191,7 @@
     let drag = null;
 
     function badge(item, i) {
-      return pad(opts.draggable ? i + 1 : item.order || i + 1);
+      return pad(draggable ? i + 1 : item.order || i + 1);
     }
 
     function render() {
@@ -202,19 +203,19 @@
     function frame(item, i) {
       const li = document.createElement("li");
       li.className = "frame";
-      li.innerHTML = '<div class="frame-img"><span class="frame-badge"></span></div><div class="frame-title"></div><div class="frame-sub"></div>';
+      // Miniatura só com o número; o nome da câmera aparece na foto grande
+      li.innerHTML = '<div class="frame-img"><span class="frame-badge"></span></div>';
       li.querySelector(".frame-badge").textContent = badge(item, i);
-      li.querySelector(".frame-title").textContent = item.title;
-      li.querySelector(".frame-sub").textContent = item.subtitle || "";
       li.title = item.title + (item.subtitle ? " · " + item.subtitle : "");
       const img = li.querySelector(".frame-img");
       if (item.file && item.previewable) {
         opts.load(item, 320).then((url) => { if (url) img.style.backgroundImage = "url(" + url + ")"; });
       } else {
-        img.appendChild(document.createTextNode(item.file ? "No preview" : "No photo"));
+        // Sem prévia: mostra o tipo do arquivo (ex.: "TIF"), ou nada se a câmera não mandou foto
+        img.appendChild(document.createTextNode(item.file ? item.file.split(".").pop().toUpperCase() : ""));
       }
 
-      if (opts.draggable) {
+      if (draggable) {
         li.addEventListener("pointerdown", (e) => onPointerDown(e, li, i));
       } else {
         li.addEventListener("click", () => select(i));
@@ -348,6 +349,11 @@
     }
 
     return {
+      setDraggable(value) {
+        draggable = !!value;
+        root.classList.toggle("draggable", draggable);
+        render();
+      },
       setHead(title, sub) { el.title.textContent = title || ""; el.sub.textContent = sub || ""; },
       setActions(nodes) { el.actions.innerHTML = ""; nodes.forEach((n) => el.actions.appendChild(n)); },
       setItems(list, selectIndex) {
@@ -476,16 +482,29 @@
   const sessionGallery = Gallery(ui.sessionGallery, {
     load: (item, size) => sessionPhoto(item.session, item.file, size),
   });
+  const editing = { on: false };  // reordenando as fotos da sessão aberta
   const playBtn = button("", togglePlay, { icon: "play", title: "Play the sequence (space)" });
-  sessionGallery.setActions([
+  const viewActions = [
     button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
     playBtn,
     button("", () => { stopPlay(); sessionGallery.next(); }, { icon: "right", title: "Next photo" }),
+    button("Reorder", startReorder, { title: "Change the order of the photos in this session" }),
     button("Delete", deleteCurrentSession, { kind: "btn-link", title: "Delete this session" }),
-  ]);
+  ];
+  const editActions = [
+    button("", () => sessionGallery.moveSelected(-1), { icon: "left", title: "Move the selected photo earlier" }),
+    button("", () => sessionGallery.moveSelected(1), { icon: "right", title: "Move the selected photo later" }),
+    button("Cancel", () => stopReorder(false)),
+    button("Save order", () => stopReorder(true), { kind: "btn-primary" }),
+  ];
+  sessionGallery.setActions(viewActions);
 
   function refreshSessions() {
     Promise.resolve(window.listSessions()).then(setSessions);
+  }
+
+  function filesOf(session) {
+    return session ? session.photos.map((p) => p.file).join("|") : "";
   }
 
   // A sessão mais recente fica selecionada: ao abrir, quando chega uma sessão
@@ -501,6 +520,7 @@
 
     if (!newest) showSession(null);
     else if (!current || arrivedNewer) showSession(newest);
+    else if (filesOf(current) !== filesOf(currentSession)) showSession(current, true);
     else { currentSession = current; renderSessionList(); }
   }
 
@@ -509,40 +529,64 @@
     ui.noSessions.classList.toggle("hidden", sessions.length > 0);
     sessions.forEach((s) => {
       const label = sessionLabel(s.name);
+      const count = sessionItems(s).length;
       const li = document.createElement("li");
       li.className = "folder" + (currentSession && currentSession.name === s.name ? " active" : "");
       li.innerHTML = icon("folder", 16) + '<div><div class="folder-date"></div><div class="folder-meta"></div></div>';
       li.querySelector(".folder-date").textContent = label.date;
-      li.querySelector(".folder-meta").textContent = [plural(s.photos.length, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
+      li.querySelector(".folder-meta").textContent = [plural(count, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
       li.addEventListener("click", () => showSession(s));
       ui.sessionList.appendChild(li);
     });
   }
 
-  // Nome de cada foto: o modelo da câmera (quando ela é conhecida) e o apelido
+  // Uma foto por câmera: o RAW e o JPEG da mesma câmera ficam juntos (a prévia
+  // usa o JPEG quando existe). Nome: o modelo da câmera, quando ela é conhecida.
   function sessionItems(session) {
-    return session.photos.map((p) => {
-      const cam = cameras.find((c) => c.name === p.camera);
-      return {
-        session: session.name, file: p.file, previewable: p.previewable, order: p.order,
-        title: cam ? shortModel(cam.model) : p.camera || p.file,
-        subtitle: cam ? p.camera : "",
-      };
+    const items = [];
+    const byGroup = {};
+    session.photos.forEach((p) => {
+      const group = p.camera ? pad(p.order) + "_" + p.camera : p.file;
+      let item = byGroup[group];
+      if (!item) {
+        const cam = cameras.find((c) => c.name === p.camera);
+        item = byGroup[group] = {
+          group: group, movable: !!p.camera,
+          session: session.name, order: p.order, files: [],
+          title: cam ? shortModel(cam.model) : p.camera || p.file,
+          subtitle: cam ? p.camera : "",
+        };
+        items.push(item);
+      }
+      item.files.push(p);
     });
+    items.forEach((item) => {
+      const pick = item.files.find((f) => /\.jpe?g$/i.test(f.file)) || item.files.find((f) => f.previewable) || item.files[0];
+      item.file = pick.file;
+      item.previewable = pick.previewable;
+    });
+    return items;
   }
   let sessionTitles = "";
 
+  function sessionHead(session) {
+    const label = sessionLabel(session.name);
+    const count = sessionItems(session).length;
+    sessionGallery.setHead(label.date + (label.time ? label.time.slice(5) : ""),
+      editing.on ? "Drag the photos, or select one and use the arrows. Then save the order."
+                 : [plural(count, "photo", "photos"), label.detail].filter(Boolean).join(" · "));
+  }
+
   function showSession(session, keepIndex) {
     stopPlay();
+    if (editing.on) setEditing(false);
     currentSession = session;
     renderSessionList();
     ui.viewerEmpty.classList.toggle("hidden", !!session);
     ui.sessionGallery.classList.toggle("hidden", !session);
     if (!session) return;
 
-    const label = sessionLabel(session.name);
-    sessionGallery.setHead(label.date + (label.time ? label.time.slice(5) : ""),
-      [plural(session.photos.length, "photo", "photos"), label.detail].filter(Boolean).join(" · "));
+    sessionHead(session);
     const items = sessionItems(session);
     sessionTitles = items.map((i) => i.title).join("|");
     sessionGallery.setItems(items, keepIndex ? sessionGallery.index : 0);
@@ -550,9 +594,42 @@
 
   // As câmeras podem conectar depois que a sessão já está na tela: atualiza os nomes
   function refreshSessionTitles() {
-    if (!currentSession || playTimer) return;
+    if (!currentSession || playTimer || editing.on) return;
     const titles = sessionItems(currentSession).map((i) => i.title).join("|");
     if (titles !== sessionTitles) showSession(currentSession, true);
+  }
+
+  // ----- Reordenar as fotos de uma sessão -----
+  function setEditing(on) {
+    editing.on = on;
+    sessionGallery.setDraggable(on);
+    sessionGallery.setActions(on ? editActions : viewActions);
+    ui.sessionGallery.classList.toggle("editing", on);
+    updateButtons();
+  }
+
+  function startReorder() {
+    if (!currentSession) return;
+    stopPlay();
+    setEditing(true);
+    sessionHead(currentSession);
+  }
+
+  function stopReorder(save) {
+    const session = currentSession;
+    const groups = sessionGallery.items.filter((i) => i.movable).map((i) => i.group);
+    const changed = groups.join("|") !== sessionItems(session).filter((i) => i.movable).map((i) => i.group).join("|");
+    // Números novos já na tela, enquanto os arquivos são renomeados
+    if (save && changed) sessionGallery.items.forEach((item, i) => { item.order = i + 1; });
+    setEditing(false);
+    if (save && changed) {
+      // As prévias guardadas usam os nomes antigos dos arquivos
+      Object.keys(photoCache).filter((k) => k.startsWith("sessions/" + session.name + "/")).forEach((k) => delete photoCache[k]);
+      window.reorderSession(session.name, ...groups);
+      log("Photo order changed in the session from " + sessionLabel(session.name).date, "ok");
+    } else {
+      showSession(session, true);
+    }
   }
 
   function deleteCurrentSession() {
@@ -573,7 +650,7 @@
 
   function togglePlay() {
     if (playTimer) return stopPlay();
-    if (!currentSession) return;
+    if (!currentSession || editing.on) return;
     playBtn.innerHTML = icon("pause");
     playTimer = setInterval(() => sessionGallery.next(), 220);
   }
@@ -814,6 +891,11 @@
         log("Bullet time stopped before the end.", "error");
         ui.progress.textContent = "";
       }
+    },
+
+    reorderFailed(e) {
+      toast(e.error, 8000);
+      log("The photo order could not be changed.", "error", e.error);
     },
 
     // Reordenar por foto

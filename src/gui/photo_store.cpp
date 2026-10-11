@@ -8,6 +8,7 @@
 #include <cctype>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <regex>
 #include <sstream>
@@ -363,6 +364,71 @@ int PhotoStore::SaveAll(const fs::path& destination, std::string& errorMessage) 
         ++moved;
     }
     return moved;
+}
+
+bool PhotoStore::ReorderSession(const std::string& session, const std::vector<std::string>& groups,
+                                std::string& errorMessage) const
+{
+    const fs::path dir = SessionPath(session);
+    std::error_code ec;
+    if (dir.empty() || !fs::is_directory(dir, ec))
+    {
+        errorMessage = "Session not found.";
+        return false;
+    }
+
+    // Novo número de cada grupo ("02_T7_1" -> 1, ...)
+    std::map<std::string, int> newOrder;
+    for (size_t i = 0; i < groups.size(); ++i)
+        newOrder.emplace(groups[i], static_cast<int>(i) + 1);
+
+    static const std::regex photoName(R"(^(\d+)_([^_]+_\d+)_.+$)");
+    struct Rename { fs::path from, temp, to; };
+    std::vector<Rename> renames;
+
+    for (const auto& entry : fs::directory_iterator(dir, ec))
+    {
+        if (!entry.is_regular_file())
+            continue;
+        const std::string file = entry.path().filename().string();
+        std::smatch match;
+        if (!std::regex_match(file, match, photoName))
+            continue;
+        auto it = newOrder.find(match[1].str() + "_" + match[2].str());
+        if (it == newOrder.end())
+            continue;
+
+        std::string prefix = std::to_string(it->second);
+        if (prefix.size() < 2)
+            prefix.insert(0, 2 - prefix.size(), '0');
+        const std::string renamed = prefix + file.substr(match[1].length());
+        if (renamed != file)
+            renames.push_back({ entry.path(), dir / (file + ".reorder-tmp"), dir / renamed });
+    }
+
+    // Em duas etapas, para um nome novo nunca coincidir com um antigo ainda não renomeado
+    for (const auto& r : renames)
+    {
+        fs::rename(r.from, r.temp, ec);
+        if (ec)
+        {
+            errorMessage = "Could not rename " + r.from.filename().string() + ": " + ec.message();
+            return false;
+        }
+    }
+    for (const auto& r : renames)
+    {
+        fs::rename(r.temp, r.to, ec);
+        if (ec)
+        {
+            errorMessage = "Could not rename " + r.to.filename().string() + ": " + ec.message();
+            return false;
+        }
+    }
+
+    // As prévias guardadas usam os nomes antigos
+    fs::remove_all(dir / kPreviewFolder, ec);
+    return true;
 }
 
 bool PhotoStore::DeleteSession(const std::string& session) const

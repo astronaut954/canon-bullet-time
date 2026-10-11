@@ -40,6 +40,12 @@ public:
     int SaveAll(const std::filesystem::path& destination, std::string& errorMessage) const;
 
     bool DeleteSession(const std::string& session) const;
+
+    // Nova ordem das fotos de uma sessão: lista de "ordem_câmera" na ordem desejada
+    // (ex.: {"02_T7_1", "01_SL3_1"}). Renomeia os arquivos (02_T7_1_IMG.JPG ->
+    // 01_T7_1_IMG.JPG), levando juntos o RAW e o JPEG da mesma câmera.
+    bool ReorderSession(const std::string& session, const std::vector<std::string>& groups,
+                        std::string& errorMessage) const;
     void DeleteAll() const;
 
 private:

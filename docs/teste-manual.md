@@ -53,6 +53,8 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       muda a ordem; o próximo disparo usa a nova ordem nos nomes dos arquivos.
 - [ ] Sessões na tela principal: pastas à esquerda, a mais recente selecionada;
       carrossel no alto e a foto selecionada grande embaixo; setas ← → e espaço (play).
+- [ ] **Reorder** numa sessão: arrastar as miniaturas (ou usar as setas) e **Save
+      order** renomeia as fotos da sessão na nova ordem (RAW e JPEG juntos).
 - [ ] Fotos em **RAW** (e RAW+JPEG): aparecem nas sessões.
 - [ ] Fechar com sessões não salvas: pergunta se quer salvar ou apagar.
 - [ ] Textos sem emojis em toda a janela (o terminal continua igual).
