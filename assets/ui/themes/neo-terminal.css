@@ -6,6 +6,7 @@
    os mesmos estilos de componente (card, botão, badge, input, diálogo,
    indicador de status), escritos em CSS simples para a página do app.
    Fonte: Share Tech Mono (SIL Open Font License, em assets/ui/fonts).
+   Tema escolhido no topo da janela (comparação com o Nocturne, themes/nocturne.css).
 
    Para ajustar a identidade, mude as variáveis abaixo. Ficaram de fora, de
    propósito, o "flicker" e a vinheta do efeito CRT: piscam a tela inteira e
@@ -13,7 +14,7 @@
 
 @font-face {
   font-family: "Share Tech Mono";
-  src: url("__FONT_SHARE_TECH_MONO__") format("truetype");
+  src: url("__FONT:ShareTechMono-Regular.ttf__") format("truetype");
   font-weight: normal;
   font-style: normal;
 }
@@ -385,3 +386,9 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   background: var(--matrix-black); border: 1px solid var(--green-300); box-shadow: var(--glow-green-soft);
   color: var(--green-100); padding: 9px 14px; font-size: 13px; z-index: 20; max-width: 80%;
 }
+
+/* ---------- Troca de tema (comparação de design systems) ---------- */
+.theme-switch { display: flex; border: 1px solid var(--green-400); }
+.theme-switch button { background: none; border: 0; color: var(--muted); font-size: 11px; padding: 4px 9px; text-transform: uppercase; letter-spacing: .1em; cursor: pointer; }
+.theme-switch button:hover { color: var(--green-100); }
+.theme-switch button.active { background: var(--green-500); color: var(--green-100); text-shadow: var(--text-glow); }

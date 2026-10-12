@@ -26,7 +26,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 3 | Versão Mac | SDK de Mac integrado, áudio e caminhos de Mac, checklist passa no Mac. Primeiro `.zip` para Mac (sem assinatura Apple por enquanto). | feito |
 | 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | feito |
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
-| 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual ajustável em `assets/ui/style.css`. | em andamento |
+| 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual ajustável em `assets/ui/themes/` (um arquivo por tema). | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -47,9 +47,13 @@ Feitas em 2026-10-11 (aguardando teste no Mac), junto com a limpeza dos textos
 Design system [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui) aplicado em
 2026-10-11 (aguardando teste no Mac): a biblioteca é React + Tailwind, então os tokens
 (cores, fonte Share Tech Mono, brilho, cantos retos) e os estilos dos componentes foram
-passados para CSS simples em `assets/ui/style.css`, sem mudar o funcionamento da página.
+passados para CSS simples em `assets/ui/themes/neo-terminal.css`, sem mudar o funcionamento da página.
 O "flicker" e a vinheta do efeito CRT ficaram de fora para não atrapalhar a conferência
 das fotos.
+
+Em 2026-10-12 entrou um segundo visual, [Nocturne](https://github.com/starside-io/nocturne),
+para comparação: os dois ficam em `assets/ui/themes/` e trocam no topo da janela.
+Quando o dono do projeto escolher, o outro tema e o seletor saem do app.
 
 ### Critério para fechar uma etapa
 

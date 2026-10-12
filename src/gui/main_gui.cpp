@@ -443,9 +443,44 @@ namespace
         return list + "]";
     }
 
-    // Lê assets/ui/index.html e embute style.css e app.js (o WebKit do Mac não
-    // carrega arquivos locais separados de uma página montada em memória).
-    std::string LoadUi()
+    // Temas visuais disponíveis (assets/ui/themes/<nome>.css). O escolhido fica
+    // guardado em settings.txt, na pasta de dados do app.
+    const char* const kThemes[] = { "neo-terminal", "nocturne" };
+
+    std::filesystem::path SettingsFile()
+    {
+        return Platform::AppDataFolder() / "settings.txt";
+    }
+
+    std::string LoadTheme()
+    {
+        std::ifstream file(SettingsFile());
+        std::string line;
+        while (std::getline(file, line))
+        {
+            if (line.rfind("theme=", 0) == 0)
+            {
+                const std::string name = line.substr(6);
+                for (const char* theme : kThemes)
+                    if (name == theme)
+                        return name;
+            }
+        }
+        return kThemes[0];
+    }
+
+    void SaveTheme(const std::string& name)
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(SettingsFile().parent_path(), ec);
+        std::ofstream(SettingsFile()) << "theme=" << name << "\n";
+    }
+
+    // Lê assets/ui/index.html e embute os temas (CSS), as fontes e app.js (o WebKit
+    // do Mac não carrega arquivos locais separados de uma página montada em memória).
+    // Os dois temas vão na página; o que não está em uso fica desligado (media="not all")
+    // e a página troca na hora, sem recarregar.
+    std::string LoadUi(const std::string& activeTheme)
     {
         const auto dir = Platform::ExecutableDirectory() / "assets" / "ui";
         auto read = [](const std::filesystem::path& path)
@@ -466,13 +501,31 @@ namespace
             if (pos != std::string::npos)
                 html.replace(pos, marker.size(), content);
         };
-        // A fonte do design system (Share Tech Mono) vai embutida no CSS, pelo mesmo motivo
-        std::string style = read(dir / "style.css");
-        const std::string font = read(dir / "fonts" / "ShareTechMono-Regular.ttf");
-        const std::string fontMarker = "__FONT_SHARE_TECH_MONO__";
-        if (const auto at = style.find(fontMarker); at != std::string::npos && !font.empty())
-            style.replace(at, fontMarker.size(), "data:font/ttf;base64," + Base64Encode(font));
-        replace("/*__STYLE__*/", style);
+
+        // Fontes: url("__FONT:arquivo.ttf__") vira o próprio arquivo embutido
+        auto embedFonts = [&](std::string css)
+        {
+            static const std::regex fontMarker(R"(__FONT:([A-Za-z0-9_.\-]+)__)");
+            std::string out;
+            auto begin = css.cbegin();
+            for (std::sregex_iterator it(css.begin(), css.end(), fontMarker), end; it != end; ++it)
+            {
+                out.append(begin, css.cbegin() + it->position());
+                const std::string font = read(dir / "fonts" / (*it)[1].str());
+                out += font.empty() ? std::string() : "data:font/ttf;base64," + Base64Encode(font);
+                begin = css.cbegin() + it->position() + it->length();
+            }
+            out.append(begin, css.cend());
+            return out;
+        };
+
+        for (const char* theme : kThemes)
+        {
+            const std::string name = theme;
+            replace("/*__THEME:" + name + "__*/", embedFonts(read(dir / "themes" / (name + ".css"))));
+            if (name != activeTheme)
+                replace("<style id=\"theme-" + name + "\">", "<style id=\"theme-" + name + "\" media=\"not all\">");
+        }
         replace("/*__SCRIPT__*/", read(dir / "app.js"));
         return html;
     }
@@ -829,6 +882,17 @@ namespace
             return "null";
         });
 
+        // setTheme("nocturne"): guarda o tema escolhido (a página já trocou sozinha)
+        window.bind("setTheme", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (!args.empty())
+                for (const char* theme : kThemes)
+                    if (args[0] == theme)
+                        SaveTheme(args[0]);
+            return "null";
+        });
+
         // --- Saída ---
 
         window.bind("exitApp", [&](const std::string& request) -> std::string
@@ -856,7 +920,7 @@ namespace
             });
         }
 
-        window.set_html(LoadUi());
+        window.set_html(LoadUi(LoadTheme()));
         window.run();
 
         // Janela fechada. Se as câmeras não foram encerradas pelo caminho normal
