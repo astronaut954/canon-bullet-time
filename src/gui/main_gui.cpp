@@ -445,7 +445,7 @@ namespace
 
     // Temas visuais disponíveis (assets/ui/themes/<nome>.css). O escolhido fica
     // guardado em settings.txt, na pasta de dados do app.
-    const char* const kThemes[] = { "neo-terminal", "nocturne" };
+    const char* const kThemes[] = { "neo-terminal", "nocturne", "cybercore" };
 
     std::filesystem::path SettingsFile()
     {

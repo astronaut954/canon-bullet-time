@@ -66,11 +66,13 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Fotos em **RAW** (e RAW+JPEG): aparecem nas sessões.
 - [ ] Fechar com sessões não salvas: pergunta se quer salvar ou apagar.
 - [ ] Textos sem emojis em toda a janela (o terminal continua igual).
-- [ ] Seletor "Neo Terminal / Nocturne" no topo: troca o visual na hora e a escolha
+- [ ] Seletor "Neo Terminal / Nocturne / Cybercore" no topo: troca o visual na hora e a escolha
       continua ao abrir o app de novo.
 - [ ] Neo Terminal: fundo preto, verde com brilho, cantos retos, fonte Share Tech Mono.
 - [ ] Nocturne: fundo quase preto, amarelo na ação principal, cantos cortados, trilho
       colorido à esquerda dos painéis, fontes Rajdhani e JetBrains Mono.
+- [ ] Cybercore: ciano e magenta, painéis com dois cantos cortados e colchetes coloridos,
+      botões que se enchem de cor ao passar o mouse, nome do app em Orbitron com "//".
 
 ## Resultado
 

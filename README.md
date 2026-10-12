@@ -135,11 +135,12 @@ cmake --build --preset macos-arm64-release
 
 Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries (internet required).
 
-The window has two looks, to compare design systems; switch them at the top of the window
+The window has three looks, to compare design systems; switch them at the top of the window
 (the choice is remembered):
 
 * **Neo Terminal** — [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui), in `assets/ui/themes/neo-terminal.css`
 * **Nocturne** — [Nocturne](https://github.com/starside-io/nocturne), in `assets/ui/themes/nocturne.css`
+* **Cybercore** — [CYBERCORE CSS](https://github.com/sebyx07/cybercore-css), in `assets/ui/themes/cybercore.css`
 
 Colors, fonts and effects are variables at the top of each file. The fonts are in
 `assets/ui/fonts/` and are embedded in the page when the window opens (works offline).

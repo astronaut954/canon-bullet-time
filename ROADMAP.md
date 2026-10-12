@@ -52,8 +52,9 @@ O "flicker" e a vinheta do efeito CRT ficaram de fora para não atrapalhar a con
 das fotos.
 
 Em 2026-10-12 entrou um segundo visual, [Nocturne](https://github.com/starside-io/nocturne),
-para comparação: os dois ficam em `assets/ui/themes/` e trocam no topo da janela.
-Quando o dono do projeto escolher, o outro tema e o seletor saem do app.
+para comparação, e depois um terceiro, [CYBERCORE CSS](https://github.com/sebyx07/cybercore-css).
+Os três ficam em `assets/ui/themes/` e trocam no topo da janela. Quando o dono do
+projeto escolher, os outros temas e o seletor saem do app.
 
 ### Critério para fechar uma etapa
 
