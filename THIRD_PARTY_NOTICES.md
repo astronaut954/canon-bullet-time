@@ -9,11 +9,10 @@ at build time by CMake (they are not stored in this repository):
 | [stb](https://github.com/nothings/stb) (`stb_image`, `stb_image_resize2`, `stb_image_write`) | commit 2c980bb | Reading, resizing and writing JPEG previews | MIT or public domain (Unlicense), at your choice |
 | [LibRaw](https://www.libraw.org) | 0.21.4 | Previews of RAW photos (CR3, CR2, NEF, ARW, DNG...) | LGPL 2.1 or CDDL 1.0, at your choice — this project uses it under the **CDDL 1.0** |
 | [LibRaw-cmake](https://github.com/LibRaw/LibRaw-cmake) | commit eb98e43 | Build recipe for LibRaw | LGPL 2.1 or CDDL 1.0 (same as LibRaw) |
-| [Nocturne](https://github.com/starside-io/nocturne) | commit 9693bd5 | Structure of the window's "Mix 1" and "Mix 2" themes: layout, clipped corners, panel rails, component styles from nocturne-css and type scale, adapted to the app's classes in `assets/ui/themes/nocturne-neo-1.css` and `nocturne-neo-2.css` | Apache 2.0 (`assets/ui/themes/LICENSE-nocturne.txt`) |
-| [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui) | commit 0eaf72d | Color palette of both "Mix" themes; in "Mix 2" also the font, text glow, panel scanlines and blinking cursor, ported to plain CSS | MIT |
-| [Share Tech Mono](https://fonts.google.com/specimen/Share+Tech+Mono) | Google Fonts | Font of the "Mix 2" theme, in `assets/ui/fonts/` | SIL Open Font License 1.1 (`assets/ui/fonts/OFL-ShareTechMono.txt`) |
-| [Rajdhani](https://fonts.google.com/specimen/Rajdhani) | Google Fonts | Font of the "Mix 1" theme (Regular, SemiBold, Bold), reduced to Latin characters | SIL Open Font License 1.1 (`assets/ui/fonts/OFL-Rajdhani.txt`) |
-| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | Google Fonts | Mono font of the "Mix 1" theme, reduced to Latin characters | SIL Open Font License 1.1 (`assets/ui/fonts/OFL-JetBrainsMono.txt`) |
+| [Nocturne](https://github.com/starside-io/nocturne) | commit 9693bd5 | Structure of the window's look: layout, panel rails, component styles from nocturne-css and type scale, adapted to the app's classes in `assets/ui/themes/nocturne-neo.css` | Apache 2.0 (`assets/ui/themes/LICENSE-nocturne.txt`) |
+| [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui) | commit 0eaf72d | Color palette of the window's look, in `assets/ui/themes/nocturne-neo.css` | MIT |
+| [Rajdhani](https://fonts.google.com/specimen/Rajdhani) | Google Fonts | Font of the window (Regular, SemiBold, Bold), reduced to Latin characters | SIL Open Font License 1.1 (`assets/ui/fonts/OFL-Rajdhani.txt`) |
+| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | Google Fonts | Mono font of the window, reduced to Latin characters | SIL Open Font License 1.1 (`assets/ui/fonts/OFL-JetBrainsMono.txt`) |
 
 LibRaw is used without modifications. Its source code is available at
 https://github.com/LibRaw/LibRaw (tag `0.21.4`), and its licenses are in the files
@@ -32,9 +31,9 @@ This product includes software developed as part of NocturneOS
 ```
 
 Changes made here: the tokens and component styles were rewritten to style the
-elements of this app's page, and the colors were replaced by the Neo Terminal UI
-palette (`assets/ui/themes/nocturne-neo-1.css` and `nocturne-neo-2.css`); no
-Nocturne file is shipped unchanged. Full license text: `assets/ui/themes/LICENSE-nocturne.txt`.
+elements of this app's page, the colors were replaced by the Neo Terminal UI
+palette and the clipped corners were made square (`assets/ui/themes/nocturne-neo.css`);
+no Nocturne file is shipped unchanged. Full license text: `assets/ui/themes/LICENSE-nocturne.txt`.
 
 ## Neo Terminal UI — MIT License
 

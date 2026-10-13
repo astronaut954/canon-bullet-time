@@ -443,44 +443,13 @@ namespace
         return list + "]";
     }
 
-    // Temas visuais disponíveis (assets/ui/themes/<nome>.css). O escolhido fica
-    // guardado em settings.txt, na pasta de dados do app.
-    const char* const kThemes[] = { "nocturne-neo-1", "nocturne-neo-2" };
+    // Visual da janela: assets/ui/themes/<nome>.css (estrutura do Nocturne com as
+    // cores do Neo Terminal).
+    const char* const kTheme = "nocturne-neo";
 
-    std::filesystem::path SettingsFile()
-    {
-        return Platform::AppDataFolder() / "settings.txt";
-    }
-
-    std::string LoadTheme()
-    {
-        std::ifstream file(SettingsFile());
-        std::string line;
-        while (std::getline(file, line))
-        {
-            if (line.rfind("theme=", 0) == 0)
-            {
-                const std::string name = line.substr(6);
-                for (const char* theme : kThemes)
-                    if (name == theme)
-                        return name;
-            }
-        }
-        return kThemes[0];
-    }
-
-    void SaveTheme(const std::string& name)
-    {
-        std::error_code ec;
-        std::filesystem::create_directories(SettingsFile().parent_path(), ec);
-        std::ofstream(SettingsFile()) << "theme=" << name << "\n";
-    }
-
-    // Lê assets/ui/index.html e embute os temas (CSS), as fontes e app.js (o WebKit
+    // Lê assets/ui/index.html e embute o tema (CSS), as fontes e app.js (o WebKit
     // do Mac não carrega arquivos locais separados de uma página montada em memória).
-    // Os dois temas vão na página; o que não está em uso fica desligado (media="not all")
-    // e a página troca na hora, sem recarregar.
-    std::string LoadUi(const std::string& activeTheme)
+    std::string LoadUi()
     {
         const auto dir = Platform::ExecutableDirectory() / "assets" / "ui";
         auto read = [](const std::filesystem::path& path)
@@ -519,13 +488,7 @@ namespace
             return out;
         };
 
-        for (const char* theme : kThemes)
-        {
-            const std::string name = theme;
-            replace("/*__THEME:" + name + "__*/", embedFonts(read(dir / "themes" / (name + ".css"))));
-            if (name != activeTheme)
-                replace("<style id=\"theme-" + name + "\">", "<style id=\"theme-" + name + "\" media=\"not all\">");
-        }
+        replace("/*__THEME__*/", embedFonts(read(dir / "themes" / (std::string(kTheme) + ".css"))));
         replace("/*__SCRIPT__*/", read(dir / "app.js"));
         return html;
     }
@@ -882,17 +845,6 @@ namespace
             return "null";
         });
 
-        // setTheme("nocturne-neo-1"): guarda o tema escolhido (a página já trocou sozinha)
-        window.bind("setTheme", [&](const std::string& request) -> std::string
-        {
-            const auto args = ParseStringArgs(request);
-            if (!args.empty())
-                for (const char* theme : kThemes)
-                    if (args[0] == theme)
-                        SaveTheme(args[0]);
-            return "null";
-        });
-
         // --- Saída ---
 
         window.bind("exitApp", [&](const std::string& request) -> std::string
@@ -920,7 +872,7 @@ namespace
             });
         }
 
-        window.set_html(LoadUi(LoadTheme()));
+        window.set_html(LoadUi());
         window.run();
 
         // Janela fechada. Se as câmeras não foram encerradas pelo caminho normal

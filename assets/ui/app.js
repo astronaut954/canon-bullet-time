@@ -1036,26 +1036,6 @@
     if (handler) handler(event);
   };
 
-  // =================== Tema (comparação de design systems) ===================
-  const themeButtons = document.querySelectorAll("#themeSwitch button");
-  function applyTheme(name) {
-    // "disabled" liga/desliga a folha de estilo em todos os navegadores (o media
-    // inicial vem do programa, para a janela já abrir com o tema certo)
-    document.querySelectorAll('style[id^="theme-"]').forEach((s) => {
-      const on = s.id === "theme-" + name;
-      s.media = "all";
-      s.disabled = !on;
-      if (s.sheet) s.sheet.disabled = !on;
-    });
-    themeButtons.forEach((b) => b.classList.toggle("active", b.dataset.theme === name));
-  }
-  const activeStyle = [...document.querySelectorAll('style[id^="theme-"]')].find((s) => s.media !== "not all");
-  applyTheme(activeStyle ? activeStyle.id.replace("theme-", "") : "nocturne-neo-1");
-  themeButtons.forEach((b) => b.addEventListener("click", () => {
-    applyTheme(b.dataset.theme);
-    window.setTheme(b.dataset.theme);
-  }));
-
   // =================== Ações ===================
   ui.restartBtn.addEventListener("click", () => {
     dialog("Restart camera connections?", "Use this when a camera is on and plugged in but does not connect. All cameras reconnect.", [

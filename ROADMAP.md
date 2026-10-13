@@ -55,9 +55,9 @@ Em 2026-10-12 entraram, para comparação, [Nocturne](https://github.com/starsid
 e [CYBERCORE CSS](https://github.com/sebyx07/cybercore-css). Em 2026-10-13 o dono do
 projeto escolheu a estrutura do Nocturne com as cores do Neo Terminal. Os três temas
 originais saíram do app e ficaram duas variações dessa mistura em `assets/ui/themes/`:
-"Mix 1" (`nocturne-neo-1.css`, fontes do Nocturne) e "Mix 2" (`nocturne-neo-2.css`,
-fonte e efeitos do Neo Terminal). Elas trocam no topo da janela. Quando ele escolher
-uma, a outra e o seletor saem do app.
+"Mix 1" (fontes do Nocturne) e "Mix 2" (fonte e efeitos do Neo Terminal). No mesmo
+dia ele escolheu o Mix 1, sem os cantos cortados do Nocturne (cantos retos). Ficou um
+único visual, `assets/ui/themes/nocturne-neo.css`, e o seletor de temas saiu do app.
 
 ### Critério para fechar uma etapa
 

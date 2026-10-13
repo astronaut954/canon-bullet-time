@@ -66,14 +66,10 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Fotos em **RAW** (e RAW+JPEG): aparecem nas sessões.
 - [ ] Fechar com sessões não salvas: pergunta se quer salvar ou apagar.
 - [ ] Textos sem emojis em toda a janela (o terminal continua igual).
-- [ ] Seletor "Mix 1 / Mix 2" no topo: troca o visual na hora e a escolha continua ao
-      abrir o app de novo.
-- [ ] Os dois: estrutura do Nocturne (cantos cortados, trilho verde à esquerda dos
-      painéis) com as cores do Neo Terminal (preto, verde, âmbar em andamento,
-      vermelho para apagar).
-- [ ] Mix 1: fontes Rajdhani e JetBrains Mono, brilho só nos destaques.
-- [ ] Mix 2: tudo em Share Tech Mono, texto com brilho, linhas de monitor nos painéis
-      e cursor piscando depois do nome do app.
+- [ ] Visual: estrutura do Nocturne (trilho verde à esquerda dos painéis, fontes
+      Rajdhani e JetBrains Mono) com as cores do Neo Terminal (preto, verde, âmbar em
+      andamento, vermelho para apagar). Sem seletor de temas no topo.
+- [ ] Cantos retos em painéis, janelas, botões e etiquetas (nenhum canto cortado).
 
 ## Resultado
 
