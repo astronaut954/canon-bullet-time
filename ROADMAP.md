@@ -47,14 +47,17 @@ Feitas em 2026-10-11 (aguardando teste no Mac), junto com a limpeza dos textos
 Design system [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui) aplicado em
 2026-10-11 (aguardando teste no Mac): a biblioteca é React + Tailwind, então os tokens
 (cores, fonte Share Tech Mono, brilho, cantos retos) e os estilos dos componentes foram
-passados para CSS simples em `assets/ui/themes/neo-terminal.css`, sem mudar o funcionamento da página.
+passados para CSS simples (em `assets/ui/themes/neo-terminal.css`, que saiu em 2026-10-13), sem mudar o funcionamento da página.
 O "flicker" e a vinheta do efeito CRT ficaram de fora para não atrapalhar a conferência
 das fotos.
 
-Em 2026-10-12 entrou um segundo visual, [Nocturne](https://github.com/starside-io/nocturne),
-para comparação, e depois um terceiro, [CYBERCORE CSS](https://github.com/sebyx07/cybercore-css).
-Os três ficam em `assets/ui/themes/` e trocam no topo da janela. Quando o dono do
-projeto escolher, os outros temas e o seletor saem do app.
+Em 2026-10-12 entraram, para comparação, [Nocturne](https://github.com/starside-io/nocturne)
+e [CYBERCORE CSS](https://github.com/sebyx07/cybercore-css). Em 2026-10-13 o dono do
+projeto escolheu a estrutura do Nocturne com as cores do Neo Terminal. Os três temas
+originais saíram do app e ficaram duas variações dessa mistura em `assets/ui/themes/`:
+"Mix 1" (`nocturne-neo-1.css`, fontes do Nocturne) e "Mix 2" (`nocturne-neo-2.css`,
+fonte e efeitos do Neo Terminal). Elas trocam no topo da janela. Quando ele escolher
+uma, a outra e o seletor saem do app.
 
 ### Critério para fechar uma etapa
 

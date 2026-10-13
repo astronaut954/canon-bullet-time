@@ -445,7 +445,7 @@ namespace
 
     // Temas visuais disponíveis (assets/ui/themes/<nome>.css). O escolhido fica
     // guardado em settings.txt, na pasta de dados do app.
-    const char* const kThemes[] = { "neo-terminal", "nocturne", "cybercore" };
+    const char* const kThemes[] = { "nocturne-neo-1", "nocturne-neo-2" };
 
     std::filesystem::path SettingsFile()
     {
@@ -882,7 +882,7 @@ namespace
             return "null";
         });
 
-        // setTheme("nocturne"): guarda o tema escolhido (a página já trocou sozinha)
+        // setTheme("nocturne-neo-1"): guarda o tema escolhido (a página já trocou sozinha)
         window.bind("setTheme", [&](const std::string& request) -> std::string
         {
             const auto args = ParseStringArgs(request);

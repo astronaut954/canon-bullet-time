@@ -1,0 +1,452 @@
+/* Canon Bullet Time — tema "Mix 1": estrutura do Nocturne com as cores do Neo Terminal.
+
+   Estrutura: Nocturne (https://github.com/starside-io/nocturne), Apache-2.0,
+   Copyright 2026 Mederic Burlet. Layout, cantos cortados, trilho colorido e
+   entalhe nos painéis, botões, badges, campos, modal, toast e tipografia (Rajdhani +
+   JetBrains Mono) vêm de nocturne-css, reescritos para os elementos do app.
+   Licença e NOTICE em assets/ui/themes/LICENSE-nocturne.txt e THIRD_PARTY_NOTICES.md.
+   Cores: paleta do Neo Terminal UI (https://github.com/Dyltom/neo-terminal-ui,
+   MIT, Dylan Henderson): preto, verde fósforo, âmbar e vermelho.
+   Fontes: Rajdhani e JetBrains Mono (SIL Open Font License, em assets/ui/fonts,
+   reduzidas aos caracteres latinos).
+
+   Variação 1, "limpa": tipografia do Nocturne, brilho só nos destaques.
+   Papéis das cores: verde forte = ação principal e "pronto"; verdes mais escuros =
+   bordas e informação; âmbar = em andamento; vermelho = erro/apagar. */
+
+@font-face { font-family: "Rajdhani"; src: url("__FONT:Rajdhani-Regular.ttf__") format("truetype"); font-weight: 400; }
+@font-face { font-family: "Rajdhani"; src: url("__FONT:Rajdhani-SemiBold.ttf__") format("truetype"); font-weight: 600; }
+@font-face { font-family: "Rajdhani"; src: url("__FONT:Rajdhani-Bold.ttf__") format("truetype"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("__FONT:JetBrainsMono-Variable.ttf__") format("truetype"); font-weight: 100 800; }
+
+:root {
+  /* ---- cores: paleta do Neo Terminal UI ---- */
+  --neo-black: #0a0a0a;
+  --neo-dark: #001100;
+  --neo-green-100: #00ff41;   /* texto principal e destaques */
+  --neo-green-200: #00cc33;
+  --neo-green-300: #009926;   /* bordas fortes */
+  --neo-green-400: #006619;   /* bordas */
+  --neo-green-500: #003d0f;   /* fundos de destaque */
+  --neo-muted: #33cc66;       /* texto secundário */
+  --neo-amber: #ffb000;       /* aviso, em andamento */
+  --neo-red: #ff0040;         /* erro, apagar */
+
+  /* ---- papéis do Nocturne, preenchidos com as cores acima ---- */
+  --noct-bg: var(--neo-black);
+  --noct-bg-deep: #050805;            /* fim do degradê do fundo */
+  --noct-bg-rgb: 10, 10, 10;
+  --noct-surface: var(--neo-dark);    /* painéis */
+  --noct-surface-inner: #000a00;      /* linhas dentro dos painéis */
+  --noct-elevated: var(--neo-green-500);
+  --noct-border: var(--neo-green-400);
+  --noct-border-strong: var(--neo-green-300);
+  --noct-border-strong-rgb: 0, 153, 38;
+  --noct-text: var(--neo-green-100);
+  --noct-text-muted: var(--neo-muted);
+  --noct-text-dim: var(--neo-green-300);
+  --noct-primary: var(--neo-green-100);
+  --noct-primary-hot: var(--neo-green-100);
+  --noct-primary-dim: var(--neo-green-200);
+  --noct-on-primary: var(--neo-black);
+  --noct-info: var(--neo-green-200);
+  --noct-success: var(--neo-green-100);
+  --noct-pending: var(--neo-amber);
+  --noct-danger: var(--neo-red);
+  --noct-danger-hover: #cc0033;
+  --noct-on-danger: var(--neo-black);
+
+  --noct-primary-rgb: 0, 255, 65;
+  --noct-info-rgb: 0, 204, 51;
+  --noct-success-rgb: 0, 255, 65;
+  --noct-pending-rgb: 255, 176, 0;
+  --noct-danger-rgb: 255, 0, 64;
+
+  /* Trilho à esquerda de cada painel: quanto mais importante, mais claro */
+  --rail-sessions: var(--neo-green-300);  --rail-sessions-rgb: 0, 153, 38;
+  --rail-cameras: var(--neo-green-200);   --rail-cameras-rgb: 0, 204, 51;
+  --rail-shoot: var(--neo-green-100);     --rail-shoot-rgb: 0, 255, 65;
+
+  /* ---- tipografia e efeitos do Nocturne ---- */
+  --noct-font-sans: "Rajdhani", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --noct-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  --noct-tracking-wider: 0.1em;
+  --noct-tracking-widest: 0.2em;
+  --noct-tracking-mono-cap: 0.18em;
+  --noct-tracking-logo: 0.3em;
+
+  --noct-glow-primary: 0 0 24px rgba(var(--noct-primary-rgb), 0.45);
+  --noct-glow-primary-soft: 0 0 24px rgba(var(--noct-primary-rgb), 0.18);
+  --noct-glow-info-soft: 0 0 24px rgba(var(--noct-info-rgb), 0.18);
+  --noct-focus-ring: 0 0 0 1px var(--noct-primary), 0 0 18px rgba(var(--noct-primary-rgb), 0.18);
+  --noct-clip-corner: 12px;
+  --noct-clip-corner-sm: 6px;
+  --noct-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---- medidas usadas pela interface ---- */
+  --topbar-h: 52px;
+  --log-h: 36px;
+  --frame-w: 84px;         /* largura das miniaturas no carrossel */
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  color: var(--noct-text);
+  font: 500 16px/1.35 var(--noct-font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  /* Fundo do Nocturne: dois brilhos de neon bem fracos sobre um gradiente escuro */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(var(--noct-primary-rgb), 0.04), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(var(--noct-info-rgb), 0.03), transparent 70%),
+    linear-gradient(180deg, var(--noct-bg) 0%, var(--noct-bg-deep) 100%);
+}
+input, .log-list { user-select: text; }
+.hidden { display: none !important; }
+button { font: inherit; }
+::selection { background: var(--noct-primary); color: var(--noct-on-primary); }
+:focus-visible { outline: 2px solid var(--noct-primary); outline-offset: 2px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--noct-surface-inner); }
+::-webkit-scrollbar-thumb { background: var(--noct-border); }
+::-webkit-scrollbar-thumb:hover { background: var(--noct-primary-dim); }
+::-webkit-scrollbar-corner { background: var(--noct-surface-inner); }
+
+@keyframes noct-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* Cantos cortados (o desenho principal do Nocturne) */
+.panel, .dialog, .sheet { clip-path: polygon(0 0, calc(100% - var(--noct-clip-corner)) 0, 100% var(--noct-clip-corner), 100% 100%, var(--noct-clip-corner) 100%, 0 calc(100% - var(--noct-clip-corner))); }
+.btn, .camera, .status { clip-path: polygon(0 0, calc(100% - var(--noct-clip-corner-sm)) 0, 100% var(--noct-clip-corner-sm), 100% 100%, var(--noct-clip-corner-sm) 100%, 0 calc(100% - var(--noct-clip-corner-sm))); }
+
+/* ---------- Barra superior ---------- */
+.topbar {
+  height: var(--topbar-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(var(--noct-bg-rgb), 0.85);
+  border-bottom: 1px solid var(--noct-border);
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 19px; text-transform: uppercase; letter-spacing: var(--noct-tracking-logo);
+}
+/* Marca: quadrado de destaque com brilho, antes do nome */
+.brand-mark { width: 10px; height: 10px; background: var(--noct-primary); box-shadow: 0 0 8px var(--noct-primary); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* Badge */
+.status, .count {
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--noct-border-strong); background: var(--noct-elevated); color: var(--noct-text-muted);
+  font: 700 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: var(--noct-tracking-mono-cap);
+}
+.status { height: 26px; padding: 0 10px; }
+.status-ok { color: var(--noct-success); border-color: var(--noct-success); background: rgba(var(--noct-success-rgb), .06); }
+.status-busy { color: var(--noct-pending); border-color: var(--noct-pending); background: rgba(var(--noct-pending-rgb), .06); }
+.status-error { color: var(--noct-danger); border-color: var(--noct-danger); background: rgba(var(--noct-danger-rgb), .06); }
+.count { height: 18px; min-width: 22px; padding: 0 5px; margin-left: 8px; justify-content: center; letter-spacing: 0; color: var(--noct-info); border-color: var(--noct-info); background: transparent; }
+
+/* ---------- Tela principal ---------- */
+.app {
+  height: calc(100% - var(--topbar-h) - var(--log-h));
+  padding: 14px 18px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) clamp(230px, 36vh, 320px);
+  gap: 14px;
+}
+.controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; min-height: 0; }
+
+/* Card/panel do Nocturne: superfície escura, borda fina, trilho colorido à esquerda
+   e o "entalhe" no canto superior esquerdo. */
+.panel {
+  --rail: var(--noct-border-strong);
+  --rail-rgb: var(--noct-border-strong-rgb);
+  position: relative;
+  background:
+    linear-gradient(95deg, rgba(var(--rail-rgb), 0.05) 0%, rgba(var(--rail-rgb), 0.015) 25%, transparent 60%),
+    var(--noct-surface);
+  border: 1px solid var(--noct-border);
+  padding: 14px 16px 14px 20px;
+  min-height: 0;
+  overflow: auto;
+}
+.panel::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--rail); box-shadow: 2px 0 12px rgba(var(--rail-rgb), 0.25);
+}
+.panel::after {
+  content: ""; position: absolute; left: 0; top: 0; width: 1rem; height: 1rem;
+  border-left: 2px solid var(--rail); border-top: 2px solid var(--rail);
+  pointer-events: none;
+}
+.sessions-panel { --rail: var(--rail-sessions); --rail-rgb: var(--rail-sessions-rgb); }
+.cameras-panel { --rail: var(--rail-cameras); --rail-rgb: var(--rail-cameras-rgb); }
+.shoot-panel { --rail: var(--rail-shoot); --rail-rgb: var(--rail-shoot-rgb); }         /* o mais claro: a ação principal */
+
+/* Título de card: mono, maiúsculas, espaçado */
+.panel h2, .session-folders h2 {
+  margin: 0 0 12px;
+  font: 700 11px var(--noct-font-mono);
+  text-transform: uppercase; letter-spacing: var(--noct-tracking-widest);
+  color: var(--noct-text-muted);
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--noct-border);
+}
+.panel-head h2 { margin: 0; }
+
+/* ---------- Botões ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 36px; padding: 0 16px;
+  border: 1px solid var(--noct-border-strong); background: transparent; color: var(--noct-text);
+  font: 600 12px var(--noct-font-mono); text-transform: uppercase; letter-spacing: var(--noct-tracking-wider);
+  cursor: pointer; white-space: nowrap;
+  transition: all 150ms var(--noct-ease);
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-secondary:hover:not(:disabled) { border-color: var(--noct-primary); color: var(--noct-primary); }
+.btn-primary { background: var(--noct-primary); color: var(--noct-on-primary); border-color: var(--noct-primary); }
+.btn-primary:hover:not(:disabled) { background: var(--noct-primary-hot); box-shadow: var(--noct-glow-primary); }
+.btn-danger { background: var(--noct-danger); color: var(--noct-on-danger); border-color: var(--noct-danger); }
+.btn-danger:hover:not(:disabled) { background: var(--noct-danger-hover); }
+/* ghost */
+.btn-link { background: transparent; color: var(--noct-text-muted); border-color: transparent; }
+.btn-link:hover:not(:disabled) { color: var(--noct-primary); background: var(--noct-elevated); }
+.btn-small { height: 28px; padding: 0 12px; font-size: 11px; }
+.btn-icon { width: 30px; padding: 0; }
+.btn svg { display: block; }
+.btn-overlay { background: rgba(var(--noct-bg-rgb), .75); border-color: var(--noct-border-strong); }
+.btn-overlay:hover { border-color: var(--noct-primary); color: var(--noct-primary); }
+
+/* ---------- Sessões ---------- */
+.sessions-panel { display: grid; grid-template-columns: 220px minmax(0, 1fr); padding: 0 0 0 3px; overflow: hidden; }
+.session-folders { border-right: 1px solid var(--noct-border); padding: 14px 10px 14px 16px; overflow: auto; min-height: 0; }
+.folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.folder {
+  display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: start;
+  padding: 8px 9px; cursor: pointer; border-left: 2px solid transparent;
+  transition: background 150ms var(--noct-ease);
+}
+.folder:hover { background: var(--noct-surface-inner); }
+.folder.active { background: var(--noct-elevated); border-left-color: var(--noct-info); }
+.folder svg { color: var(--noct-text-dim); margin-top: 2px; }
+.folder.active svg { color: var(--noct-info); }
+.folder-date { font-weight: 600; font-size: 16px; }
+.folder-meta { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); text-transform: uppercase; letter-spacing: .06em; }
+.session-viewer { padding: 14px 16px; min-height: 0; display: flex; flex-direction: column; }
+.viewer-empty { margin: auto; text-align: center; color: var(--noct-text-dim); max-width: 340px; }
+
+/* Sessão em tela cheia: ocupa a janela inteira (as pastas ficam escondidas) */
+.sessions-panel.fullscreen {
+  position: fixed; inset: 0; z-index: 8;
+  border: 0; clip-path: none; background: var(--noct-bg);
+  grid-template-columns: minmax(0, 1fr);
+}
+.sessions-panel.fullscreen .session-folders { display: none; }
+.sessions-panel.fullscreen .session-viewer { padding: 16px 22px 20px; }
+
+/* Fora da tela cheia: sem título; os botões ficam na linha das miniaturas */
+.sessions-panel:not(.fullscreen) .gallery {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "strip head" "stage stage"; column-gap: 12px; row-gap: 10px;
+}
+.sessions-panel:not(.fullscreen) .gallery-head { grid-area: head; align-self: start; }
+.sessions-panel:not(.fullscreen) .gallery-head > div:first-child { display: none; }
+.sessions-panel:not(.fullscreen) .carousel-wrap { grid-area: strip; min-width: 0; }
+.sessions-panel:not(.fullscreen) .stage { grid-area: stage; }
+.stage-tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+
+/* ---------- Galeria (sessões e reordenar por foto) ---------- */
+.gallery { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1; }
+.gallery-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.gallery-title { font-weight: 700; font-size: 22px; text-transform: uppercase; line-height: 1; letter-spacing: -0.01em; }
+.gallery-sub { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; }
+.gallery-actions { display: flex; gap: 6px; align-items: center; }
+
+.carousel-wrap { position: relative; }
+.carousel { list-style: none; margin: 0; padding: 3px 3px 7px; display: flex; gap: 6px; overflow-x: auto; scroll-behavior: smooth; }
+/* Reordenando as fotos: contorno âmbar (em andamento) */
+.gallery.editing .carousel { outline: 1px dashed var(--noct-pending); outline-offset: 2px; }
+.frame {
+  flex: 0 0 var(--frame-w); width: var(--frame-w);
+  padding: 2px; cursor: pointer;
+  border: 1px solid var(--noct-border); background: var(--noct-surface-inner);
+  touch-action: none; transition: border-color 150ms var(--noct-ease), box-shadow 150ms var(--noct-ease);
+}
+.frame:hover { border-color: var(--noct-border-strong); }
+.frame.selected { border-color: var(--noct-primary); box-shadow: var(--noct-glow-primary-soft); }
+.frame.dragging { z-index: 2; position: relative; cursor: grabbing; border-color: var(--noct-pending); box-shadow: 0 0 24px rgba(var(--noct-pending-rgb), .35); }
+.gallery.draggable .frame { cursor: grab; }
+.frame-img {
+  position: relative; width: 100%; aspect-ratio: 3 / 2;
+  background: var(--noct-bg) center / cover no-repeat;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--noct-text-dim); font: 11px var(--noct-font-mono);
+}
+.frame-badge {
+  position: absolute; top: 3px; left: 3px;
+  min-width: 22px; padding: 0 4px;
+  background: rgba(var(--noct-bg-rgb), .85); border: 1px solid var(--noct-border-strong); color: var(--noct-primary);
+  font: 700 10px/15px var(--noct-font-mono); letter-spacing: .1em; text-align: center; font-variant-numeric: tabular-nums;
+}
+.frame.selected .frame-badge { background: var(--noct-primary); color: var(--noct-on-primary); border-color: var(--noct-primary); }
+.drop-marker { position: absolute; top: 3px; bottom: 7px; width: 3px; margin-left: -1.5px; background: var(--noct-pending); box-shadow: 0 0 10px var(--noct-pending); pointer-events: none; }
+
+.stage {
+  flex: 1; min-height: 120px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  background: #000; border: 1px solid var(--noct-border); overflow: hidden;
+}
+.stage img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.stage-message { position: absolute; color: var(--noct-text-dim); text-align: center; padding: 0 20px; font: 12px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .1em; }
+.stage-caption {
+  position: absolute; left: 10px; bottom: 10px;
+  padding: 4px 10px; background: rgba(var(--noct-bg-rgb), .85); border-left: 3px solid var(--noct-primary);
+  font: 600 11px var(--noct-font-mono); color: var(--noct-text); text-transform: uppercase; letter-spacing: .1em;
+}
+.stage-caption b { color: var(--noct-primary); margin-right: 8px; font-variant-numeric: tabular-nums; }
+
+/* ---------- Câmeras ---------- */
+.camera-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.camera {
+  display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 8px 12px; background: var(--noct-surface-inner); border: 1px solid var(--noct-border);
+}
+.camera.is-disconnected { opacity: .7; }
+.camera-order { font: 700 13px var(--noct-font-mono); color: var(--noct-primary); letter-spacing: .1em; font-variant-numeric: tabular-nums; }
+.camera-model { display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: .01em; line-height: 1.1; }
+.camera-meta { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); margin-top: 3px; text-transform: uppercase; letter-spacing: .08em; }
+.camera-meta .state-connected { color: var(--noct-success); }
+.camera-meta .state-connecting { color: var(--noct-pending); }
+.camera-meta .state-disconnected { color: var(--noct-danger); }
+.camera-warning { color: var(--noct-pending); font-size: 13px; margin-top: 2px; }
+.camera-actions { display: flex; gap: 6px; }
+/* Ponto de status do Nocturne */
+.dot { display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; margin-right: 9px; background: var(--noct-success); box-shadow: 0 0 8px var(--noct-success); }
+.dot-connecting { background: var(--noct-pending); box-shadow: 0 0 8px var(--noct-pending); animation: noct-pulse 2s var(--noct-ease) infinite; }
+.dot-disconnected { background: var(--noct-danger); box-shadow: 0 0 8px var(--noct-danger); }
+
+.empty { color: var(--noct-text-dim); margin: 0; }
+.empty-title { color: var(--noct-text); margin: 0 0 6px; font-weight: 700; text-transform: uppercase; }
+.empty ul { margin: 6px 0 0; padding-left: 0; list-style: none; }
+.empty li { margin: 3px 0; padding-left: 14px; position: relative; color: var(--noct-text-muted); }
+.empty li::before { content: ""; position: absolute; left: 0; top: .55em; width: 5px; height: 5px; background: var(--noct-info); }
+
+/* ---------- Disparo ---------- */
+.fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; font: 700 11px var(--noct-font-mono); color: var(--noct-text-muted); text-transform: uppercase; letter-spacing: var(--noct-tracking-widest); }
+.input-unit { position: relative; display: block; }
+.input-unit input {
+  width: 100%; height: 36px; padding: 0 36px 0 12px;
+  border: 1px solid var(--noct-border); border-radius: 0; background: var(--noct-surface); color: var(--noct-text);
+  font: 14px var(--noct-font-mono); outline: none; font-variant-numeric: tabular-nums;
+  transition: border-color 150ms var(--noct-ease), box-shadow 150ms var(--noct-ease), background 150ms var(--noct-ease);
+}
+.input-unit input:hover { border-color: var(--noct-border-strong); }
+.input-unit input:focus { border-color: var(--noct-primary); background: var(--noct-elevated); box-shadow: var(--noct-focus-ring); }
+.input-unit em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: normal 11px var(--noct-font-mono); color: var(--noct-text-dim); text-transform: none; letter-spacing: 0; pointer-events: none; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* Botão principal grande (noct-btn--lg) */
+.btn-shoot { width: 100%; height: 52px; font-size: 16px; letter-spacing: var(--noct-tracking-widest); }
+.shoot-note { margin: 8px 0 0; font: 12px var(--noct-font-mono); color: var(--noct-pending); }
+.progress { min-height: 20px; margin: 10px 0 0; color: var(--noct-text-muted); }
+.storage-note { margin: 4px 0 0; font: 11px var(--noct-font-mono); color: var(--noct-text-dim); }
+
+/* ---------- Atividade (recolhida no rodapé) ---------- */
+.log {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: rgba(var(--noct-bg-rgb), .95);
+  border-top: 1px solid var(--noct-border);
+  display: flex; flex-direction: column;
+  height: var(--log-h);
+  transition: height .15s ease;
+  z-index: 5;
+}
+.log.expanded { height: 42%; }
+.log-bar {
+  height: calc(var(--log-h) - 1px); flex: 0 0 calc(var(--log-h) - 1px);
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 20px; border: 0; background: none; color: var(--noct-text-muted);
+  font-size: 15px; cursor: pointer; text-align: left;
+}
+.log-label { font: 700 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: var(--noct-tracking-widest); color: var(--noct-info); }
+.log-last { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--noct-text); }
+.log-last .dots { display: inline-block; width: 1.2em; text-align: left; color: var(--noct-primary); }  /* largura fixa: o texto não pula */
+.log-chevron { color: var(--noct-text-dim); transition: transform .15s ease; }
+.log.expanded .log-chevron { transform: rotate(180deg); }
+.log-body { flex: 1; min-height: 0; display: none; flex-direction: column; padding: 0 20px 12px; }
+.log.expanded .log-body { display: flex; }
+.log-options { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.log-option { font: 11px var(--noct-font-mono); color: var(--noct-text-muted); text-transform: uppercase; letter-spacing: .08em; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.log-option input { accent-color: var(--noct-primary); }
+.log-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; font-size: 15px; }
+.log-list li { display: grid; grid-template-columns: 74px 10px 1fr; align-items: baseline; gap: 8px; padding: 3px 0; }
+.log-time { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); font-variant-numeric: tabular-nums; }
+.log-mark { width: 6px; height: 6px; background: var(--noct-border-strong); align-self: center; }
+.log-list li.ok .log-mark { background: var(--noct-success); box-shadow: 0 0 6px var(--noct-success); }
+.log-list li.warn .log-mark { background: var(--noct-pending); box-shadow: 0 0 6px var(--noct-pending); }
+.log-list li.error .log-mark { background: var(--noct-danger); box-shadow: 0 0 6px var(--noct-danger); }
+.log-list li.error .log-text { color: var(--noct-danger); }
+.log-list li.tech { display: none; }
+.log-list li.tech .log-text { font: 11px/1.4 var(--noct-font-mono); color: var(--noct-text-dim); }
+.log-list.show-tech li.tech { display: grid; }
+.log-hint { display: block; color: var(--noct-text-dim); font-size: 14px; }
+
+/* ---------- Sobreposições ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--noct-bg-rgb), .82);
+}
+/* Contagem: número enorme com o efeito "glitch" do Nocturne (sombras deslocadas) */
+.countdown-number {
+  font: 700 220px/1 var(--noct-font-sans); color: var(--noct-primary); font-variant-numeric: tabular-nums;
+  text-shadow: 3px 0 0 var(--noct-info), -3px 0 0 var(--noct-danger), 0 0 40px rgba(var(--noct-primary-rgb), .35);
+}
+.flash { position: fixed; inset: 0; z-index: 11; background: #eaffee; pointer-events: none; animation: flash .45s ease-out forwards; }
+@keyframes flash { from { opacity: .9; } to { opacity: 0; } }
+
+/* Modal do Nocturne */
+.dialog {
+  width: min(520px, 90%); background: var(--noct-surface); border: 1px solid var(--noct-border);
+  padding: 0; animation: noct-in 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+@keyframes noct-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.dialog h3, .sheet h3 {
+  margin: 0; font: 700 13px var(--noct-font-mono);
+  text-transform: uppercase; letter-spacing: var(--noct-tracking-widest); color: var(--noct-primary);
+}
+.dialog h3 { padding: 14px 18px; border-bottom: 1px solid var(--noct-border); }
+.dialog p { margin: 0; padding: 16px 18px; color: var(--noct-text-muted); }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--noct-border); }
+
+.sheet {
+  width: min(1040px, 94vw); height: min(760px, 90vh);
+  background: var(--noct-surface); border: 1px solid var(--noct-border);
+  padding: 18px 22px; display: flex; flex-direction: column; gap: 14px;
+}
+.sheet-head p { margin: 6px 0 0; color: var(--noct-text-muted); }
+.sheet-actions { display: flex; gap: 8px; align-items: center; }
+.spacer { flex: 1; }
+
+/* Toast do Nocturne: trilho à esquerda */
+.toast {
+  position: fixed; left: 50%; bottom: calc(var(--log-h) + 16px); transform: translateX(-50%);
+  background: var(--noct-surface); border: 1px solid var(--noct-info); border-left-width: 3px;
+  padding: 10px 16px; font-size: 15px; z-index: 20; max-width: 80%;
+}
+
+/* ---------- Troca de tema (comparação de design systems) ---------- */
+.theme-switch { display: flex; border: 1px solid var(--noct-border-strong); }
+.theme-switch button { height: 26px; background: none; border: 0; color: var(--noct-text-dim); font: 700 10px var(--noct-font-mono); padding: 0 10px; text-transform: uppercase; letter-spacing: var(--noct-tracking-mono-cap); cursor: pointer; }
+.theme-switch button:hover { color: var(--noct-primary); }
+.theme-switch button.active { background: var(--noct-elevated); color: var(--noct-primary); }

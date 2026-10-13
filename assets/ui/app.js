@@ -1050,7 +1050,7 @@
     themeButtons.forEach((b) => b.classList.toggle("active", b.dataset.theme === name));
   }
   const activeStyle = [...document.querySelectorAll('style[id^="theme-"]')].find((s) => s.media !== "not all");
-  applyTheme(activeStyle ? activeStyle.id.replace("theme-", "") : "neo-terminal");
+  applyTheme(activeStyle ? activeStyle.id.replace("theme-", "") : "nocturne-neo-1");
   themeButtons.forEach((b) => b.addEventListener("click", () => {
     applyTheme(b.dataset.theme);
     window.setTheme(b.dataset.theme);

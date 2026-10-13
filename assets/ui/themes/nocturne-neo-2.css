@@ -1,81 +1,95 @@
-/* Canon Bullet Time — tema "Nocturne".
+/* Canon Bullet Time — tema "Mix 2": estrutura do Nocturne com as cores e o jeito
+   terminal do Neo Terminal.
 
-   Design system: Nocturne (https://github.com/starside-io/nocturne), Apache-2.0,
-   Copyright 2026 Mederic Burlet. Adaptado para as classes desta página: os tokens
-   (--noct-*) foram copiados de nocturne-tokens e os estilos dos componentes
-   (button, badge, card/panel, forms, modal, toast, dot, scanlines, clip-corner)
-   de nocturne-css, reescritos para os elementos do app. Licença e NOTICE em
+   Estrutura: Nocturne (https://github.com/starside-io/nocturne), Apache-2.0,
+   Copyright 2026 Mederic Burlet. Layout, cantos cortados, trilho colorido e
+   entalhe nos painéis, botões, badges, campos, modal e toast vêm de nocturne-css,
+   reescritos para os elementos do app. Licença e NOTICE em
    assets/ui/themes/LICENSE-nocturne.txt e THIRD_PARTY_NOTICES.md.
-   Fontes: Rajdhani e JetBrains Mono (SIL Open Font License, em assets/ui/fonts,
-   reduzidas aos caracteres latinos).
+   Cores, fonte e efeitos: Neo Terminal UI (https://github.com/Dyltom/neo-terminal-ui,
+   MIT, Dylan Henderson): preto, verde fósforo, âmbar e vermelho; fonte Share Tech
+   Mono (SIL Open Font License, em assets/ui/fonts); brilho no texto, linhas de
+   monitor nos painéis e o cursor piscando na marca.
 
-   Regras do Nocturne seguidas aqui: uma só cor de destaque (amarelo) para a ação
-   principal; ciano = informação, verde = pronto, laranja = em andamento,
-   magenta = erro/apagar; cantos cortados em vez de arredondados; rótulos em
-   maiúsculas monoespaçadas; uma textura por superfície. */
+   Variação 2, "terminal": tudo em fonte monoespaçada e com o brilho do Neo Terminal.
+   Papéis das cores: verde forte = ação principal e "pronto"; verdes mais escuros =
+   bordas e informação; âmbar = em andamento; vermelho = erro/apagar. */
 
-@font-face { font-family: "Rajdhani"; src: url("__FONT:Rajdhani-Regular.ttf__") format("truetype"); font-weight: 400; }
-@font-face { font-family: "Rajdhani"; src: url("__FONT:Rajdhani-SemiBold.ttf__") format("truetype"); font-weight: 600; }
-@font-face { font-family: "Rajdhani"; src: url("__FONT:Rajdhani-Bold.ttf__") format("truetype"); font-weight: 700; }
-@font-face { font-family: "JetBrains Mono"; src: url("__FONT:JetBrainsMono-Variable.ttf__") format("truetype"); font-weight: 100 800; }
+@font-face { font-family: "Share Tech Mono"; src: url("__FONT:ShareTechMono-Regular.ttf__") format("truetype"); font-weight: 400; }
 
 :root {
-  /* ---- tokens do Nocturne (nocturne-tokens) ---- */
-  --noct-black: #07070b;
-  --noct-ink-900: #05050a;
-  --noct-ink-850: #0c0c14;
-  --noct-ink-800: #10101a;
-  --noct-ink-700: #21213244;
-  --noct-ink-600: #2a2a3d;
-  --noct-ink-500: #3d3d52;
-  --noct-ink-400: #5a5a78;
-  --noct-ink-300: #8a8aa0;
-  --noct-ink-200: #c4c4d4;
-  --noct-ink-100: #f4f4f8;
-  --noct-yellow: #fcee0a;
-  --noct-yellow-hot: #fff700;
-  --noct-yellow-dim: #b8ad07;
-  --noct-cyan: #00f0ff;
-  --noct-magenta: #ff003c;
-  --noct-magenta-dim: #b80029;
-  --noct-green: #00ff9d;
-  --noct-orange: #ff8a00;
+  /* ---- cores: paleta do Neo Terminal UI ---- */
+  --neo-black: #0a0a0a;
+  --neo-dark: #001100;
+  --neo-green-100: #00ff41;   /* texto principal e destaques */
+  --neo-green-200: #00cc33;
+  --neo-green-300: #009926;   /* bordas fortes */
+  --neo-green-400: #006619;   /* bordas */
+  --neo-green-500: #003d0f;   /* fundos de destaque */
+  --neo-muted: #33cc66;       /* texto secundário */
+  --neo-amber: #ffb000;       /* aviso, em andamento */
+  --neo-red: #ff0040;         /* erro, apagar */
 
-  --noct-bg: var(--noct-black);
-  --noct-surface: var(--noct-ink-800);
-  --noct-elevated: var(--noct-ink-600);
-  --noct-border: var(--noct-ink-500);
-  --noct-border-strong: var(--noct-ink-400);
-  --noct-text: var(--noct-ink-100);
-  --noct-text-muted: var(--noct-ink-200);
-  --noct-text-dim: var(--noct-ink-300);
-  --noct-primary: var(--noct-yellow);
-  --noct-info: var(--noct-cyan);
-  --noct-danger: var(--noct-magenta);
-  --noct-success: var(--noct-green);
-  --noct-pending: var(--noct-orange);
+  /* ---- papéis do Nocturne, preenchidos com as cores acima ---- */
+  --noct-bg: var(--neo-black);
+  --noct-bg-deep: #050805;            /* fim do degradê do fundo */
+  --noct-bg-rgb: 10, 10, 10;
+  --noct-surface: var(--neo-dark);    /* painéis */
+  --noct-surface-inner: #000a00;      /* linhas dentro dos painéis */
+  --noct-elevated: var(--neo-green-500);
+  --noct-border: var(--neo-green-400);
+  --noct-border-strong: var(--neo-green-300);
+  --noct-border-strong-rgb: 0, 153, 38;
+  --noct-text: var(--neo-green-100);
+  --noct-text-muted: var(--neo-muted);
+  --noct-text-dim: var(--neo-green-300);
+  --noct-primary: var(--neo-green-100);
+  --noct-primary-hot: var(--neo-green-100);
+  --noct-primary-dim: var(--neo-green-200);
+  --noct-on-primary: var(--neo-black);
+  --noct-info: var(--neo-green-200);
+  --noct-success: var(--neo-green-100);
+  --noct-pending: var(--neo-amber);
+  --noct-danger: var(--neo-red);
+  --noct-danger-hover: #cc0033;
+  --noct-on-danger: var(--neo-black);
 
-  --noct-primary-rgb: 252, 238, 10;
-  --noct-info-rgb: 0, 240, 255;
-  --noct-danger-rgb: 255, 0, 60;
-  --noct-success-rgb: 0, 255, 157;
+  --noct-primary-rgb: 0, 255, 65;
+  --noct-info-rgb: 0, 204, 51;
+  --noct-success-rgb: 0, 255, 65;
+  --noct-pending-rgb: 255, 176, 0;
+  --noct-danger-rgb: 255, 0, 64;
 
-  --noct-font-sans: "Rajdhani", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --noct-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", monospace;
-  --noct-tracking-wider: 0.1em;
-  --noct-tracking-widest: 0.2em;
-  --noct-tracking-mono-cap: 0.18em;
-  --noct-tracking-logo: 0.3em;
+  /* Trilho à esquerda de cada painel: quanto mais importante, mais claro */
+  --rail-sessions: var(--neo-green-300);  --rail-sessions-rgb: 0, 153, 38;
+  --rail-cameras: var(--neo-green-200);   --rail-cameras-rgb: 0, 204, 51;
+  --rail-shoot: var(--neo-green-100);     --rail-shoot-rgb: 0, 255, 65;
 
-  --noct-glow-primary: 0 0 24px rgba(252, 238, 10, 0.45);
-  --noct-glow-primary-soft: 0 0 24px rgba(252, 238, 10, 0.18);
-  --noct-glow-info-soft: 0 0 24px rgba(0, 240, 255, 0.18);
-  --noct-focus-ring: 0 0 0 1px var(--noct-primary), 0 0 18px rgba(252, 238, 10, 0.18);
+  /* ---- tipografia: a fonte do Neo Terminal em tudo; espaçamentos do Nocturne
+     um pouco menores, porque esta fonte é mais larga ---- */
+  --noct-font-sans: "Share Tech Mono", "Courier New", monospace;
+  --noct-font-mono: "Share Tech Mono", "Courier New", monospace;
+  --noct-tracking-wider: 0.08em;
+  --noct-tracking-widest: 0.14em;
+  --noct-tracking-mono-cap: 0.12em;
+  --noct-tracking-logo: 0.12em;
+
+  /* ---- brilhos do Neo Terminal ---- */
+  --neo-text-glow: 0 0 8px rgba(0, 255, 65, .55);
+  --neo-glow-soft: 0 0 5px #00ff41, 0 0 10px #00ff41;
+  --neo-glow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 30px #00ff41;
+
+  /* ---- efeitos do Nocturne ---- */
+
+  --noct-glow-primary: 0 0 24px rgba(var(--noct-primary-rgb), 0.45);
+  --noct-glow-primary-soft: 0 0 24px rgba(var(--noct-primary-rgb), 0.18);
+  --noct-glow-info-soft: 0 0 24px rgba(var(--noct-info-rgb), 0.18);
+  --noct-focus-ring: 0 0 0 1px var(--noct-primary), 0 0 18px rgba(var(--noct-primary-rgb), 0.18);
   --noct-clip-corner: 12px;
   --noct-clip-corner-sm: 6px;
   --noct-ease: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ---- papéis usados pela interface ---- */
+  /* ---- medidas usadas pela interface ---- */
   --topbar-h: 52px;
   --log-h: 36px;
   --frame-w: 84px;         /* largura das miniaturas no carrossel */
@@ -96,19 +110,19 @@ html, body {
   background:
     radial-gradient(ellipse 80% 50% at 50% -10%, rgba(var(--noct-primary-rgb), 0.04), transparent 70%),
     radial-gradient(ellipse 60% 40% at 100% 100%, rgba(var(--noct-info-rgb), 0.03), transparent 70%),
-    linear-gradient(180deg, var(--noct-black) 0%, var(--noct-ink-900) 100%);
+    linear-gradient(180deg, var(--noct-bg) 0%, var(--noct-bg-deep) 100%);
 }
 input, .log-list { user-select: text; }
 .hidden { display: none !important; }
 button { font: inherit; }
-::selection { background: var(--noct-primary); color: #000; }
+::selection { background: var(--noct-primary); color: var(--noct-on-primary); }
 :focus-visible { outline: 2px solid var(--noct-primary); outline-offset: 2px; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--noct-ink-850); }
-::-webkit-scrollbar-thumb { background: var(--noct-ink-600); }
-::-webkit-scrollbar-thumb:hover { background: var(--noct-yellow-dim); }
-::-webkit-scrollbar-corner { background: var(--noct-ink-850); }
+::-webkit-scrollbar-track { background: var(--noct-surface-inner); }
+::-webkit-scrollbar-thumb { background: var(--noct-border); }
+::-webkit-scrollbar-thumb:hover { background: var(--noct-primary-dim); }
+::-webkit-scrollbar-corner { background: var(--noct-surface-inner); }
 
 @keyframes noct-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
@@ -121,7 +135,7 @@ button { font: inherit; }
   height: var(--topbar-h);
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 20px;
-  background: rgba(7, 7, 11, 0.85);
+  background: rgba(var(--noct-bg-rgb), 0.85);
   border-bottom: 1px solid var(--noct-border);
 }
 .brand {
@@ -140,7 +154,7 @@ button { font: inherit; }
 }
 .status { height: 26px; padding: 0 10px; }
 .status-ok { color: var(--noct-success); border-color: var(--noct-success); background: rgba(var(--noct-success-rgb), .06); }
-.status-busy { color: var(--noct-pending); border-color: var(--noct-pending); background: rgba(255, 138, 0, .06); }
+.status-busy { color: var(--noct-pending); border-color: var(--noct-pending); background: rgba(var(--noct-pending-rgb), .06); }
 .status-error { color: var(--noct-danger); border-color: var(--noct-danger); background: rgba(var(--noct-danger-rgb), .06); }
 .count { height: 18px; min-width: 22px; padding: 0 5px; margin-left: 8px; justify-content: center; letter-spacing: 0; color: var(--noct-info); border-color: var(--noct-info); background: transparent; }
 
@@ -155,10 +169,10 @@ button { font: inherit; }
 .controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; min-height: 0; }
 
 /* Card/panel do Nocturne: superfície escura, borda fina, trilho colorido à esquerda
-   e o "entalhe" no canto superior esquerdo. A cor do trilho diz o papel do painel. */
+   e o "entalhe" no canto superior esquerdo. */
 .panel {
   --rail: var(--noct-border-strong);
-  --rail-rgb: 90, 90, 120;
+  --rail-rgb: var(--noct-border-strong-rgb);
   position: relative;
   background:
     linear-gradient(95deg, rgba(var(--rail-rgb), 0.05) 0%, rgba(var(--rail-rgb), 0.015) 25%, transparent 60%),
@@ -177,9 +191,9 @@ button { font: inherit; }
   border-left: 2px solid var(--rail); border-top: 2px solid var(--rail);
   pointer-events: none;
 }
-.sessions-panel { --rail: var(--noct-info); --rail-rgb: var(--noct-info-rgb); }       /* ciano: informação */
-.cameras-panel { --rail: var(--noct-success); --rail-rgb: var(--noct-success-rgb); }  /* verde: câmeras prontas */
-.shoot-panel { --rail: var(--noct-primary); --rail-rgb: var(--noct-primary-rgb); }    /* amarelo: a ação principal */
+.sessions-panel { --rail: var(--rail-sessions); --rail-rgb: var(--rail-sessions-rgb); }
+.cameras-panel { --rail: var(--rail-cameras); --rail-rgb: var(--rail-cameras-rgb); }
+.shoot-panel { --rail: var(--rail-shoot); --rail-rgb: var(--rail-shoot-rgb); }         /* o mais claro: a ação principal */
 
 /* Título de card: mono, maiúsculas, espaçado */
 .panel h2, .session-folders h2 {
@@ -205,17 +219,17 @@ button { font: inherit; }
 }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn-secondary:hover:not(:disabled) { border-color: var(--noct-primary); color: var(--noct-primary); }
-.btn-primary { background: var(--noct-primary); color: #000; border-color: var(--noct-primary); }
-.btn-primary:hover:not(:disabled) { background: var(--noct-yellow-hot); box-shadow: var(--noct-glow-primary); }
-.btn-danger { background: var(--noct-danger); color: #fff; border-color: var(--noct-danger); }
-.btn-danger:hover:not(:disabled) { background: var(--noct-magenta-dim); }
+.btn-primary { background: var(--noct-primary); color: var(--noct-on-primary); border-color: var(--noct-primary); }
+.btn-primary:hover:not(:disabled) { background: var(--noct-primary-hot); box-shadow: var(--noct-glow-primary); }
+.btn-danger { background: var(--noct-danger); color: var(--noct-on-danger); border-color: var(--noct-danger); }
+.btn-danger:hover:not(:disabled) { background: var(--noct-danger-hover); }
 /* ghost */
 .btn-link { background: transparent; color: var(--noct-text-muted); border-color: transparent; }
 .btn-link:hover:not(:disabled) { color: var(--noct-primary); background: var(--noct-elevated); }
 .btn-small { height: 28px; padding: 0 12px; font-size: 11px; }
 .btn-icon { width: 30px; padding: 0; }
 .btn svg { display: block; }
-.btn-overlay { background: rgba(7, 7, 11, .75); border-color: var(--noct-border-strong); }
+.btn-overlay { background: rgba(var(--noct-bg-rgb), .75); border-color: var(--noct-border-strong); }
 .btn-overlay:hover { border-color: var(--noct-primary); color: var(--noct-primary); }
 
 /* ---------- Sessões ---------- */
@@ -227,7 +241,7 @@ button { font: inherit; }
   padding: 8px 9px; cursor: pointer; border-left: 2px solid transparent;
   transition: background 150ms var(--noct-ease);
 }
-.folder:hover { background: var(--noct-ink-850); }
+.folder:hover { background: var(--noct-surface-inner); }
 .folder.active { background: var(--noct-elevated); border-left-color: var(--noct-info); }
 .folder svg { color: var(--noct-text-dim); margin-top: 2px; }
 .folder.active svg { color: var(--noct-info); }
@@ -239,7 +253,7 @@ button { font: inherit; }
 /* Sessão em tela cheia: ocupa a janela inteira (as pastas ficam escondidas) */
 .sessions-panel.fullscreen {
   position: fixed; inset: 0; z-index: 8;
-  border: 0; clip-path: none; background: var(--noct-black);
+  border: 0; clip-path: none; background: var(--noct-bg);
   grid-template-columns: minmax(0, 1fr);
 }
 .sessions-panel.fullscreen .session-folders { display: none; }
@@ -265,31 +279,31 @@ button { font: inherit; }
 
 .carousel-wrap { position: relative; }
 .carousel { list-style: none; margin: 0; padding: 3px 3px 7px; display: flex; gap: 6px; overflow-x: auto; scroll-behavior: smooth; }
-/* Reordenando as fotos: contorno laranja (em andamento) */
+/* Reordenando as fotos: contorno âmbar (em andamento) */
 .gallery.editing .carousel { outline: 1px dashed var(--noct-pending); outline-offset: 2px; }
 .frame {
   flex: 0 0 var(--frame-w); width: var(--frame-w);
   padding: 2px; cursor: pointer;
-  border: 1px solid var(--noct-border); background: var(--noct-ink-850);
+  border: 1px solid var(--noct-border); background: var(--noct-surface-inner);
   touch-action: none; transition: border-color 150ms var(--noct-ease), box-shadow 150ms var(--noct-ease);
 }
 .frame:hover { border-color: var(--noct-border-strong); }
 .frame.selected { border-color: var(--noct-primary); box-shadow: var(--noct-glow-primary-soft); }
-.frame.dragging { z-index: 2; position: relative; cursor: grabbing; border-color: var(--noct-pending); box-shadow: 0 0 24px rgba(255, 138, 0, .35); }
+.frame.dragging { z-index: 2; position: relative; cursor: grabbing; border-color: var(--noct-pending); box-shadow: 0 0 24px rgba(var(--noct-pending-rgb), .35); }
 .gallery.draggable .frame { cursor: grab; }
 .frame-img {
   position: relative; width: 100%; aspect-ratio: 3 / 2;
-  background: var(--noct-black) center / cover no-repeat;
+  background: var(--noct-bg) center / cover no-repeat;
   display: flex; align-items: center; justify-content: center;
   color: var(--noct-text-dim); font: 11px var(--noct-font-mono);
 }
 .frame-badge {
   position: absolute; top: 3px; left: 3px;
   min-width: 22px; padding: 0 4px;
-  background: rgba(7, 7, 11, .85); border: 1px solid var(--noct-border-strong); color: var(--noct-primary);
+  background: rgba(var(--noct-bg-rgb), .85); border: 1px solid var(--noct-border-strong); color: var(--noct-primary);
   font: 700 10px/15px var(--noct-font-mono); letter-spacing: .1em; text-align: center; font-variant-numeric: tabular-nums;
 }
-.frame.selected .frame-badge { background: var(--noct-primary); color: #000; border-color: var(--noct-primary); }
+.frame.selected .frame-badge { background: var(--noct-primary); color: var(--noct-on-primary); border-color: var(--noct-primary); }
 .drop-marker { position: absolute; top: 3px; bottom: 7px; width: 3px; margin-left: -1.5px; background: var(--noct-pending); box-shadow: 0 0 10px var(--noct-pending); pointer-events: none; }
 
 .stage {
@@ -301,7 +315,7 @@ button { font: inherit; }
 .stage-message { position: absolute; color: var(--noct-text-dim); text-align: center; padding: 0 20px; font: 12px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .1em; }
 .stage-caption {
   position: absolute; left: 10px; bottom: 10px;
-  padding: 4px 10px; background: rgba(7, 7, 11, .85); border-left: 3px solid var(--noct-primary);
+  padding: 4px 10px; background: rgba(var(--noct-bg-rgb), .85); border-left: 3px solid var(--noct-primary);
   font: 600 11px var(--noct-font-mono); color: var(--noct-text); text-transform: uppercase; letter-spacing: .1em;
 }
 .stage-caption b { color: var(--noct-primary); margin-right: 8px; font-variant-numeric: tabular-nums; }
@@ -310,7 +324,7 @@ button { font: inherit; }
 .camera-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .camera {
   display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 12px;
-  padding: 8px 12px; background: var(--noct-ink-850); border: 1px solid var(--noct-border);
+  padding: 8px 12px; background: var(--noct-surface-inner); border: 1px solid var(--noct-border);
 }
 .camera.is-disconnected { opacity: .7; }
 .camera-order { font: 700 13px var(--noct-font-mono); color: var(--noct-primary); letter-spacing: .1em; font-variant-numeric: tabular-nums; }
@@ -356,7 +370,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 /* ---------- Atividade (recolhida no rodapé) ---------- */
 .log {
   position: fixed; left: 0; right: 0; bottom: 0;
-  background: rgba(7, 7, 11, .95);
+  background: rgba(var(--noct-bg-rgb), .95);
   border-top: 1px solid var(--noct-border);
   display: flex; flex-direction: column;
   height: var(--log-h);
@@ -383,7 +397,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .log-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; font-size: 15px; }
 .log-list li { display: grid; grid-template-columns: 74px 10px 1fr; align-items: baseline; gap: 8px; padding: 3px 0; }
 .log-time { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); font-variant-numeric: tabular-nums; }
-.log-mark { width: 6px; height: 6px; background: var(--noct-ink-400); align-self: center; }
+.log-mark { width: 6px; height: 6px; background: var(--noct-border-strong); align-self: center; }
 .log-list li.ok .log-mark { background: var(--noct-success); box-shadow: 0 0 6px var(--noct-success); }
 .log-list li.warn .log-mark { background: var(--noct-pending); box-shadow: 0 0 6px var(--noct-pending); }
 .log-list li.error .log-mark { background: var(--noct-danger); box-shadow: 0 0 6px var(--noct-danger); }
@@ -397,14 +411,14 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .overlay {
   position: fixed; inset: 0; z-index: 10;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(7, 7, 11, .82);
+  background: rgba(var(--noct-bg-rgb), .82);
 }
-/* Contagem: número enorme com o efeito "glitch" (sombras ciano e magenta) */
+/* Contagem: número enorme com o efeito "glitch" do Nocturne (sombras deslocadas) */
 .countdown-number {
   font: 700 220px/1 var(--noct-font-sans); color: var(--noct-primary); font-variant-numeric: tabular-nums;
   text-shadow: 3px 0 0 var(--noct-info), -3px 0 0 var(--noct-danger), 0 0 40px rgba(var(--noct-primary-rgb), .35);
 }
-.flash { position: fixed; inset: 0; z-index: 11; background: #fffde0; pointer-events: none; animation: flash .45s ease-out forwards; }
+.flash { position: fixed; inset: 0; z-index: 11; background: #eaffee; pointer-events: none; animation: flash .45s ease-out forwards; }
 @keyframes flash { from { opacity: .9; } to { opacity: 0; } }
 
 /* Modal do Nocturne */
@@ -442,3 +456,52 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .theme-switch button { height: 26px; background: none; border: 0; color: var(--noct-text-dim); font: 700 10px var(--noct-font-mono); padding: 0 10px; text-transform: uppercase; letter-spacing: var(--noct-tracking-mono-cap); cursor: pointer; }
 .theme-switch button:hover { color: var(--noct-primary); }
 .theme-switch button.active { background: var(--noct-elevated); color: var(--noct-primary); }
+
+/* ================= Variação 2: o "jeito terminal" do Neo Terminal =================
+   Mesma estrutura do Mix 1; daqui para baixo só o que muda. */
+
+/* A fonte só tem um peso: sem negrito "falso" desenhado pelo navegador */
+html, body { font: 14px/1.45 var(--noct-font-sans); letter-spacing: .02em; font-synthesis: none; }
+
+/* Marca: cursor verde piscando depois do nome */
+.brand { font-size: 16px; text-shadow: var(--neo-text-glow); }
+.brand-mark { order: 2; width: 10px; height: 18px; box-shadow: var(--neo-glow-soft); animation: neo-blink 1s steps(1) infinite; }
+@keyframes neo-blink { 50% { opacity: 0; } }
+
+/* Painéis: as linhas de monitor do Neo Terminal por cima do degradê do trilho */
+.panel {
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 255, 65, .025) 0 1px, transparent 1px 4px),
+    linear-gradient(95deg, rgba(var(--rail-rgb), 0.07) 0%, rgba(var(--rail-rgb), 0.02) 25%, transparent 60%),
+    var(--noct-surface);
+}
+.panel::before { box-shadow: 0 0 6px var(--rail), 2px 0 14px rgba(var(--rail-rgb), 0.4); }
+
+/* Texto com brilho nos títulos e números */
+.panel h2, .session-folders h2 { font-size: 12px; color: var(--noct-text); text-shadow: var(--neo-text-glow); }
+.gallery-title { font-size: 17px; text-shadow: var(--neo-text-glow); }
+.log-label, .camera-order, .stage-caption b, .dialog h3, .sheet h3 { text-shadow: var(--neo-text-glow); }
+.status-ok { box-shadow: 0 0 8px rgba(var(--noct-success-rgb), .35); }
+.status-busy { box-shadow: 0 0 8px rgba(var(--noct-pending-rgb), .35); }
+.status-error { box-shadow: 0 0 8px rgba(var(--noct-danger-rgb), .35); }
+
+/* Tamanhos ajustados para a fonte mais larga */
+.folder-date { font-size: 14px; }
+.camera-model { font-size: 15px; }
+.log-bar, .log-list, .toast { font-size: 13px; }
+.log-hint { font-size: 12px; }
+
+/* Botões: brilho do Neo Terminal */
+.btn-primary:hover:not(:disabled) { box-shadow: var(--neo-glow); }
+.btn-secondary:hover:not(:disabled), .btn-overlay:hover { box-shadow: var(--neo-glow-soft); }
+.btn-danger:hover:not(:disabled) { box-shadow: 0 0 10px var(--noct-danger), 0 0 20px var(--noct-danger); }
+.btn-shoot { font-size: 18px; letter-spacing: .16em; }
+.btn-shoot:not(:disabled) { box-shadow: var(--neo-glow-soft); }
+.frame.selected { box-shadow: var(--neo-glow-soft); }
+
+/* Contagem: o número verde com o brilho do Neo Terminal, sem o "glitch" */
+.countdown-number { font: 200px/1 var(--noct-font-sans); text-shadow: var(--neo-glow); }
+
+/* Contorno dos painéis mais aceso, com o brilho interno do card do Neo Terminal */
+.panel { border-color: var(--neo-green-300); box-shadow: inset 0 0 20px rgba(0, 255, 65, .08); }
+.sessions-panel.fullscreen { box-shadow: none; }
