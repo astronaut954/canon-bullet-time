@@ -1,7 +1,7 @@
 /* Canon Bullet Time — visual da janela: estrutura do Nocturne com as cores do Neo Terminal.
 
    Estrutura: Nocturne (https://github.com/starside-io/nocturne), Apache-2.0,
-   Copyright 2026 Mederic Burlet. Layout, trilho colorido e entalhe nos painéis,
+   Copyright 2026 Mederic Burlet. Layout, trilho colorido nos painéis,
    botões, badges, campos, modal, toast e tipografia (Rajdhani + JetBrains Mono)
    vêm de nocturne-css, reescritos para os elementos do app.
    Licença e NOTICE em assets/ui/themes/LICENSE-nocturne.txt e THIRD_PARTY_NOTICES.md.
@@ -157,28 +157,26 @@ button { font: inherit; }
 }
 .controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; min-height: 0; }
 
-/* Card/panel do Nocturne: superfície escura, borda fina, trilho colorido à esquerda
-   e o "entalhe" no canto superior esquerdo. */
+/* Card/panel do Nocturne: superfície escura, borda fina e trilho colorido à esquerda,
+   com uma linha curta no alto e outra embaixo, todas da mesma espessura.
+   Desenhados no fundo do painel: ficam presos às bordas mesmo quando o painel rola. */
 .panel {
   --rail: var(--noct-border-strong);
   --rail-rgb: var(--noct-border-strong-rgb);
+  --rail-w: 3px;        /* espessura do trilho e das linhas de cima e de baixo */
+  --rail-tick: 1rem;    /* comprimento das linhas de cima e de baixo */
   position: relative;
   background:
+    linear-gradient(var(--rail), var(--rail)) left top / var(--rail-w) 100% no-repeat,
+    linear-gradient(var(--rail), var(--rail)) left top / var(--rail-tick) var(--rail-w) no-repeat,
+    linear-gradient(var(--rail), var(--rail)) left bottom / var(--rail-tick) var(--rail-w) no-repeat,
+    linear-gradient(90deg, rgba(var(--rail-rgb), 0.25), transparent) var(--rail-w) 0 / 12px 100% no-repeat,
     linear-gradient(95deg, rgba(var(--rail-rgb), 0.05) 0%, rgba(var(--rail-rgb), 0.015) 25%, transparent 60%),
     var(--noct-surface);
   border: 1px solid var(--noct-border);
   padding: 14px 16px 14px 20px;
   min-height: 0;
   overflow: auto;
-}
-.panel::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--rail); box-shadow: 2px 0 12px rgba(var(--rail-rgb), 0.25);
-}
-.panel::after {
-  content: ""; position: absolute; left: 0; top: 0; width: 1rem; height: 1rem;
-  border-left: 2px solid var(--rail); border-top: 2px solid var(--rail);
-  pointer-events: none;
 }
 .sessions-panel { --rail: var(--rail-sessions); --rail-rgb: var(--rail-sessions-rgb); }
 .cameras-panel { --rail: var(--rail-cameras); --rail-rgb: var(--rail-cameras-rgb); }
@@ -222,7 +220,7 @@ button { font: inherit; }
 .btn-overlay:hover { border-color: var(--noct-primary); color: var(--noct-primary); }
 
 /* ---------- Sessões ---------- */
-.sessions-panel { display: grid; grid-template-columns: 220px minmax(0, 1fr); padding: 0 0 0 3px; overflow: hidden; }
+.sessions-panel { display: grid; grid-template-columns: 220px minmax(0, 1fr); padding: 0 0 0 var(--rail-w); overflow: hidden; }
 .session-folders { border-right: 1px solid var(--noct-border); padding: 14px 10px 14px 16px; overflow: auto; min-height: 0; }
 .folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .folder {
