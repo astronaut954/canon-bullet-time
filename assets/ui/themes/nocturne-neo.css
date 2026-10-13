@@ -85,6 +85,9 @@
   /* ---- medidas usadas pela interface ---- */
   --topbar-h: 52px;
   --log-h: 36px;
+  --app-pad-y: 14px;                          /* margem de cima e de baixo da tela principal */
+  --app-gap: 14px;                            /* espaço entre as sessões e a linha de baixo */
+  --controls-h: clamp(230px, 36vh, 320px);    /* altura da linha de baixo (câmeras e disparo) */
   --frame-w: 84px;         /* largura das miniaturas no carrossel */
 }
 
@@ -150,10 +153,10 @@ button { font: inherit; }
 /* ---------- Tela principal ---------- */
 .app {
   height: calc(100% - var(--topbar-h) - var(--log-h));
-  padding: 14px 18px;
+  padding: var(--app-pad-y) 18px;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) clamp(230px, 36vh, 320px);
-  gap: 14px;
+  grid-template-rows: minmax(0, 1fr) var(--controls-h);
+  gap: var(--app-gap);
 }
 .controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; min-height: 0; }
 
@@ -364,7 +367,14 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   transition: height .15s ease;
   z-index: 5;
 }
-.log.expanded { height: 42%; }
+/* Aberta: o limite de cima fica no meio do espaço entre as sessões e a linha de baixo
+   (câmeras e disparo); o fundo fica um pouco transparente e o que está atrás, desfocado */
+.log.expanded {
+  height: calc(var(--log-h) + var(--app-pad-y) + var(--controls-h) + var(--app-gap) / 2);
+  background: rgba(var(--noct-bg-rgb), .6);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
 .log-bar {
   height: calc(var(--log-h) - 1px); flex: 0 0 calc(var(--log-h) - 1px);
   display: flex; align-items: center; gap: 14px;
