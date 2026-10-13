@@ -101,6 +101,21 @@ Atualizar esta tabela sempre que uma função mudar de status.
   (com COM inicializado, como pede o manual da Canon). Compila, mas ainda não
   foi testado com câmeras no Windows. Testar antes da próxima versão publicada.
 
+- **T7 às vezes conecta sem aparecer "Connecting" (Mac, registrado em 2026-10-13).**
+  A T7 leva cerca de 42 s para conectar. Na maioria das vezes a janela mostra
+  "Connecting" durante esse tempo, mas às vezes não mostra nada e, depois dos
+  42 s, ela aparece conectada. Ainda não investigado. Hipóteses (não confirmadas):
+  1. a demora acontece antes de o app saber que existe uma câmera: a listagem do
+     SDK (`EdsGetCameraList` / `EdsGetDeviceInfo`) trava enquanto a T7 liga, e só
+     a abertura da sessão (`EdsOpenSession`) é mostrada como "Connecting";
+  2. a conexão vem por um caminho que não usa a lista de conexões pendentes (a
+     primeira conexão ao abrir o app ou "Restart camera connections"), e a tela
+     não recebe atualização enquanto ela dura;
+  3. a T7 está na fila atrás de outra câmera e aparece como "Waiting for another
+     camera" em vez de "Connecting".
+  Para investigar: com "Show technical details" ligado, guardar o log da
+  Activity de uma vez em que acontecer.
+
 ## Histórico de versões do SDK
 
 | Onde | Versão em uso |

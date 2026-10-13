@@ -2,7 +2,7 @@
 // Recebe os avisos do programa em window.onCoreEvent e chama o programa pelas
 // funções que o C++ disponibiliza para a página: uiReady, shoot, identify,
 // setPrefix, setOrder, takeOrderPhotos, getOrderPhoto, discardOrderPhotos,
-// restartConnections, listSessions, getPhoto, saveSessions, deleteSession,
+// restartConnections, listSessions, getPhoto, saveSessions (só as sessões escolhidas), deleteSession,
 // deleteAllSessions e exitApp.
 // As câmeras conectam sozinhas: a lista chega pelo aviso "cameras" sempre que muda.
 //
@@ -24,6 +24,8 @@
     orderOverlay: $("orderOverlay"), orderGallery: $("orderGallery"), orderHelp: $("orderHelp"),
     orderRetake: $("orderRetake"), orderCancel: $("orderCancel"), orderSave: $("orderSave"),
     dialogOverlay: $("dialogOverlay"), dialogTitle: $("dialogTitle"), dialogText: $("dialogText"), dialogActions: $("dialogActions"),
+    saveOverlay: $("saveOverlay"), saveList: $("saveList"), saveCount: $("saveCount"),
+    saveSelectAll: $("saveSelectAll"), saveUnselectAll: $("saveUnselectAll"), saveCancel: $("saveCancel"), saveConfirm: $("saveConfirm"),
     toast: $("toast"),
   };
 
@@ -841,7 +843,72 @@
   });
 
   // =================== Salvar / sair ===================
-  ui.saveBtn.addEventListener("click", () => window.saveSessions(false));
+  // Com mais de uma sessão, o usuário escolhe quais salvar. As que ficarem de fora
+  // podem ser apagadas (só depois que as escolhidas forem salvas).
+  const saveChoice = { exitAfter: false };
+
+  function save(exitAfter, deleteRest, names) {
+    window.saveSessions(exitAfter ? "exit" : "", deleteRest ? "delete" : "", ...(names || []));
+  }
+
+  function startSave(exitAfter) {
+    if (sessions.length <= 1) return save(exitAfter, false);
+    saveChoice.exitAfter = exitAfter;
+    ui.saveList.innerHTML = "";
+    sessions.forEach((s) => {
+      const label = sessionLabel(s.name);
+      const li = document.createElement("li");
+      li.innerHTML = '<label class="save-item"><input type="checkbox" checked><span class="save-check" aria-hidden="true"></span>' +
+        icon("folder", 16) + '<span><span class="folder-date"></span><span class="folder-meta"></span></span></label>';
+      li.querySelector("input").value = s.name;
+      li.querySelector(".folder-date").textContent = label.date;
+      li.querySelector(".folder-meta").textContent = [plural(sessionItems(s).length, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
+      li.querySelector("input").addEventListener("change", updateSaveChoice);
+      ui.saveList.appendChild(li);
+    });
+    updateSaveChoice();
+    ui.saveOverlay.classList.remove("hidden");
+  }
+
+  function saveBoxes() { return [...ui.saveList.querySelectorAll("input[type=checkbox]")]; }
+
+  function updateSaveChoice() {
+    const boxes = saveBoxes();
+    const chosen = boxes.filter((b) => b.checked).length;
+    ui.saveCount.textContent = chosen + " of " + plural(boxes.length, "session", "sessions") + " selected";
+    ui.saveConfirm.disabled = chosen === 0;
+    ui.saveConfirm.textContent = chosen ? "Save " + plural(chosen, "session", "sessions") : "Save";
+    ui.saveSelectAll.disabled = chosen === boxes.length;
+    ui.saveUnselectAll.disabled = chosen === 0;
+  }
+
+  function setAllSaveBoxes(on) {
+    saveBoxes().forEach((b) => { b.checked = on; });
+    updateSaveChoice();
+  }
+
+  function confirmSaveChoice() {
+    const boxes = saveBoxes();
+    const names = boxes.filter((b) => b.checked).map((b) => b.value);
+    if (!names.length) return;
+    ui.saveOverlay.classList.add("hidden");
+    const exitAfter = saveChoice.exitAfter;
+    const left = boxes.length - names.length;
+    if (!left) return save(exitAfter, false, names);
+    dialog("Delete the sessions you did not select?",
+      plural(left, "session was", "sessions were") + " not selected. You can delete " + (left === 1 ? "it" : "them") +
+      " after the others are saved, or keep " + (left === 1 ? "it" : "them") + " in the app to save later.", [
+      { label: "Back", onClick: () => ui.saveOverlay.classList.remove("hidden") },
+      { label: "Keep " + (left === 1 ? "it" : "them"), onClick: () => save(exitAfter, false, names) },
+      { label: "Delete " + (left === 1 ? "it" : "them"), danger: true, onClick: () => save(exitAfter, true, names) },
+    ]);
+  }
+
+  ui.saveBtn.addEventListener("click", () => startSave(false));
+  ui.saveSelectAll.addEventListener("click", () => setAllSaveBoxes(true));
+  ui.saveUnselectAll.addEventListener("click", () => setAllSaveBoxes(false));
+  ui.saveCancel.addEventListener("click", () => ui.saveOverlay.classList.add("hidden"));
+  ui.saveConfirm.addEventListener("click", confirmSaveChoice);
 
   function confirmExit(count) {
     dialog(
@@ -850,7 +917,7 @@
       [
         { label: "Cancel" },
         { label: "Delete and close", danger: true, onClick: () => window.exitApp(true) },
-        { label: "Save and close", primary: true, onClick: () => window.saveSessions(true) },
+        { label: "Save and close", primary: true, onClick: () => startSave(true) },
       ]
     );
   }
@@ -865,7 +932,7 @@
           { label: "Delete", danger: true, onClick: () => window.deleteAllSessions() },
         ]) },
         { label: "Later" },
-        { label: "Save", primary: true, onClick: () => window.saveSessions(false) },
+        { label: "Save", primary: true, onClick: () => startSave(false) },
       ]
     );
   }

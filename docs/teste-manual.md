@@ -70,6 +70,11 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       Rajdhani e JetBrains Mono) com as cores do Neo Terminal (preto, verde, âmbar em
       andamento, vermelho para apagar). Sem seletor de temas no topo.
 - [ ] Cantos retos em painéis, janelas, botões e etiquetas (nenhum canto cortado).
+- [ ] "Save sessions" com mais de uma sessão: abre a lista com todas marcadas;
+      "Select all" e "Unselect all" funcionam; sem nenhuma marcada não dá para salvar.
+- [ ] Salvar só algumas: pergunta se quer apagar as não marcadas. "Delete them" apaga
+      só depois de salvar as escolhidas; "Keep them" deixa as outras no app.
+- [ ] Com uma sessão só: "Save sessions" vai direto para a escolha da pasta.
 
 ## Resultado
 

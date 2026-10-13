@@ -769,9 +769,15 @@ namespace
         });
 
         // saveSessions(exitAfter): escolhe a pasta e move todas as sessões para lá
+        // saveSessions("exit" ou "", "delete" ou "", sessão, sessão...): salva as sessões
+        // escolhidas (nenhuma = todas). "exit" fecha o app depois; "delete" apaga as
+        // sessões que não foram escolhidas, só se o salvamento deu certo.
         window.bind("saveSessions", [&](const std::string& request) -> std::string
         {
-            const bool exitAfter = request.find("true") != std::string::npos;
+            auto args = ParseStringArgs(request);
+            const bool exitAfter = !args.empty() && args[0] == "exit";
+            const bool deleteRest = args.size() > 1 && args[1] == "delete";
+            const std::vector<std::string> names(args.begin() + std::min<size_t>(args.size(), 2), args.end());
             const std::string folder = NativeWindow::ChooseFolder("Choose where to save your bullet time sessions");
             if (folder.empty())
             {
@@ -780,10 +786,14 @@ namespace
             }
 
             listener.Emit(Json("saving").Add("folder", folder));
-            previews.Post([&, folder, exitAfter]
+            previews.Post([&, folder, exitAfter, deleteRest, names]
             {
                 std::string error;
-                const int moved = store.SaveAll(folder, error);
+                const int moved = store.SaveSessions(folder, names, error);
+                if (error.empty() && deleteRest && !names.empty())
+                    for (const auto& session : store.ListSessions())
+                        if (std::find(names.begin(), names.end(), session.name) == names.end())
+                            store.DeleteSession(session.name);
                 listener.Emit(Json("saved").Add("count", moved).Add("folder", folder).Add("error", error));
                 emitSessions();
                 if (exitAfter && error.empty())

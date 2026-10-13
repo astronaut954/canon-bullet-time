@@ -131,6 +131,24 @@
     </div>
   </div>
 
+  <!-- Escolher quais sessões salvar (quando há mais de uma) -->
+  <div id="saveOverlay" class="overlay hidden">
+    <div class="dialog save-dialog">
+      <h3>Choose the sessions to save</h3>
+      <div class="save-tools">
+        <button id="saveSelectAll" class="btn btn-link btn-small">Select all</button>
+        <button id="saveUnselectAll" class="btn btn-link btn-small">Unselect all</button>
+        <span class="spacer"></span>
+        <span id="saveCount" class="save-count"></span>
+      </div>
+      <ul id="saveList" class="save-list"></ul>
+      <div class="dialog-actions">
+        <button id="saveCancel" class="btn btn-secondary">Cancel</button>
+        <button id="saveConfirm" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 
   <script>/*__SCRIPT__*/</script>

@@ -447,3 +447,27 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   background: var(--noct-surface); border: 1px solid var(--noct-info); border-left-width: 3px;
   padding: 10px 16px; font-size: 15px; z-index: 20; max-width: 80%;
 }
+
+/* ---------- Escolher quais sessões salvar ---------- */
+.save-dialog { width: min(560px, 92%); }
+.save-tools { display: flex; align-items: center; gap: 6px; padding: 10px 18px 6px 12px; }
+.save-count { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); text-transform: uppercase; letter-spacing: .08em; }
+.save-list { list-style: none; margin: 0; padding: 4px 12px 12px; max-height: min(52vh, 420px); overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.save-item {
+  display: grid; grid-template-columns: 18px 18px 1fr; gap: 10px; align-items: start;
+  padding: 8px 10px; cursor: pointer; border: 1px solid var(--noct-border); background: var(--noct-surface-inner);
+  transition: background 150ms var(--noct-ease), border-color 150ms var(--noct-ease);
+}
+.save-item:hover { border-color: var(--noct-border-strong); }
+.save-item:has(input:checked) { background: var(--noct-elevated); border-color: var(--noct-border-strong); }
+.save-item input { position: absolute; opacity: 0; pointer-events: none; }
+/* Caixa de seleção quadrada, verde quando marcada */
+.save-check { width: 16px; height: 16px; margin-top: 2px; border: 1px solid var(--noct-border-strong); background: var(--noct-bg); position: relative; }
+.save-item input:checked + .save-check { background: var(--noct-primary); border-color: var(--noct-primary); box-shadow: var(--noct-glow-primary-soft); }
+.save-item input:checked + .save-check::after {
+  content: ""; position: absolute; left: 5px; top: 1px; width: 4px; height: 9px;
+  border: solid var(--noct-on-primary); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.save-item input:focus-visible + .save-check { outline: 2px solid var(--noct-primary); outline-offset: 2px; }
+.save-item svg { color: var(--noct-text-dim); margin-top: 2px; }
+.save-item .folder-date, .save-item .folder-meta { display: block; }

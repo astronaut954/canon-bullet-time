@@ -327,7 +327,8 @@ std::string PhotoStore::Preview(const std::string& session, const std::string& f
     return jpeg;
 }
 
-int PhotoStore::SaveAll(const fs::path& destination, std::string& errorMessage) const
+int PhotoStore::SaveSessions(const fs::path& destination, const std::vector<std::string>& names,
+                             std::string& errorMessage) const
 {
     std::error_code ec;
     fs::create_directories(destination, ec);
@@ -340,6 +341,8 @@ int PhotoStore::SaveAll(const fs::path& destination, std::string& errorMessage) 
     int moved = 0;
     for (const auto& session : ListSessions())
     {
+        if (!names.empty() && std::find(names.begin(), names.end(), session.name) == names.end())
+            continue;
         const fs::path from = root / session.name;
         fs::remove_all(from / kPreviewFolder, ec);
 

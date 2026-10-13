@@ -35,9 +35,10 @@ public:
     // JPEG reduzido (lado maior = maxSize), com cache em disco. "" se não der.
     std::string Preview(const std::string& session, const std::string& file, int maxSize) const;
 
-    // Move todas as sessões para a pasta escolhida. Retorna quantas foram movidas;
-    // em caso de erro, preenche errorMessage.
-    int SaveAll(const std::filesystem::path& destination, std::string& errorMessage) const;
+    // Move as sessões para a pasta escolhida: só as de "names" ou, se vazio, todas.
+    // Retorna quantas foram movidas; em caso de erro, preenche errorMessage.
+    int SaveSessions(const std::filesystem::path& destination, const std::vector<std::string>& names,
+                     std::string& errorMessage) const;
 
     bool DeleteSession(const std::string& session) const;
 
