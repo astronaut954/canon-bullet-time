@@ -280,9 +280,13 @@
         el.caption.classList.add("hidden");
         return;
       }
-      el.caption.innerHTML = "<b></b><span></span>";
-      el.caption.firstChild.textContent = badge(item, index);
-      el.caption.lastChild.textContent = item.title + (item.subtitle ? " · " + item.subtitle : "");
+      el.caption.innerHTML = "<b></b><span></span><span class=\"caption-file\"></span>";
+      el.caption.children[0].textContent = badge(item, index);
+      el.caption.children[1].textContent = item.title + (item.subtitle ? " · " + item.subtitle : "");
+      // Nome do(s) arquivo(s) com a extensão (RAW e JPEG da mesma câmera aparecem juntos)
+      const files = item.files ? item.files.map((f) => f.file) : item.file ? [item.file] : [];
+      el.caption.children[2].textContent = files.join("  +  ");
+      el.caption.children[2].classList.toggle("hidden", !files.length);
       el.caption.classList.remove("hidden");
 
       if (!item.file) { el.img.removeAttribute("src"); return message("This camera did not send a photo."); }

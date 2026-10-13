@@ -309,6 +309,7 @@ button { font: inherit; }
   font: 600 11px var(--noct-font-mono); color: var(--noct-text); text-transform: uppercase; letter-spacing: .1em;
 }
 .stage-caption b { color: var(--noct-primary); margin-right: 8px; font-variant-numeric: tabular-nums; }
+.stage-caption .caption-file { display: block; margin-top: 3px; font-weight: 400; color: var(--noct-text-muted); text-transform: none; letter-spacing: .02em; }
 
 /* ---------- Câmeras ---------- */
 .camera-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

@@ -75,6 +75,9 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Salvar só algumas: pergunta se quer apagar as não marcadas. "Delete them" apaga
       só depois de salvar as escolhidas; "Keep them" deixa as outras no app.
 - [ ] Com uma sessão só: "Save sessions" vai direto para a escolha da pasta.
+- [ ] Foto grande: abaixo do nome da câmera aparece o nome do arquivo com a extensão
+      (com RAW+JPEG, os dois nomes).
+- [ ] Mac: fechar o app várias vezes (com câmeras ligadas) sem aparecer relatório de erro.
 
 ## Resultado
 

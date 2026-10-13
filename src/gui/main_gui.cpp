@@ -596,8 +596,16 @@ namespace
                 if (controller.HasPendingConnections())
                     std::_Exit(0);
                 controller.CloseSessions();
+                // No Mac, encerrar o SDK aqui (fora da thread principal) às vezes
+                // derruba o app: o ImageCaptureCore da Apple lança uma exceção ao
+                // parar a busca de câmeras. As sessões já foram fechadas e o app vai
+                // sair em seguida, então o sistema libera o resto.
+#ifndef __APPLE__
                 if (sdkReady)
                     controller.TerminateSdk();
+#else
+                (void)sdkReady;
+#endif
                 camerasClosed = true;
                 window.dispatch([&]
                 {
