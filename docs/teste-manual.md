@@ -78,6 +78,9 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Foto grande: abaixo do nome da câmera aparece o nome do arquivo com a extensão
       (com RAW+JPEG, os dois nomes).
 - [ ] Mac: fechar o app várias vezes (com câmeras ligadas) sem aparecer relatório de erro.
+- [ ] Câmera conectando há mais de 60 s: aparece o aviso com "Restart app"; o botão
+      fecha e abre o app de novo, e as sessões não salvas continuam lá.
+- [ ] Enquanto uma câmera conecta, "Restart camera connections" fica desativado.
 
 ## Resultado
 

@@ -19,7 +19,7 @@
     shootBtn: $("shootBtn"), shootNote: $("shootNote"), countdown: $("countdown"), sessions: $("sessions"), downloadWait: $("downloadWait"),
     progress: $("progress"),
     log: $("log"), logToggle: $("logToggle"), logLast: $("logLast"), logList: $("logList"), techToggle: $("techToggle"),
-    restartBtn: $("restartBtn"), copyLogBtn: $("copyLogBtn"),
+    restartBtn: $("restartBtn"), copyLogBtn: $("copyLogBtn"), restartAppBtn: $("restartAppBtn"),
     countdownOverlay: $("countdownOverlay"), countdownNumber: $("countdownNumber"), flash: $("flash"),
     orderOverlay: $("orderOverlay"), orderGallery: $("orderGallery"), orderHelp: $("orderHelp"),
     orderRetake: $("orderRetake"), orderCancel: $("orderCancel"), orderSave: $("orderSave"),
@@ -508,18 +508,58 @@
     return b;
   }
 
+  // Conexão que passa de 1 minuto (a T7 leva ~40 s): o SDK da Canon não deixa
+  // cancelar, e o disparo fica bloqueado até ela terminar. Oferece reiniciar o app.
+  const SLOW_CONNECT_SECONDS = 60;
+  const slowWarned = new Set();
+  function checkSlowConnections() {
+    const slow = cameras.filter((c) => c.state === "connecting" && !c.starting && !c.waiting && c.seconds >= SLOW_CONNECT_SECONDS);
+    ui.restartAppBtn.classList.toggle("hidden", slow.length === 0);
+    if (!slow.length) return;
+    const names = slow.map((c) => cameraLabel(c.name, c.model));
+    ui.shootNote.classList.remove("hidden");
+    ui.shootNote.textContent = names.join(" and ") + (names.length === 1 ? " is" : " are") +
+      " taking too long to connect. Restarting the app usually fixes this. Photos that are not saved are kept.";
+    const fresh = slow.filter((c) => !slowWarned.has(c.name));
+    if (!fresh.length) return;
+    fresh.forEach((c) => slowWarned.add(c.name));
+    log(names.join(" and ") + " has been connecting for over a minute", "warn");
+    if (ui.dialogOverlay.classList.contains("hidden") && ui.saveOverlay.classList.contains("hidden"))
+      dialog("A camera is taking too long to connect",
+        names.join(" and ") + " has been connecting for over a minute. Shooting stays blocked until it finishes. " +
+        "Restarting the app usually fixes this. Photos that are not saved are kept.", [
+        { label: "Keep waiting" },
+        { label: "Restart app", primary: true, onClick: restartApp },
+      ]);
+  }
+  // Quando a conexão termina, avisa de novo se ela demorar outra vez
+  function forgetFinishedSlow() {
+    [...slowWarned].forEach((name) => {
+      if (!cameras.some((c) => c.name === name && c.state === "connecting")) slowWarned.delete(name);
+    });
+  }
+  function restartApp() {
+    log("Restarting the app", "warn");
+    Promise.resolve(window.restartApp()).then((r) => {
+      if (r && r.ok === false) toast("Could not restart the app. Close it and open it again.", 8000);
+    });
+  }
+
   function updateButtons() {
+    forgetFinishedSlow();
     const connected = cameras.filter((c) => c.connected).length;
     // Enquanto uma câmera conecta, o SDK da Canon não aceita outros comandos. Uma câmera
     // que só o USB mostra (ainda ligando) não ocupa o SDK: dá para disparar com as outras.
     const connectingNames = cameras.filter((c) => c.state === "connecting" && !c.starting).map((c) => cameraLabel(c.name, c.model));
     const sdkBusy = connectingNames.length > 0;
 
-    ui.restartBtn.disabled = busy;
+    // Reiniciar as conexões espera a conexão em andamento terminar: não durante uma
+    ui.restartBtn.disabled = busy || sdkBusy;
     ui.shootBtn.disabled = busy || connected === 0 || sdkBusy;
     ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
     ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
     ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
+    checkSlowConnections();
     document.querySelectorAll(".camera-actions button").forEach((b) =>
       (b.disabled = busy || b.dataset.locked === "1" || (sdkBusy && b.dataset.sdk === "1")));
 
@@ -1130,6 +1170,7 @@
     ui.log.classList.toggle("collapsed");
     ui.logList.scrollTop = ui.logList.scrollHeight;
   });
+  ui.restartAppBtn.addEventListener("click", restartApp);
   ui.techToggle.addEventListener("change", () => ui.logList.classList.toggle("show-tech", ui.techToggle.checked));
 
   // Copia a atividade que está na tela (com os detalhes técnicos, se ligados)

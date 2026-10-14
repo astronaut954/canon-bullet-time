@@ -54,4 +54,9 @@ namespace Platform
     // ~40 s antes de aparecer no SDK. totalUsb recebe quantos aparelhos USB o sistema
     // listou, ou -1 se não deu para ler (no Windows, por enquanto, sempre -1).
     std::vector<UsbDevice> CanonUsbDevices(int& totalUsb);
+
+    // Reiniciar o app: abre uma nova cópia do programa, que espera esta fechar antes
+    // de começar (WaitForPreviousInstance, no início do programa). false se não abriu.
+    bool RelaunchAfterExit();
+    void WaitForPreviousInstance();
 }

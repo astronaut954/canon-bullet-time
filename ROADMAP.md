@@ -156,6 +156,14 @@ Atualizar esta tabela sempre que uma função mudar de status.
   aprende qual código é qual modelo (quando sobra um de cada ao comparar USB e SDK)
   e guarda em `usb-models.txt`, na pasta de dados do app.
 
+- **Conexão que nunca termina (registrado em 2026-10-13).** O SDK da Canon não deixa
+  cancelar uma conexão em andamento e bloqueia tudo enquanto ela dura; se ela nunca
+  terminar, o disparo nunca libera. Feito: "Restart camera connections" desativado
+  durante uma conexão; depois de 60 s, aviso com o botão "Restart app" (abre o app de
+  novo e fecha este; fotos não salvas ficam no disco). Se travamentos acontecerem de
+  verdade com frequência: passar a comunicação com as câmeras para um programa
+  auxiliar, que o app pode encerrar e abrir de novo sozinho, sem fechar a janela.
+
 ## Histórico de versões do SDK
 
 | Onde | Versão em uso |

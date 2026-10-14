@@ -533,6 +533,7 @@ namespace
     int RunApp()
     {
         Platform::InitConsole();
+        Platform::WaitForPreviousInstance();   // aberto pelo "Restart app": espera a cópia anterior fechar
 
         webview::webview window(false, nullptr);
         window.set_title("Canon Bullet Time");
@@ -904,6 +905,17 @@ namespace
         });
 
         // --- Saída ---
+
+        // restartApp(): abre o app de novo e fecha este. Para quando uma câmera fica
+        // presa conectando (o SDK não deixa cancelar). As fotos não salvas ficam no
+        // disco e aparecem ao abrir de novo.
+        window.bind("restartApp", [&](const std::string&) -> std::string
+        {
+            if (!Platform::RelaunchAfterExit())
+                return Json("restart").Add("ok", false).Str();
+            window.dispatch([&] { closeNow(); });
+            return Json("restart").Add("ok", true).Str();
+        });
 
         window.bind("exitApp", [&](const std::string& request) -> std::string
         {

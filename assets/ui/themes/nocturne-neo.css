@@ -483,3 +483,6 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .save-item input:focus-visible + .save-check { outline: 2px solid var(--noct-primary); outline-offset: 2px; }
 .save-item svg { color: var(--noct-text-dim); margin-top: 2px; }
 .save-item .folder-date, .save-item .folder-meta { display: block; }
+
+/* Reiniciar o app quando uma conexão passa de 1 minuto */
+#restartAppBtn { margin-top: 8px; }
