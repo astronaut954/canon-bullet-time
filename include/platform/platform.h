@@ -48,7 +48,9 @@ namespace Platform
         int productId = 0;      // código do produto: diferente para cada modelo de câmera
     };
 
-    // Aparelhos da Canon ligados no USB. Dado observado no Mac: a T7 aparece no USB
+    // Câmeras da Canon ligadas no USB (só aparelhos com interface de imagem estática,
+    // a das câmeras: impressoras e scanners da Canon ficam de fora). Dado observado no
+    // Mac: a T7 aparece no USB
     // ~40 s antes de aparecer no SDK. totalUsb recebe quantos aparelhos USB o sistema
     // listou, ou -1 se não deu para ler (no Windows, por enquanto, sempre -1).
     std::vector<UsbDevice> CanonUsbDevices(int& totalUsb);

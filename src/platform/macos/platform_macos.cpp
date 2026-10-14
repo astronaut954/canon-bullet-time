@@ -85,6 +85,37 @@ namespace Platform
         return fs::current_path() / "Canon Bullet Time";
     }
 
+    namespace
+    {
+        // Câmera no USB = aparelho com uma interface de "imagem estática" (classe 6,
+        // a usada pelas câmeras para fotos). Impressoras (7), scanners e outros
+        // aparelhos da Canon não têm: não são contados como câmera.
+        bool IsStillImageDevice(io_service_t device)
+        {
+            io_iterator_t children = 0;
+            if (IORegistryEntryCreateIterator(device, kIOServicePlane, kIORegistryIterateRecursively, &children) != KERN_SUCCESS)
+                return false;
+            bool found = false;
+            for (io_object_t child = IOIteratorNext(children); child != 0; child = IOIteratorNext(children))
+            {
+                if (!found)
+                {
+                    if (CFTypeRef value = IORegistryEntryCreateCFProperty(child, CFSTR("bInterfaceClass"), kCFAllocatorDefault, 0))
+                    {
+                        SInt32 interfaceClass = 0;
+                        if (CFGetTypeID(value) == CFNumberGetTypeID()
+                            && CFNumberGetValue(static_cast<CFNumberRef>(value), kCFNumberSInt32Type, &interfaceClass))
+                            found = interfaceClass == 6;
+                        CFRelease(value);
+                    }
+                }
+                IOObjectRelease(child);
+            }
+            IOObjectRelease(children);
+            return found;
+        }
+    }
+
     std::vector<UsbDevice> CanonUsbDevices(int& totalUsb)
     {
         std::vector<UsbDevice> devices;
@@ -111,7 +142,7 @@ namespace Platform
                     CFNumberGetValue(static_cast<CFNumberRef>(value), kCFNumberSInt32Type, &vendor);
                 CFRelease(value);
             }
-            if (vendor != 0x04A9)
+            if (vendor != 0x04A9 || !IsStillImageDevice(service))
             {
                 IOObjectRelease(service);
                 continue;
