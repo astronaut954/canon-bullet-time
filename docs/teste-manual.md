@@ -97,3 +97,4 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 | 2026-10-10 | Windows | fix-feedback-conexao | — | não testado | Só compilado; teste com câmeras dispensado pelo dono do projeto |
 | 2026-10-10 | Mac + Windows | etapa-4-core | Canon SL3 + Canon T7 (Mac) | sim | Compila nos dois; Mac detecta as câmeras. Saída idêntica à versão anterior em teste simulado (SDK falso) |
 | 2026-10-10 | Mac + Windows | etapa-diagnostico | Canon SL3 + Canon T7 (Mac) | sim | Mac: guia sem câmeras, detecção sem aviso de compatibilidade, T7 dispara sem cartão (configurada para isso). Windows: compila |
+| 2026-10-14 | Mac + Windows | etapa-5-interface | Canon SL3 + Canon T7 | sim | Versão de janela e de terminal nos dois; app de Mac (.app) com dois cliques; "Restart app" testado nos dois |

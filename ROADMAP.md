@@ -26,7 +26,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 3 | Versão Mac | SDK de Mac integrado, áudio e caminhos de Mac, checklist passa no Mac. Primeiro `.zip` para Mac (sem assinatura Apple por enquanto). | feito |
 | 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | feito |
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
-| 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual ajustável em `assets/ui/themes/` (um arquivo por tema). | em andamento |
+| 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -62,8 +62,9 @@ dia ele escolheu o Mix 1, sem os cantos cortados do Nocturne (cantos retos). Fic
 Aplicativo de Mac (2026-10-14): `scripts/build_release.py` monta `Canon Bullet Time.app`
 (programa de janela em Contents/MacOS, SDK em Contents/Frameworks, assets em
 Contents/Resources, Info.plist, assinatura local). O programa acha os assets por
-Platform::ResourcesDirectory e o SDK por @executable_path/../Frameworks. Aguardando
-teste no Mac. Próxima versão: v2.0.0.
+Platform::ResourcesDirectory e o SDK por @executable_path/../Frameworks. Testado no
+Mac em 2026-10-14 (abre com dois cliques; a versão de terminal fica em "Terminal
+version/"). Próxima versão: v2.0.0.
 
 ### Critério para fechar uma etapa
 
@@ -107,8 +108,8 @@ Atualizar esta tabela sempre que uma função mudar de status.
   "parava de responder". Corrigido: no Windows a sessão abre na própria thread das
   câmeras (Platform::SdkSessionsInWorkerThreads). Testado em 2026-10-14 com SL3 e
   T7: conexão, disparo, sessões, USB, fechar e "Restart app" funcionando; versão de
-  terminal também testada e funcionando. Falta testar
-  "Restart app" no Mac (abrir com CBT_TEST_RESTART=1 mostra o botão sem câmera presa). Texto antigo:
+  terminal também testada e funcionando. "Restart app" também testado no Mac, dentro
+  do `.app` (CBT_TEST_RESTART=1 mostra o botão sem câmera presa). Texto antigo:
   **Windows: conexão em paralelo não testada com câmeras.** Desde a branch
   `fix-feedback-conexao`, a sessão de cada câmera é aberta numa thread auxiliar
   (com COM inicializado, como pede o manual da Canon). Compila, mas ainda não
