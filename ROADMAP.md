@@ -169,7 +169,7 @@ Atualizar esta tabela sempre que uma função mudar de status.
   (`SL3@2:connected T7@2:connected`) e o app a tratou como já conectada. Corrigido
   em 2026-10-13: cada entrada é identificada por modelo + porta. Também: uma
   tentativa que falha rápido (a T7 deu 8195, "sessão não aberta") volta às tentativas
-  normais em vez de esperar outro aviso de conexão. Aguardando teste no Mac.
+  normais em vez de esperar outro aviso de conexão. Testado no Mac (2026-10-14).
   Ainda sem explicação: por que às vezes só reiniciando o Mac.
   Teste do USB (1º log): "USB Canon devices: 0" o tempo todo, mesmo com as duas
   câmeras conectadas; a busca foi refeita (todos os aparelhos USB, filtrando a Canon,
@@ -184,7 +184,7 @@ Atualizar esta tabela sempre que uma função mudar de status.
   que o USB mostra e o SDK ainda não aparecem como "Connecting" (no lugar de uma
   câmera que caiu, ou como "Canon camera" nova) e não bloqueiam o disparo das outras.
   Mac: IOKit. Windows (2026-10-13): SetupAPI, mesmos critérios (Canon VID_04A9 com
-  interface de classe 06); compila (verificado com MinGW), falta testar com câmeras.
+  interface de classe 06); compila (verificado com MinGW); testado com câmeras no Windows (2026-10-14).
   Depois: mostra o tempo de espera e o modelo. O nome no USB é igual para todas
   ("Canon Digital Camera"), mas o código do produto USB muda por modelo; o app
   aprende qual código é qual modelo (quando sobra um de cada ao comparar USB e SDK)
