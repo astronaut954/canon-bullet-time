@@ -970,35 +970,15 @@ namespace
             return "null";
         });
 
-        // exportSessions("exit" ou "", "delete" ou "", especificação, ...). Cada sessão:
-        //   "nome|photos|original|jpg|png|webp|tiff|heic" (só um formato) ou
-        //   "nome|sequence|mp4,gif|fps|loops|reverse 0/1|altura|fotos junto 0/1"
-        window.bind("exportSessions", [&](const std::string& request) -> std::string
+        // Salvamento de fato (na fila de prévias). replace: grava dentro da pasta que já
+        // existe com o nome da sessão, por cima dos arquivos de mesmo nome.
+        std::function<void(bool)> pendingExport;
+        std::function<void(const std::string&, bool, bool, const std::vector<std::vector<std::string>>&, bool)> startExport =
+            [&](const std::string& folder, bool exitAfter, bool deleteRest, const std::vector<std::vector<std::string>>& specs, bool replace)
         {
-            auto args = ParseStringArgs(request);
-            const bool exitAfter = !args.empty() && args[0] == "exit";
-            const bool deleteRest = args.size() > 1 && args[1] == "delete";
-            std::vector<std::vector<std::string>> specs;
-            for (size_t i = 2; i < args.size(); ++i)
-            {
-                std::vector<std::string> fields;
-                std::stringstream text(args[i]);
-                for (std::string field; std::getline(text, field, '|');)
-                    fields.push_back(field);
-                if (fields.size() >= 3)
-                    specs.push_back(fields);
-            }
-            if (specs.empty())
-                return "null";
-            const std::string folder = NativeWindow::ChooseFolder("Choose where to save your bullet time sessions");
-            if (folder.empty())
-            {
-                listener.Emit(Json("saveCancelled"));
-                return "null";
-            }
             exportCancel = false;
             listener.Emit(Json("saving").Add("folder", folder));
-            previews.Post([&, folder, exitAfter, deleteRest, specs]
+            previews.Post([&, folder, exitAfter, deleteRest, specs, replace]
             {
                 std::string error;
                 std::vector<std::filesystem::path> savedTo;
@@ -1043,7 +1023,7 @@ namespace
                     std::error_code ec;
                     const bool sequence = spec[1] == "sequence";
                     const bool keepOriginals = sequence ? (spec.size() > 7 && spec[7] == "1") : spec[2] == "original";
-                    if (keepOriginals)
+                    if (keepOriginals && !replace)
                     {
                         // As fotos vão como a câmera salvou (move a pasta da sessão)
                         std::vector<std::filesystem::path> moved;
@@ -1054,9 +1034,35 @@ namespace
                     else
                     {
                         target = std::filesystem::path(folder) / name;
-                        for (int n = 2; std::filesystem::exists(target, ec); ++n)
+                        for (int n = 2; !replace && std::filesystem::exists(target, ec); ++n)
                             target = std::filesystem::path(folder) / (name + " (" + std::to_string(n) + ")");
                         std::filesystem::create_directories(target, ec);
+                        if (keepOriginals)
+                        {
+                            // Substituir: as fotos entram na pasta que já existe, por cima das de mesmo nome
+                            for (const auto& entry : std::filesystem::directory_iterator(source, ec))
+                            {
+                                if (!entry.is_regular_file())
+                                    continue;
+                                const auto to = target / entry.path().filename();
+                                std::error_code moveError;
+                                std::filesystem::remove(to, moveError);
+                                std::filesystem::rename(entry.path(), to, moveError);
+                                if (moveError)
+                                {
+                                    moveError.clear();
+                                    std::filesystem::copy_file(entry.path(), to, std::filesystem::copy_options::overwrite_existing, moveError);
+                                }
+                                if (moveError)
+                                {
+                                    error = "Could not save " + to.filename().string() + ": " + moveError.message();
+                                    break;
+                                }
+                            }
+                            if (!error.empty())
+                                break;
+                            store.DeleteSession(name);
+                        }
                     }
                     const std::filesystem::path from = keepOriginals ? target : source;
 
@@ -1094,7 +1100,7 @@ namespace
                             break;
                     }
                     // Salvo: sai do app (quando as fotos não foram junto, apaga a cópia guardada)
-                    if (!keepOriginals)
+                    if (!keepOriginals || replace)
                         store.DeleteSession(name);
                     savedTo.push_back(target);
                     ++done;
@@ -1115,6 +1121,63 @@ namespace
                 if (exitAfter && error.empty())
                     window.dispatch([&] { closeNow(); });
             });
+        };
+
+        // resolveExportConflict("both" | "replace" | "cancel")
+        window.bind("resolveExportConflict", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            auto run = pendingExport;
+            pendingExport = nullptr;
+            if (!run || args.empty() || args[0] == "cancel")
+                listener.Emit(Json("saveCancelled"));
+            else
+                run(args[0] == "replace");
+            return "null";
+        });
+
+        // exportSessions("exit" ou "", "delete" ou "", especificação, ...). Cada sessão:
+        //   "nome|photos|original|jpg|png|webp|tiff|heic" (só um formato) ou
+        //   "nome|sequence|mp4,gif|fps|loops|reverse 0/1|altura|fotos junto 0/1"
+        window.bind("exportSessions", [&](const std::string& request) -> std::string
+        {
+            auto args = ParseStringArgs(request);
+            const bool exitAfter = !args.empty() && args[0] == "exit";
+            const bool deleteRest = args.size() > 1 && args[1] == "delete";
+            std::vector<std::vector<std::string>> specs;
+            for (size_t i = 2; i < args.size(); ++i)
+            {
+                std::vector<std::string> fields;
+                std::stringstream text(args[i]);
+                for (std::string field; std::getline(text, field, '|');)
+                    fields.push_back(field);
+                if (fields.size() >= 3)
+                    specs.push_back(fields);
+            }
+            if (specs.empty())
+                return "null";
+            const std::string folder = NativeWindow::ChooseFolder("Choose where to save your bullet time sessions");
+            if (folder.empty())
+            {
+                listener.Emit(Json("saveCancelled"));
+                return "null";
+            }
+            const std::filesystem::path chosen(folder);
+            std::vector<std::string> existing;
+            std::error_code existsError;
+            for (const auto& spec : specs)
+                if (std::filesystem::exists(chosen / spec[0], existsError))
+                    existing.push_back(spec[0]);
+            pendingExport = [&, folder, exitAfter, deleteRest, specs](bool replace) { startExport(folder, exitAfter, deleteRest, specs, replace); };
+            if (!existing.empty())
+            {
+                // Já existe pasta com o nome da sessão: a página pergunta o que fazer
+                listener.Emit(Json("exportConflict").Add("folder", folder).Add("names", existing));
+                return "null";
+            }
+            auto run = pendingExport;
+            pendingExport = nullptr;
+            run(false);
             return "null";
         });
 

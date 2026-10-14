@@ -1327,12 +1327,17 @@
     }
 
     const apply = el("div", "export-apply");
-    apply.appendChild(el("span", "export-note", (exp.mode === "photos" ? "This format is" : "These settings are") + " only for " + label + "."));
+    const key = exp.mode === "photos" ? "photos" : "seq";
+    const same = sessions.length > 1 && sessions.every((o) => JSON.stringify(settingsFor(o.name)[key]) === JSON.stringify(st[key]));
+    const note = el("span", "export-note", sessions.length === 1 ? "" : same
+      ? (exp.mode === "photos" ? "All sessions use this format." : "All sessions use these settings.")
+      : (exp.mode === "photos" ? "This format is" : "These settings are") + " only for " + label + ".");
+    apply.appendChild(note);
     apply.appendChild(button("Apply to all sessions", () => {
-      const key = exp.mode === "photos" ? "photos" : "seq";
       const source = JSON.stringify(st[key]);
-      sessions.forEach((other) => { settingsFor(other.name)[key] = JSON.parse(source); });
+      sessions.forEach((other) => { if (other.name !== session.name) settingsFor(other.name)[key] = JSON.parse(source); });
       refreshSummaries();
+      note.textContent = exp.mode === "photos" ? "All sessions use this format." : "All sessions use these settings.";
       toast("Applied to all " + plural(sessions.length, "session", "sessions"));
     }));
     box.appendChild(apply);
@@ -1348,6 +1353,7 @@
   function runExport(deleteRest) {
     const names = sessions.filter((s) => exp.selected.has(s.name)).map((s) => s.name);
     closeExport();
+    exp.waiting = true;  // se a escolha da pasta for cancelada, a janela volta como estava
     window.exportSessions(exp.exitAfter ? "exit" : "", deleteRest ? "delete" : "", ...names.map(exportSpec));
   }
 
@@ -1598,9 +1604,27 @@
 
     // Fotos guardadas
     sessions(e) { setSessions(e.sessions); },
-    saving() { activity.saving = true; renderActivity(); },
+    saving() { exp.waiting = false; activity.saving = true; renderActivity(); },
     exportProgress(e) { showProgress(e); },
-    saveCancelled() { toast("Save cancelled"); },
+    saveCancelled() {
+      if (exp.waiting) {
+        exp.waiting = false;
+        $("exportOverlay").classList.remove("hidden");
+        renderExport();
+      } else toast("Save cancelled");
+    },
+    exportConflict(e) {
+      const labels = e.names.map((n) => sessionLabel(n).date);
+      const one = e.names.length === 1;
+      dialog(one ? "This session was already saved here" : "Some sessions were already saved here",
+        "The folder " + e.folder + " already has " + (one ? "a folder" : "folders") + " for " + labels.join(", ") + ". " +
+        "Keep both saves a new folder with (2) in the name. Replace saves inside the existing " + (one ? "folder" : "folders") +
+        ", over the files with the same name.", [
+        { label: "Cancel", onClick: () => window.resolveExportConflict("cancel") },
+        { label: "Keep both", onClick: () => window.resolveExportConflict("both") },
+        { label: "Replace", danger: true, onClick: () => window.resolveExportConflict("replace") },
+      ]);
+    },
     saved(e) {
       activity.saving = false;
       $("progressOverlay").classList.add("hidden");
