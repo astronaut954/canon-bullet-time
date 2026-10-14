@@ -122,6 +122,10 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Clique ou tecla durante a abertura: ela some na hora.
 - [ ] As câmeras conectam normalmente durante a abertura.
 
+## 11. Play na tela cheia
+- [ ] "Reverse loop" marcado (padrão): o play vai e volta (1, 2, 3, 2, 1...).
+- [ ] Desmarcado: o play recomeça do início (1, 2, 3, 1, 2, 3...).
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

@@ -533,3 +533,6 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   color: #e1ffe8; text-shadow: 0 0 18px rgba(var(--noct-primary-rgb), .7), 0 0 42px rgba(var(--noct-primary-rgb), .35); }
 .splash-sub { margin-top: 12px; font: 600 13px var(--noct-font-mono); letter-spacing: var(--noct-tracking-widest); padding-left: var(--noct-tracking-widest);
   color: var(--noct-primary); text-shadow: 0 0 10px rgba(var(--noct-primary-rgb), .6); }
+
+/* "Reverse loop" ao lado dos botões da tela cheia */
+.play-option { margin: 0 6px 0 4px; white-space: nowrap; }

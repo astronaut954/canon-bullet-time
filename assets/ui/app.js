@@ -668,10 +668,19 @@
     fullBtn,
   ];
   const exitFullBtn = button("", () => setFullscreen(false), { icon: "shrink", title: "Exit full screen (Esc)" });
+  // "Reverse loop" (ligado por padrão): o play vai e volta (1, 2, 3, 2, 1...);
+  // desligado, recomeça do início (1, 2, 3, 1, 2, 3...)
+  const reverseLoopOption = document.createElement("label");
+  reverseLoopOption.className = "log-option play-option";
+  reverseLoopOption.title = "Play back and forth (1, 2, 3, 2, 1...)";
+  reverseLoopOption.innerHTML = '<input type="checkbox" checked> Reverse loop';
+  const reverseLoop = reverseLoopOption.querySelector("input");
+
   const viewActions = [
     button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
     playBtn,
     button("", () => { stopPlay(); sessionGallery.next(); }, { icon: "right", title: "Next photo" }),
+    reverseLoopOption,
     button("Reorder", startReorder, { title: "Change the order of the photos in this session" }),
     button("", deleteCurrentPhoto, { icon: "trash", title: "Delete this photo (Delete key)" }),
     button("Delete session", deleteCurrentSession, { kind: "btn-link", title: "Delete this session" }),
@@ -869,6 +878,16 @@
     ]);
   }
 
+  let playDirection = 1;
+  function playStep() {
+    const count = sessionGallery.items.length;
+    if (count < 2 || !reverseLoop.checked) return sessionGallery.next();
+    let i = sessionGallery.index + playDirection;
+    if (i >= count) { playDirection = -1; i = count - 2; }
+    else if (i < 0) { playDirection = 1; i = 1; }
+    sessionGallery.select(i);
+  }
+
   function stopPlay() {
     clearInterval(playTimer);
     playTimer = null;
@@ -879,7 +898,8 @@
     if (playTimer) return stopPlay();
     if (!currentSession || editing.on) return;
     playBtn.innerHTML = icon("pause");
-    playTimer = setInterval(() => sessionGallery.next(), 220);
+    playDirection = 1;
+    playTimer = setInterval(playStep, 220);
   }
 
   // =================== Reordenar por foto ===================
