@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PROJECT_NAME = "canon-bullet-time"
+PROJECT_NAME = "stillpoint"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RELEASE_DIR = REPO_ROOT / "release"
 

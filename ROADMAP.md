@@ -1,4 +1,4 @@
-# Roadmap — Canon Bullet Time
+# Roadmap — Stillpoint (antes Canon Bullet Time)
 
 Plano de desenvolvimento para levar o app de "Windows + terminal" para
 "Windows + Mac", e depois para interface gráfica.
@@ -27,7 +27,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | feito |
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
-| 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo sem "Canon" (o app não ficará restrito à Canon). | em andamento |
+| 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -75,9 +75,14 @@ version/"). Próxima versão: v2.0.0.
   32 px no Mac) usam uma versão simplificada. Windows: embutido nos dois `.exe`
   (`resources/windows/app.rc.in`, ID 32512, que a janela também usa). Mac: `AppIcon.icns`
   no `.app` (`scripts/build_release.py`). Aguardando compilação e teste nos dois sistemas.
-- **Nome:** em discussão. "Bullet Time" sozinho tem registro de marca ativo da Warner
-  Bros. no Reino Unido (vindo da União Europeia) que cobre software; nos EUA o registro
-  da Warner para software foi cancelado em 2014. Decisão do dono do projeto pendente.
+- **Nome:** **Stillpoint**, com o complemento "Bullet Time Photography" em lugares
+  estratégicos (repositório `stillpoint-bullet-time-photography`, descrição do GitHub,
+  título do README) para facilitar a busca. Decidido em 2026-10-14.
+  Programas: `Stillpoint` (janela) e `Stillpoint Terminal App` (terminal); no Mac,
+  `Stillpoint.app` (identificador `io.github.astronaut954.stillpoint`); pacotes
+  `stillpoint-vX.Y.Z-<sistema>.zip`. A pasta de dados passa a ser `Stillpoint`; a antiga
+  (`Canon Bullet Time`) é renomeada na primeira abertura. Nomes internos do código
+  (`cbt_core`, variáveis `CBT_*`) ficaram iguais. Aguardando compilação e teste.
 
 ### Critério para fechar uma etapa
 

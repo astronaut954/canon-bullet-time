@@ -1,7 +1,10 @@
-# Canon Bullet Time
+# Stillpoint — Bullet Time Photography
 
-Synchronized multi-camera control for Canon cameras via EDSDK.
-Designed for bullet time photography workflows.
+Stillpoint fires several cameras at the same instant to create bullet time photos
+(the frozen-moment effect from *The Matrix*). Synchronized multi-camera control for
+Canon cameras via EDSDK; other brands are planned.
+
+Formerly **Canon Bullet Time**.
 
 > **It's fucking bullet time.**
 
@@ -9,7 +12,7 @@ Designed for bullet time photography workflows.
 
 ## Download
 
-[⬇️ Download for Windows and macOS](https://github.com/astronaut954/canon-bullet-time/releases/latest)
+[⬇️ Download for Windows and macOS](https://github.com/astronaut954/stillpoint-bullet-time-photography/releases/latest)
 
 
 
@@ -19,24 +22,24 @@ Designed for bullet time photography workflows.
 
 * Windows 10 or 11 (64-bit)
 * Compatible Canon camera
-* Keep these files in the same folder: `Canon Bullet Time.exe`, `EDSDK.dll`, `EdsImage.dll`, `assets/`
-* Terminal app (optional): `Terminal App/Canon Bullet Time Terminal App.exe`, with its own copies of those files
+* Keep these files in the same folder: `Stillpoint.exe`, `EDSDK.dll`, `EdsImage.dll`, `assets/`
+* Terminal app (optional): `Terminal App/Stillpoint Terminal App.exe`, with its own copies of those files
 * The window app uses Microsoft Edge WebView2, already included in up-to-date Windows 10 and 11
 
 **macOS**
 
 * Mac with Apple Silicon (M1 or newer), macOS 13.3 or later
 * Compatible Canon camera
-* Window app: `Canon Bullet Time.app` (everything it needs is inside it)
-* Terminal app (optional): in the `Terminal App` folder; keep `Canon Bullet Time Terminal App`, `Frameworks/` and `assets/` together
+* Window app: `Stillpoint.app` (everything it needs is inside it)
+* Terminal app (optional): in the `Terminal App` folder; keep `Stillpoint Terminal App`, `Frameworks/` and `assets/` together
 * The app is not signed by Apple yet. After extracting the zip, run once in Terminal:
 
   ```
-  xattr -dr com.apple.quarantine path/to/canon-bullet-time-vX.Y.Z
+  xattr -dr com.apple.quarantine path/to/stillpoint-vX.Y.Z
   ```
 
-  Then open `Canon Bullet Time` (the app) with a double-click. The terminal app is in the
-  `Terminal App` folder: run `./"Canon Bullet Time Terminal App"` there in Terminal
+  Then open `Stillpoint` (the app) with a double-click. The terminal app is in the
+  `Terminal App` folder: run `./"Stillpoint Terminal App"` there in Terminal
 
 
 
@@ -50,7 +53,7 @@ Designed for bullet time photography workflows.
 
 1. Extract all release files into the same folder
 2. Connect your Canon cameras via USB
-3. Open `Canon Bullet Time` (the terminal app is in the `Terminal App` folder)
+3. Open `Stillpoint` (the terminal app is in the `Terminal App` folder)
 4. In the window app, the cameras connect by themselves; press "It's bullet time".
    In the terminal app, follow the instructions on screen
 5. Enter the Matrix
@@ -127,7 +130,7 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64-release
 ```
 
-Two apps are generated in `build/windows-x64/Release/`: `Canon Bullet Time.exe` (terminal) and `Canon Bullet Time GUI.exe` (window; in the release package it is renamed `Canon Bullet Time.exe` and the terminal app goes to `Terminal App/`), with the SDK DLLs and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries and Microsoft WebView2 headers (internet required).
+Two apps are generated in `build/windows-x64/Release/`: `Stillpoint.exe` (window) and `Stillpoint Terminal App.exe` (terminal; in the release package it goes to `Terminal App/`), with the SDK DLLs and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries and Microsoft WebView2 headers (internet required).
 
 ### Build (macOS, Apple Silicon)
 
@@ -138,7 +141,7 @@ cmake --preset macos-arm64
 cmake --build --preset macos-arm64-release
 ```
 
-Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window; in the release package it goes inside `Canon Bullet Time.app` and the terminal app goes to `Terminal App/`), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries (internet required).
+Two apps are generated in `build/macos-arm64/`: `Stillpoint` (window; in the release package it goes inside `Stillpoint.app`) and `Stillpoint Terminal App` (terminal; in the release package it goes to `Terminal App/`), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries (internet required).
 
 The window's look combines the structure of [Nocturne](https://github.com/starside-io/nocturne)
 (layout, panel rails, fonts Rajdhani and JetBrains Mono) with the colors of
@@ -152,12 +155,14 @@ Colors, fonts and effects are variables at the top of that file. The fonts are i
 
 The window app keeps every session in its own folder until you choose where to save:
 
-* Windows: `%LOCALAPPDATA%\Canon Bullet Time\Photos`
-* macOS: `~/Library/Application Support/Canon Bullet Time/Photos`
+* Windows: `%LOCALAPPDATA%\Stillpoint\Photos`
+* macOS: `~/Library/Application Support/Stillpoint/Photos`
 
 **Save sessions** moves them to the folder you choose. Closing the window with unsaved
 sessions asks whether to save or delete them; if the app closes unexpectedly, the photos
 stay in that folder and the app offers to save them the next time it opens.
+Sessions kept by the old version (folder `Canon Bullet Time`) move to the new folder the
+first time Stillpoint opens.
 
 Cameras connect by themselves, one at a time (the Canon SDK accepts no other command while
 a camera is connecting, so shooting waits until it finishes). A camera that is turned off

@@ -1,6 +1,6 @@
 # Third-party notices
 
-The window app (`Canon Bullet Time GUI`) is built with these libraries, downloaded
+The window app (`Stillpoint`) is built with these libraries, downloaded
 at build time by CMake (they are not stored in this repository):
 
 | Library | Version | Used for | License |

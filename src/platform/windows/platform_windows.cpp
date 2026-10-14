@@ -95,6 +95,25 @@ namespace Platform
         FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
     }
 
+    namespace
+    {
+        // O app se chamava "Canon Bullet Time": se só a pasta antiga existe, ela é
+        // renomeada para a nova (fotos guardadas e modelos aprendidos vão junto).
+        fs::path MigrateDataFolder(const fs::path& base)
+        {
+            const fs::path current = base / "Stillpoint";
+            const fs::path old = base / "Canon Bullet Time";
+            std::error_code ec;
+            if (!fs::exists(current, ec) && fs::is_directory(old, ec))
+            {
+                fs::rename(old, current, ec);
+                if (ec)
+                    return old;
+            }
+            return current;
+        }
+    }
+
     fs::path AppDataFolder()
     {
         char* localAppData = nullptr;
@@ -102,12 +121,12 @@ namespace Platform
 
         if (_dupenv_s(&localAppData, &len, "LOCALAPPDATA") == 0 && localAppData != nullptr)
         {
-            fs::path result = fs::path(localAppData) / "Canon Bullet Time";
+            const fs::path base(localAppData);
             free(localAppData);
-            return result;
+            return MigrateDataFolder(base);
         }
 
-        return DownloadsFolder() / "Canon Bullet Time";
+        return MigrateDataFolder(DownloadsFolder());
     }
 
     namespace

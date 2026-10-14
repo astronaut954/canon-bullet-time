@@ -1,6 +1,6 @@
 #pragma once
 
-// Núcleo do Canon Bullet Time: conectar câmeras, disparar a sequência e
+// Núcleo do Stillpoint: conectar câmeras, disparar a sequência e
 // baixar as fotos. Não lê teclado nem escreve no terminal; tudo o que a
 // pessoa precisa ver ou decidir passa pelo BulletTimeListener. Assim o mesmo
 // núcleo serve o terminal de hoje e uma interface gráfica no futuro.

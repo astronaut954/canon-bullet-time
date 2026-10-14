@@ -1,4 +1,4 @@
-// Canon Bullet Time — comportamento da interface.
+// Stillpoint — comportamento da interface.
 // Recebe os avisos do programa em window.onCoreEvent e chama o programa pelas
 // funções que o C++ disponibiliza para a página: uiReady, shoot, identify,
 // setPrefix, setOrder, takeOrderPhotos, getOrderPhoto, discardOrderPhotos,

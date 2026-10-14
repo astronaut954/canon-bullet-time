@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(CanonBulletTime LANGUAGES CXX)
+project(Stillpoint LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
 # Plataformas suportadas (ver ROADMAP.md)
@@ -161,14 +161,14 @@ endfunction()
 # ---------------------------------------------------------------------------
 # Programa de terminal
 # ---------------------------------------------------------------------------
-add_executable(CanonBulletTime src/cli/main.cpp)
-set_target_properties(CanonBulletTime PROPERTIES OUTPUT_NAME "Canon Bullet Time")
-target_link_libraries(CanonBulletTime PRIVATE cbt_core)
+add_executable(StillpointTerminal src/cli/main.cpp)
+set_target_properties(StillpointTerminal PROPERTIES OUTPUT_NAME "Stillpoint Terminal App")
+target_link_libraries(StillpointTerminal PRIVATE cbt_core)
 if(WIN32)
-    target_compile_definitions(CanonBulletTime PRIVATE _CONSOLE)
-    target_sources(CanonBulletTime PRIVATE "${CMAKE_BINARY_DIR}/app.rc")
+    target_compile_definitions(StillpointTerminal PRIVATE _CONSOLE)
+    target_sources(StillpointTerminal PRIVATE "${CMAKE_BINARY_DIR}/app.rc")
 endif()
-cbt_copy_runtime_files(CanonBulletTime)
+cbt_copy_runtime_files(StillpointTerminal)
 
 # ---------------------------------------------------------------------------
 # Interface gráfica (janela nativa com HTML/CSS; ver assets/ui)
@@ -233,14 +233,14 @@ if(CBT_BUILD_GUI)
         list(APPEND CBT_GUI_SOURCES src/gui/native_window_mac.cpp)
     endif()
 
-    add_executable(CanonBulletTimeGui WIN32 ${CBT_GUI_SOURCES})
-    set_target_properties(CanonBulletTimeGui PROPERTIES OUTPUT_NAME "Canon Bullet Time GUI")
-    target_include_directories(CanonBulletTimeGui PRIVATE src/gui "${stb_SOURCE_DIR}")
-    target_link_libraries(CanonBulletTimeGui PRIVATE cbt_core webview::core libraw::libraw)
+    add_executable(Stillpoint WIN32 ${CBT_GUI_SOURCES})
+    set_target_properties(Stillpoint PROPERTIES OUTPUT_NAME "Stillpoint")
+    target_include_directories(Stillpoint PRIVATE src/gui "${stb_SOURCE_DIR}")
+    target_link_libraries(Stillpoint PRIVATE cbt_core webview::core libraw::libraw)
     if(WIN32)
-        target_link_libraries(CanonBulletTimeGui PRIVATE comctl32 ole32)
+        target_link_libraries(Stillpoint PRIVATE comctl32 ole32)
     else()
-        target_link_libraries(CanonBulletTimeGui PRIVATE "-framework AppKit")
+        target_link_libraries(Stillpoint PRIVATE "-framework AppKit")
     endif()
-    cbt_copy_runtime_files(CanonBulletTimeGui)
+    cbt_copy_runtime_files(Stillpoint)
 endif()

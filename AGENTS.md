@@ -49,8 +49,8 @@ saída do terminal idêntica (conferir com o SDK falso).
 
 | Item | Caminho |
 | --- | --- |
-| Projeto no Mac | `~/Documents/canon-bullet-time` |
+| Projeto no Mac | `~/Documents/canon-bullet-time` (pasta local com o nome antigo) |
 | Projeto no Windows | `C:\Users\ra-mo\source\repos\canon-bullet-time` |
 | Pacotes do SDK (Mac) | `~/Downloads/ESDK` |
 | Pacotes do SDK (Windows) | `third_party\*.zip` (fora do Git) |
-| Repositório | https://github.com/astronaut954/canon-bullet-time |
+| Repositório | https://github.com/astronaut954/stillpoint-bullet-time-photography (antes `canon-bullet-time`) |

@@ -9,7 +9,6 @@
 /x64/
 Debug/
 Release/
-CanonBulletTime/x64/
 *.obj
 *.ilk
 *.idb

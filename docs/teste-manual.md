@@ -35,7 +35,7 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 ## 6. Saída
 - [ ] **0 – Exit** fecha o app normalmente.
 
-## 7. App com janela (Canon Bullet Time GUI)
+## 7. App com janela (Stillpoint)
 - [ ] Abrir o app **com as câmeras já ligadas**: as câmeras conectam uma de cada
       vez; a que está esperando aparece como "Waiting for another camera", a que
       conecta mostra os segundos. O modelo aparece em destaque e o apelido (T7_1) embaixo.
@@ -87,6 +87,10 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       barra de título e na barra de tarefas do app de janela. Mac — no `.app` no Finder e
       no Dock com o app aberto (se o Finder mostrar o ícone antigo, mover o `.app` para
       outra pasta e de volta).
+- [ ] Nome novo: janela, barra de tarefas/Dock e programas como "Stillpoint"; terminal
+      mostra "😎 STILLPOINT"; pacote `stillpoint-vX.Y.Z-<sistema>.zip`.
+- [ ] Sessões não salvas da versão antiga aparecem ao abrir o Stillpoint (a pasta
+      "Canon Bullet Time" vira "Stillpoint").
 
 ## Resultado
 

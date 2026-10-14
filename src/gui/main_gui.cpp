@@ -1,4 +1,4 @@
-// Interface gráfica do Canon Bullet Time.
+// Interface gráfica do Stillpoint.
 //
 // A janela é uma página HTML/CSS/JS (assets/ui/) exibida pelo navegador do
 // próprio sistema (WebView2 no Windows, WebKit no Mac) dentro de uma janela
@@ -505,7 +505,7 @@ namespace
 
         std::string html = read(dir / "index.html");
         if (html.empty())
-            return "<h1>Canon Bullet Time</h1><p>UI files not found: " + dir.string() + "</p>";
+            return "<h1>Stillpoint</h1><p>UI files not found: " + dir.string() + "</p>";
 
         auto replace = [&html](const std::string& marker, const std::string& content)
         {
@@ -542,7 +542,7 @@ namespace
         Platform::WaitForPreviousInstance();   // aberto pelo "Restart app": espera a cópia anterior fechar
 
         webview::webview window(false, nullptr);
-        window.set_title("Canon Bullet Time");
+        window.set_title("Stillpoint");
         window.set_size(1200, 840, WEBVIEW_HINT_NONE);
         window.set_size(960, 680, WEBVIEW_HINT_MIN);
 

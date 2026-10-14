@@ -1,4 +1,4 @@
-// Interface de terminal do Canon Bullet Time.
+// Interface de terminal do Stillpoint.
 // Só cuida de menus, leitura do teclado e mensagens na tela; o trabalho com as
 // câmeras fica no núcleo (BulletTime / CanonController).
 
@@ -216,7 +216,7 @@ private:
 
 static void PrintMenu()
 {
-    std::cout << "\n😎 CANON BULLET TIME\n";
+    std::cout << "\n😎 STILLPOINT\n";
     std::cout << "  1 - List Cameras\n";
     std::cout << "  2 - Detect Cameras\n";
     std::cout << "  3 - BULLET TIME\n";

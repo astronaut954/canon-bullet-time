@@ -7,7 +7,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-PROJECT_NAME = "canon-bullet-time"
+PROJECT_NAME = "stillpoint"
 
 if len(sys.argv) < 2:
     raise SystemExit(
@@ -33,13 +33,13 @@ IS_MAC = sys.platform == "darwin"
 
 if IS_MAC:
     PLATFORM = "macos-arm64"
-    BUILD_EXE = REPO_ROOT / "build" / "macos-arm64" / "Canon Bullet Time"
-    BUILD_GUI = REPO_ROOT / "build" / "macos-arm64" / "Canon Bullet Time GUI"
+    BUILD_EXE = REPO_ROOT / "build" / "macos-arm64" / "Stillpoint Terminal App"
+    BUILD_GUI = REPO_ROOT / "build" / "macos-arm64" / "Stillpoint"
     EDSDK_FRAMEWORK = REPO_ROOT / "third_party" / "edsdk" / "macos" / "EDSDK.framework"
 else:
     PLATFORM = "windows-x64"
-    BUILD_EXE = REPO_ROOT / "build" / "windows-x64" / "Release" / "Canon Bullet Time.exe"
-    BUILD_GUI = REPO_ROOT / "build" / "windows-x64" / "Release" / "Canon Bullet Time GUI.exe"
+    BUILD_EXE = REPO_ROOT / "build" / "windows-x64" / "Release" / "Stillpoint Terminal App.exe"
+    BUILD_GUI = REPO_ROOT / "build" / "windows-x64" / "Release" / "Stillpoint.exe"
     EDSDK_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EDSDK.dll"
     EDSIMAGE_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EdsImage.dll"
 
@@ -115,17 +115,17 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
                 print(f"[ZIP] {path} -> {arcname}")
 
 
-APP_NAME = "Canon Bullet Time.app"
+APP_NAME = "Stillpoint.app"
 TERMINAL_DIR_NAME = "Terminal App"
-TERMINAL_EXE_NAME = "Canon Bullet Time Terminal App"
-APP_BUNDLE_ID = "io.github.astronaut954.canonbullettime"
+TERMINAL_EXE_NAME = "Stillpoint Terminal App"
+APP_BUNDLE_ID = "io.github.astronaut954.stillpoint"
 
 
 def make_mac_app(dest_dir: Path) -> None:
     """Monta o aplicativo de Mac (abre com dois cliques):
-    Canon Bullet Time.app/Contents/
+    Stillpoint.app/Contents/
         Info.plist
-        MacOS/Canon Bullet Time GUI      (o programa de janela)
+        MacOS/Stillpoint                 (o programa de janela)
         Frameworks/EDSDK.framework       (o SDK da Canon)
         Resources/assets                 (sons e a página da interface)
         Resources/AppIcon.icns           (ícone)
@@ -148,8 +148,8 @@ def make_mac_app(dest_dir: Path) -> None:
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Canon Bullet Time</string>
-    <key>CFBundleDisplayName</key><string>Canon Bullet Time</string>
+    <key>CFBundleName</key><string>Stillpoint</string>
+    <key>CFBundleDisplayName</key><string>Stillpoint</string>
     <key>CFBundleIdentifier</key><string>{APP_BUNDLE_ID}</string>
     <key>CFBundleExecutable</key><string>{BUILD_GUI.name}</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
@@ -159,7 +159,7 @@ def make_mac_app(dest_dir: Path) -> None:
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>LSMinimumSystemVersion</key><string>13.3</string>
     <key>NSHighResolutionCapable</key><true/>
-    <key>NSCameraUsageDescription</key><string>Canon Bullet Time controls your Canon cameras over USB.</string>
+    <key>NSCameraUsageDescription</key><string>Stillpoint controls your Canon cameras over USB for bullet time photography.</string>
 </dict>
 </plist>
 """
@@ -194,7 +194,7 @@ def main():
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
-    # O programa principal é o de janela ("Canon Bullet Time"). O de terminal vai numa
+    # O programa principal é o de janela ("Stillpoint"). O de terminal vai numa
     # subpasta, com outro nome, para não confundir quem baixa.
     terminal_dir = DIST_DIR / TERMINAL_DIR_NAME
     terminal_dir.mkdir()
@@ -210,7 +210,7 @@ def main():
         # Cada programa precisa das DLLs do SDK e da pasta assets ao lado dele
         dlls = [EDSDK_DLL, EDSIMAGE_DLL] + [
             d for d in BUILD_EXE.parent.glob("*.dll") if d.name not in ("EDSDK.dll", "EdsImage.dll")]
-        copy_file(BUILD_GUI, DIST_DIR / "Canon Bullet Time.exe")
+        copy_file(BUILD_GUI, DIST_DIR / BUILD_GUI.name)
         copy_file(BUILD_EXE, terminal_dir / (TERMINAL_EXE_NAME + ".exe"))
         for folder in (DIST_DIR, terminal_dir):
             for dll in dlls:

@@ -50,7 +50,7 @@ namespace Platform
 
     fs::path ResourcesDirectory()
     {
-        // Dentro do aplicativo: .../Canon Bullet Time.app/Contents/MacOS/<programa>
+        // Dentro do aplicativo: .../Stillpoint.app/Contents/MacOS/<programa>
         const fs::path exe = ExecutableDirectory();
         if (exe.filename() == "MacOS" && exe.parent_path().filename() == "Contents")
         {
@@ -95,13 +95,32 @@ namespace Platform
         tcflush(STDIN_FILENO, TCIFLUSH);
     }
 
+    namespace
+    {
+        // O app se chamava "Canon Bullet Time": se só a pasta antiga existe, ela é
+        // renomeada para a nova (fotos guardadas e modelos aprendidos vão junto).
+        fs::path MigrateDataFolder(const fs::path& base)
+        {
+            const fs::path current = base / "Stillpoint";
+            const fs::path old = base / "Canon Bullet Time";
+            std::error_code ec;
+            if (!fs::exists(current, ec) && fs::is_directory(old, ec))
+            {
+                fs::rename(old, current, ec);
+                if (ec)
+                    return old;
+            }
+            return current;
+        }
+    }
+
     fs::path AppDataFolder()
     {
         const char* home = std::getenv("HOME");
         if (home != nullptr && *home != '\0')
-            return fs::path(home) / "Library" / "Application Support" / "Canon Bullet Time";
+            return MigrateDataFolder(fs::path(home) / "Library" / "Application Support");
 
-        return fs::current_path() / "Canon Bullet Time";
+        return MigrateDataFolder(fs::current_path());
     }
 
     namespace
