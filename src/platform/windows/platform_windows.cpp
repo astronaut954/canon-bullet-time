@@ -39,6 +39,11 @@ namespace Platform
         return fs::path(std::string(buffer.data(), length)).parent_path();
     }
 
+    fs::path ResourcesDirectory()
+    {
+        return ExecutableDirectory();
+    }
+
     fs::path DownloadsFolder()
     {
         char* userProfile = nullptr;

@@ -494,7 +494,7 @@ namespace
     // do Mac não carrega arquivos locais separados de uma página montada em memória).
     std::string LoadUi()
     {
-        const auto dir = Platform::ExecutableDirectory() / "assets" / "ui";
+        const auto dir = Platform::ResourcesDirectory() / "assets" / "ui";
         auto read = [](const std::filesystem::path& path)
         {
             std::ifstream file(path, std::ios::binary);

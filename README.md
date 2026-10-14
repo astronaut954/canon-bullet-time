@@ -26,14 +26,16 @@ Designed for bullet time photography workflows.
 
 * Mac with Apple Silicon (M1 or newer), macOS 13.3 or later
 * Compatible Canon camera
-* Keep these files in the same folder: `Canon Bullet Time GUI`, `Canon Bullet Time`, `Frameworks/`, `assets/`
+* Window app: `Canon Bullet Time.app` (everything it needs is inside it)
+* Terminal app: keep `Canon Bullet Time`, `Frameworks/` and `assets/` in the same folder
 * The app is not signed by Apple yet. After extracting the zip, run once in Terminal:
 
   ```
   xattr -dr com.apple.quarantine path/to/canon-bullet-time-vX.Y.Z
   ```
 
-  Then start it from Terminal: `./"Canon Bullet Time GUI"` (window) or `./"Canon Bullet Time"` (terminal)
+  Then open `Canon Bullet Time.app` with a double-click (window app), or run `./"Canon Bullet Time"`
+  in Terminal (terminal app)
 
 
 

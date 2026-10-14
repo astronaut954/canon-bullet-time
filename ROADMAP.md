@@ -59,6 +59,12 @@ originais saíram do app e ficaram duas variações dessa mistura em `assets/ui/
 dia ele escolheu o Mix 1, sem os cantos cortados do Nocturne (cantos retos). Ficou um
 único visual, `assets/ui/themes/nocturne-neo.css`, e o seletor de temas saiu do app.
 
+Aplicativo de Mac (2026-10-14): `scripts/build_release.py` monta `Canon Bullet Time.app`
+(programa de janela em Contents/MacOS, SDK em Contents/Frameworks, assets em
+Contents/Resources, Info.plist, assinatura local). O programa acha os assets por
+Platform::ResourcesDirectory e o SDK por @executable_path/../Frameworks. Aguardando
+teste no Mac. Próxima versão: v2.0.0.
+
 ### Critério para fechar uma etapa
 
 1. Compila nos sistemas que a etapa toca.

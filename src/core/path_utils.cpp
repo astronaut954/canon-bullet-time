@@ -3,5 +3,5 @@
 
 fs::path GetAssetAudioPath(const std::string& filename)
 {
-    return Platform::ExecutableDirectory() / "assets" / "audio" / filename;
+    return Platform::ResourcesDirectory() / "assets" / "audio" / filename;
 }

@@ -17,6 +17,10 @@ namespace Platform
     // Pasta onde está o executável do programa.
     std::filesystem::path ExecutableDirectory();
 
+    // Pasta com "assets" (sons e a página da interface): a do executável ou, no
+    // aplicativo de Mac (.app), Contents/Resources.
+    std::filesystem::path ResourcesDirectory();
+
     // Pasta "Downloads" do usuário (ou a pasta atual, se não for possível descobrir).
     std::filesystem::path DownloadsFolder();
 

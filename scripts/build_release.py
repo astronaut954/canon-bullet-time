@@ -114,6 +114,59 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
                 print(f"[ZIP] {path} -> {arcname}")
 
 
+APP_NAME = "Canon Bullet Time.app"
+APP_BUNDLE_ID = "io.github.astronaut954.canonbullettime"
+
+
+def make_mac_app(dest_dir: Path) -> None:
+    """Monta o aplicativo de Mac (abre com dois cliques):
+    Canon Bullet Time.app/Contents/
+        Info.plist
+        MacOS/Canon Bullet Time GUI      (o programa de janela)
+        Frameworks/EDSDK.framework       (o SDK da Canon)
+        Resources/assets                 (sons e a página da interface)
+    O programa acha o SDK por @executable_path/../Frameworks e os arquivos por
+    Contents/Resources (Platform::ResourcesDirectory)."""
+    app = dest_dir / APP_NAME
+    contents = app / "Contents"
+    (contents / "MacOS").mkdir(parents=True)
+    (contents / "Frameworks").mkdir()
+    (contents / "Resources").mkdir()
+
+    copy_file(BUILD_GUI, contents / "MacOS" / BUILD_GUI.name)
+    subprocess.run(["ditto", str(EDSDK_FRAMEWORK), str(contents / "Frameworks" / "EDSDK.framework")], check=True)
+    print(f"[COPYDIR] {EDSDK_FRAMEWORK} -> {contents / 'Frameworks' / 'EDSDK.framework'}")
+    copy_tree(ASSETS_DIR, contents / "Resources" / "assets")
+
+    short_version = VERSION.lstrip("v")
+    plist = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key><string>Canon Bullet Time</string>
+    <key>CFBundleDisplayName</key><string>Canon Bullet Time</string>
+    <key>CFBundleIdentifier</key><string>{APP_BUNDLE_ID}</string>
+    <key>CFBundleExecutable</key><string>{BUILD_GUI.name}</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>{short_version}</string>
+    <key>CFBundleVersion</key><string>{short_version}</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>LSMinimumSystemVersion</key><string>13.3</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSCameraUsageDescription</key><string>Canon Bullet Time controls your Canon cameras over USB.</string>
+</dict>
+</plist>
+"""
+    (contents / "Info.plist").write_text(plist, encoding="utf-8")
+    print(f"[WRITE] {contents / 'Info.plist'}")
+
+    # Assinatura local (sem conta de desenvolvedor da Apple): liga o Info.plist ao
+    # programa. Se falhar, o aplicativo ainda abre depois do comando xattr do README.
+    result = subprocess.run(["codesign", "--force", "--sign", "-", str(app)])
+    if result.returncode != 0:
+        print("[WARN] codesign failed; the app is packaged without a local signature")
+
+
 def main():
     ensure_file(BUILD_EXE, f"{BUILD_EXE.name} (Release build)")
     ensure_file(BUILD_GUI, f"{BUILD_GUI.name} (Release build of the window app)")
@@ -135,7 +188,10 @@ def main():
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
     copy_file(BUILD_EXE, DIST_DIR / BUILD_EXE.name)
-    copy_file(BUILD_GUI, DIST_DIR / BUILD_GUI.name)
+    if IS_MAC:
+        make_mac_app(DIST_DIR)   # a versão de janela vai dentro do aplicativo
+    else:
+        copy_file(BUILD_GUI, DIST_DIR / BUILD_GUI.name)
     if IS_MAC:
         # ditto preserva links simbólicos e a assinatura do framework da Canon
         (DIST_DIR / "Frameworks").mkdir()

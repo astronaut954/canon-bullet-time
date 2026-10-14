@@ -48,6 +48,20 @@ namespace Platform
         return fs::path(resolved).parent_path();
     }
 
+    fs::path ResourcesDirectory()
+    {
+        // Dentro do aplicativo: .../Canon Bullet Time.app/Contents/MacOS/<programa>
+        const fs::path exe = ExecutableDirectory();
+        if (exe.filename() == "MacOS" && exe.parent_path().filename() == "Contents")
+        {
+            std::error_code ec;
+            const fs::path resources = exe.parent_path() / "Resources";
+            if (fs::is_directory(resources / "assets", ec))
+                return resources;
+        }
+        return exe;
+    }
+
     fs::path DownloadsFolder()
     {
         const char* home = std::getenv("HOME");

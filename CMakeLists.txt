@@ -125,10 +125,11 @@ function(cbt_copy_runtime_files target)
             VERBATIM
         )
     else()
-        # O programa procura o EDSDK.framework na pasta "Frameworks" ao lado dele
+        # O programa procura o EDSDK.framework na pasta "Frameworks" ao lado dele ou,
+        # dentro do aplicativo (.app), em Contents/Frameworks
         set_target_properties(${target} PROPERTIES
-            BUILD_RPATH "@executable_path/Frameworks"
-            INSTALL_RPATH "@executable_path/Frameworks"
+            BUILD_RPATH "@executable_path/Frameworks;@executable_path/../Frameworks"
+            INSTALL_RPATH "@executable_path/Frameworks;@executable_path/../Frameworks"
         )
         # ditto preserva a estrutura e a assinatura do framework
         add_custom_command(TARGET ${target} POST_BUILD
