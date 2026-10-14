@@ -102,8 +102,6 @@
     orderOverlay: $("orderOverlay"), orderGallery: $("orderGallery"), orderHelp: $("orderHelp"),
     orderRetake: $("orderRetake"), orderCancel: $("orderCancel"), orderSave: $("orderSave"),
     dialogOverlay: $("dialogOverlay"), dialogTitle: $("dialogTitle"), dialogText: $("dialogText"), dialogActions: $("dialogActions"),
-    saveOverlay: $("saveOverlay"), saveList: $("saveList"), saveCount: $("saveCount"),
-    saveSelectAll: $("saveSelectAll"), saveUnselectAll: $("saveUnselectAll"), saveCancel: $("saveCancel"), saveConfirm: $("saveConfirm"),
     toast: $("toast"),
   };
 
@@ -607,7 +605,7 @@
     if (!fresh.length) return;
     fresh.forEach((c) => slowWarned.add(c.name));
     log(names.join(" and ") + " has been connecting for over a minute", "warn");
-    if (ui.dialogOverlay.classList.contains("hidden") && ui.saveOverlay.classList.contains("hidden"))
+    if (ui.dialogOverlay.classList.contains("hidden") && $("exportOverlay").classList.contains("hidden") && $("progressOverlay").classList.contains("hidden"))
       dialog("A camera is taking too long to connect",
         names.join(" and ") + " has been connecting for over a minute. Shooting stays blocked until it finishes. " +
         "Turn " + (names.length === 1 ? "that camera" : "those cameras") + " off to shoot with the others right away, " +
@@ -1028,72 +1026,379 @@
   });
 
   // =================== Salvar / sair ===================
-  // Com mais de uma sessão, o usuário escolhe quais salvar. As que ficarem de fora
-  // podem ser apagadas (só depois que as escolhidas forem salvas).
-  const saveChoice = { exitAfter: false };
+  // "Save sessions" pergunta Photos ou Sequence. Depois, uma janela com todas as
+  // sessões: cada uma tem a sua configuração (formato, ou formatos, velocidade,
+  // loops...), que pode ser copiada para todas. As sessões não marcadas podem ser
+  // apagadas, só depois que as marcadas forem salvas.
+  const FPS_STEPS = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30];
+  const PHOTO_FORMATS = [["original", "Original"], ["jpg", "JPG"], ["png", "PNG"], ["webp", "WEBP"], ["tiff", "TIFF"], ["heic", "HEIC"]];
+  const SEQ_FORMATS = ["mp4", "mov", "gif", "webp", "avif"];
+  const SIZES = [[720, "720p"], [1080, "1080p"], [2160, "4K"]];
+  const exp = { mode: "photos", exitAfter: false, selected: new Set(), active: "", settings: {}, heic: { ok: true, reason: "" },
+                timer: null, frame: 0, photo: 0 };
 
-  function save(exitAfter, deleteRest, names) {
-    window.saveSessions(exitAfter ? "exit" : "", deleteRest ? "delete" : "", ...(names || []));
+  function defaultSettings() {
+    return { photos: { format: "original" },
+             seq: { formats: ["mp4"], fps: 6, loops: 3, reverse: true, height: 1080, alsoPhotos: true } };
+  }
+  function settingsFor(name) {
+    if (!exp.settings[name]) exp.settings[name] = defaultSettings();
+    return exp.settings[name];
+  }
+  // Mesma conta do app (Export::CycleOrder): 1..n e, com reverse, volta até 2
+  function cycleOrder(n, reverse) {
+    const order = [];
+    for (let i = 0; i < n; i++) order.push(i);
+    if (reverse) for (let i = n - 2; i >= 1; i--) order.push(i);
+    return order;
+  }
+  function seconds(v) { return (Math.round(v * 10) / 10).toFixed(1) + " s"; }
+  function seqTotal(session, s) {
+    const cycle = cycleOrder(sessionItems(session).length, s.reverse).length;
+    return { cycle: cycle, frames: cycle * s.loops, seconds: cycle * s.loops / s.fps };
+  }
+  function summaryText(session) {
+    const st = settingsFor(session.name);
+    if (exp.mode === "photos") return "→ " + PHOTO_FORMATS.find((f) => f[0] === st.photos.format)[1];
+    const s = st.seq;
+    if (!s.formats.length) return "No format chosen";
+    return s.formats.map((f) => f.toUpperCase()).join(" · ") + " · " + s.fps + " fps · " + plural(s.loops, "loop", "loops") +
+      " · " + seconds(seqTotal(session, s).seconds);
   }
 
   function startSave(exitAfter) {
-    if (sessions.length <= 1) return save(exitAfter, false);
-    saveChoice.exitAfter = exitAfter;
-    ui.saveList.innerHTML = "";
+    if (!sessions.length) return;
+    exp.exitAfter = exitAfter;
+    $("modeText").textContent = "How do you want to save " + (sessions.length === 1 ? "the session" : "the " + sessions.length + " sessions") + "?";
+    $("modeOverlay").classList.remove("hidden");
+  }
+
+  function openExport(mode) {
+    $("modeOverlay").classList.add("hidden");
+    exp.mode = mode;
+    exp.selected = new Set(sessions.map((s) => s.name));
+    Object.keys(exp.settings).forEach((k) => { if (!sessions.some((s) => s.name === k)) delete exp.settings[k]; });
+    if (!sessions.some((s) => s.name === exp.active)) exp.active = (currentSession && currentSession.name) || sessions[0].name;
+    exp.photo = 0;
+    Promise.resolve(window.exportFormats && window.exportFormats()).then((f) => {
+      if (f) exp.heic = { ok: f.heic, reason: f.heicReason || "" };
+      renderExport();
+    });
+    renderExport();
+    $("exportOverlay").classList.remove("hidden");
+  }
+
+  function closeExport() {
+    stopPreview();
+    $("exportOverlay").classList.add("hidden");
+  }
+
+  function renderExport() {
+    const seq = exp.mode === "sequence";
+    $("exportTitle").textContent = seq ? "Save as sequence" : "Save as photos";
+    $("exportSub").textContent = seq ? "Each session becomes a video or animated image. Click a session to see and change its settings."
+                                     : "Click a session to see its photos and change its format.";
+    $("exportModePhotos").classList.toggle("on", !seq);
+    $("exportModeSequence").classList.toggle("on", seq);
+    renderExportList();
+    renderExportSettings();
+    updateExportCount();
+  }
+
+  function renderExportList() {
+    const list = $("exportList");
+    list.innerHTML = "";
     sessions.forEach((s) => {
       const label = sessionLabel(s.name);
       const li = document.createElement("li");
-      li.innerHTML = '<label class="save-item"><input type="checkbox" checked><span class="save-check" aria-hidden="true"></span>' +
-        icon("folder", 16) + '<span><span class="folder-date"></span><span class="folder-meta"></span></span></label>';
-      li.querySelector("input").value = s.name;
+      li.className = "export-item" + (s.name === exp.active ? " active" : "") + (exp.selected.has(s.name) ? "" : " off");
+      li.innerHTML = '<label class="export-check"><input type="checkbox"><span class="save-check" aria-hidden="true"></span></label>' +
+        '<span class="export-thumb"></span><span><span class="folder-date"></span><span class="folder-meta"></span>' +
+        '<span class="export-summary"></span></span>';
+      const box = li.querySelector("input");
+      box.checked = exp.selected.has(s.name);
+      box.addEventListener("change", () => {
+        if (box.checked) exp.selected.add(s.name); else exp.selected.delete(s.name);
+        li.classList.toggle("off", !box.checked);
+        updateExportCount();
+      });
+      li.querySelector(".export-check").addEventListener("click", (e) => e.stopPropagation());
       li.querySelector(".folder-date").textContent = label.date;
       li.querySelector(".folder-meta").textContent = [plural(sessionItems(s).length, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
-      li.querySelector("input").addEventListener("change", updateSaveChoice);
-      ui.saveList.appendChild(li);
+      li.querySelector(".export-summary").textContent = summaryText(s);
+      const first = sessionItems(s).find((i) => i.previewable);
+      if (first) sessionPhoto(s.name, first.file, 320).then((url) => { if (url) li.querySelector(".export-thumb").style.backgroundImage = "url(" + url + ")"; });
+      li.addEventListener("click", () => {
+        exp.active = s.name;
+        exp.photo = 0;
+        renderExportList();
+        renderExportSettings();
+      });
+      list.appendChild(li);
     });
-    updateSaveChoice();
-    ui.saveOverlay.classList.remove("hidden");
   }
 
-  function saveBoxes() { return [...ui.saveList.querySelectorAll("input[type=checkbox]")]; }
-
-  function updateSaveChoice() {
-    const boxes = saveBoxes();
-    const chosen = boxes.filter((b) => b.checked).length;
-    ui.saveCount.textContent = chosen + " of " + plural(boxes.length, "session", "sessions") + " selected";
-    ui.saveConfirm.disabled = chosen === 0;
-    ui.saveConfirm.textContent = chosen ? "Save " + plural(chosen, "session", "sessions") : "Save";
-    ui.saveSelectAll.disabled = chosen === boxes.length;
-    ui.saveUnselectAll.disabled = chosen === 0;
+  function updateExportCount() {
+    const chosen = exp.selected.size;
+    const seqEmpty = exp.mode === "sequence" && sessions.some((s) => exp.selected.has(s.name) && !settingsFor(s.name).seq.formats.length);
+    $("exportCount").textContent = seqEmpty ? "Choose at least one format for each selected session"
+      : chosen + " of " + plural(sessions.length, "session", "sessions") + " selected";
+    $("exportConfirm").disabled = chosen === 0 || seqEmpty;
+    $("exportConfirm").textContent = chosen ? "Save " + plural(chosen, "session", "sessions") : "Save";
+    $("exportSelectAll").disabled = chosen === sessions.length;
+    $("exportUnselectAll").disabled = chosen === 0;
   }
 
-  function setAllSaveBoxes(on) {
-    saveBoxes().forEach((b) => { b.checked = on; });
-    updateSaveChoice();
+  function refreshSummaries() {
+    [...$("exportList").children].forEach((li, i) => {
+      if (sessions[i]) li.querySelector(".export-summary").textContent = summaryText(sessions[i]);
+    });
+    updateExportCount();
   }
 
-  function confirmSaveChoice() {
-    const boxes = saveBoxes();
-    const names = boxes.filter((b) => b.checked).map((b) => b.value);
-    if (!names.length) return;
-    ui.saveOverlay.classList.add("hidden");
-    const exitAfter = saveChoice.exitAfter;
-    const left = boxes.length - names.length;
-    if (!left) return save(exitAfter, false, names);
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function row(label) {
+    const r = el("div", "export-row");
+    if (label) r.appendChild(el("span", "export-label", label));
+    return r;
+  }
+  function segmented(options, current, onPick, disabledReason) {
+    const box = el("span", "segmented");
+    options.forEach(([value, label]) => {
+      const b = el("button", value === current ? "on" : "", label);
+      const reason = disabledReason && disabledReason(value);
+      if (reason) { b.disabled = true; b.title = reason; }
+      b.addEventListener("click", () => onPick(value));
+      box.appendChild(b);
+    });
+    return box;
+  }
+  function stepper(text, sub, onMinus, onPlus, minDisabled, maxDisabled) {
+    const box = el("span", "stepper");
+    const minus = button("", onMinus, { icon: "minus", title: "Less" });
+    const plus = button("", onPlus, { icon: "plus", title: "More" });
+    minus.disabled = minDisabled;
+    plus.disabled = maxDisabled;
+    const value = el("span", "value", text);
+    if (sub) value.appendChild(el("small", "", sub));
+    box.append(minus, value, plus);
+    return box;
+  }
+  function checkOption(label, checked, onChange) {
+    const l = el("label", "log-option");
+    const c = document.createElement("input");
+    c.type = "checkbox";
+    c.checked = checked;
+    c.addEventListener("change", () => onChange(c.checked));
+    l.append(c, document.createTextNode(" " + label));
+    return l;
+  }
+
+  function stopPreview() {
+    clearInterval(exp.timer);
+    exp.timer = null;
+  }
+
+  function renderExportSettings() {
+    stopPreview();
+    const box = $("exportSettings");
+    box.innerHTML = "";
+    const session = sessions.find((s) => s.name === exp.active);
+    if (!session) return;
+    const items = sessionItems(session).filter((i) => i.previewable);
+    const st = settingsFor(session.name);
+    const label = sessionLabel(session.name).date;
+    const rerender = () => { renderExportSettings(); refreshSummaries(); };
+
+    const preview = el("div", "export-preview");
+    const img = document.createElement("img");
+    img.alt = "";
+    const caption = el("div", "stage-caption");
+    preview.append(img, caption);
+    box.appendChild(preview);
+    const show = (i, text, file) => {
+      const item = items[i];
+      if (!item) return;
+      sessionPhoto(session.name, item.file, 1600).then((url) => { if (url && exp.active === session.name) img.src = url; });
+      caption.innerHTML = "";
+      caption.append(el("b", "", text[0]), document.createTextNode(text[1]));
+      if (file) caption.appendChild(el("span", "caption-file", file));
+    };
+
+    if (exp.mode === "photos") {
+      const s = st.photos;
+      const strip = el("ul", "export-strip");
+      const showPhoto = () => {
+        const item = items[exp.photo];
+        if (!item) return;
+        const stem = item.file.replace(/\.[^.]+$/, "");
+        const target = s.format === "original" ? "" : " → " + stem + "." + s.format;
+        show(exp.photo, [pad(item.order), item.title + (item.subtitle ? " · " + item.subtitle : "")], item.file + target);
+        [...strip.children].forEach((li, k) => li.classList.toggle("selected", k === exp.photo));
+      };
+      items.forEach((item, k) => {
+        const li = el("li", "frame");
+        const thumb = el("div", "frame-img");
+        thumb.appendChild(el("span", "frame-badge", pad(item.order)));
+        li.appendChild(thumb);
+        sessionPhoto(session.name, item.file, 320).then((url) => { if (url) thumb.style.backgroundImage = "url(" + url + ")"; });
+        li.addEventListener("click", () => { exp.photo = k; showPhoto(); });
+        strip.appendChild(li);
+      });
+      box.appendChild(strip);
+      showPhoto();
+      const r = row("Format");
+      r.appendChild(segmented(PHOTO_FORMATS, s.format, (v) => { s.format = v; rerender(); },
+        (v) => (v === "heic" && !exp.heic.ok ? exp.heic.reason || "Not available on this computer" : "")));
+      box.appendChild(r);
+      box.appendChild(el("div", "export-note",
+        "Original keeps each file exactly as the camera saved it (JPG and RAW). The other formats convert every photo; " +
+        "when a camera saved RAW + JPG, the JPG is used."));
+    } else {
+      const s = st.seq;
+      const order = cycleOrder(items.length, s.reverse);
+      const play = button("", () => { if (exp.timer) stopPreview(); else startPreview(); setPlayIcon(); }, { icon: "pause", title: "Play / pause", kind: "btn-overlay" });
+      play.classList.add("preview-play");
+      preview.appendChild(play);
+      const setPlayIcon = () => { play.innerHTML = icon(exp.timer ? "pause" : "play"); };
+      const step = () => {
+        if (!order.length) return;
+        exp.frame = (exp.frame + 1) % order.length;
+        const i = order[exp.frame];
+        show(i, ["Preview", " " + label + " · photo " + (i + 1) + " of " + items.length + " · " + s.fps + " fps"]);
+      };
+      const startPreview = () => { stopPreview(); exp.timer = setInterval(step, 1000 / s.fps); };
+      exp.frame = -1;
+      step();
+      startPreview();
+      setPlayIcon();
+      // Carrega todas as prévias antes, para tocar sem falhas
+      items.forEach((item) => sessionPhoto(session.name, item.file, 1600));
+
+      const formats = row("Formats");
+      const chips = el("span", "chips");
+      SEQ_FORMATS.forEach((f) => {
+        const c = el("button", "chip" + (s.formats.includes(f) ? " on" : ""), f.toUpperCase());
+        c.addEventListener("click", () => {
+          s.formats = s.formats.includes(f) ? s.formats.filter((x) => x !== f) : SEQ_FORMATS.filter((x) => x === f || s.formats.includes(x));
+          rerender();
+        });
+        chips.appendChild(c);
+      });
+      formats.appendChild(chips);
+      box.appendChild(formats);
+
+      const k = FPS_STEPS.indexOf(s.fps);
+      const speed = row("Speed");
+      speed.appendChild(stepper(s.fps + " fps", (1 / s.fps).toFixed(2) + " s per photo",
+        () => { s.fps = FPS_STEPS[Math.max(0, k - 1)]; rerender(); },
+        () => { s.fps = FPS_STEPS[Math.min(FPS_STEPS.length - 1, k + 1)]; rerender(); },
+        k <= 0, k >= FPS_STEPS.length - 1));
+      const loopsLabel = el("span", "export-label", "Loops");
+      loopsLabel.style.minWidth = "auto";
+      speed.appendChild(loopsLabel);
+      speed.appendChild(stepper(String(s.loops), "",
+        () => { s.loops = Math.max(1, s.loops - 1); rerender(); },
+        () => { s.loops = Math.min(20, s.loops + 1); rerender(); }, s.loops <= 1, s.loops >= 20));
+      speed.appendChild(checkOption("Reverse loop", s.reverse, (v) => { s.reverse = v; rerender(); }));
+      box.appendChild(speed);
+
+      const size = row("Size");
+      size.appendChild(segmented(SIZES, s.height, (v) => { s.height = v; rerender(); }));
+      size.appendChild(el("span", "export-note", "4K only for MP4 and MOV. GIF, WEBP and AVIF go up to 1080p."));
+      box.appendChild(size);
+
+      const t = seqTotal(session, s);
+      const total = el("div", "export-total");
+      const path = order.length > 1 ? (s.reverse && items.length > 2 ? "1 → " + items.length + " → 2" : "1 → " + items.length) : "1";
+      total.append(el("span", "", "1 loop: " + path + " · " + plural(t.cycle, "frame", "frames")),
+                   el("span", "", "× " + plural(s.loops, "loop", "loops")), el("span", "spacer"));
+      const sum = el("span", "", "Total ");
+      sum.appendChild(el("b", "", seconds(t.seconds)));
+      total.appendChild(sum);
+      box.appendChild(total);
+      box.appendChild(el("div", "export-note", "MP4 and MOV have the loops inside the video. GIF, WEBP and AVIF repeat without stopping."));
+      box.appendChild(checkOption("Also save the photos (original format)", s.alsoPhotos, (v) => { s.alsoPhotos = v; }));
+    }
+
+    const apply = el("div", "export-apply");
+    apply.appendChild(el("span", "export-note", (exp.mode === "photos" ? "This format is" : "These settings are") + " only for " + label + "."));
+    apply.appendChild(button("Apply to all sessions", () => {
+      const key = exp.mode === "photos" ? "photos" : "seq";
+      const source = JSON.stringify(st[key]);
+      sessions.forEach((other) => { settingsFor(other.name)[key] = JSON.parse(source); });
+      refreshSummaries();
+      toast("Applied to all " + plural(sessions.length, "session", "sessions"));
+    }));
+    box.appendChild(apply);
+  }
+
+  function exportSpec(name) {
+    const st = settingsFor(name);
+    if (exp.mode === "photos") return [name, "photos", st.photos.format].join("|");
+    const s = st.seq;
+    return [name, "sequence", s.formats.join(","), s.fps, s.loops, s.reverse ? 1 : 0, s.height, s.alsoPhotos ? 1 : 0].join("|");
+  }
+
+  function runExport(deleteRest) {
+    const names = sessions.filter((s) => exp.selected.has(s.name)).map((s) => s.name);
+    closeExport();
+    window.exportSessions(exp.exitAfter ? "exit" : "", deleteRest ? "delete" : "", ...names.map(exportSpec));
+  }
+
+  function confirmExport() {
+    const chosen = exp.selected.size;
+    if (!chosen) return;
+    const left = sessions.length - chosen;
+    if (!left) return runExport(false);
+    $("exportOverlay").classList.add("hidden");
+    stopPreview();
     dialog("Delete the sessions you did not select?",
       plural(left, "session was", "sessions were") + " not selected. You can delete " + (left === 1 ? "it" : "them") +
       " after the others are saved, or keep " + (left === 1 ? "it" : "them") + " in the app to save later.", [
-      { label: "Back", onClick: () => ui.saveOverlay.classList.remove("hidden") },
-      { label: "Keep " + (left === 1 ? "it" : "them"), onClick: () => save(exitAfter, false, names) },
-      { label: "Delete " + (left === 1 ? "it" : "them"), danger: true, onClick: () => save(exitAfter, true, names) },
+      { label: "Back", onClick: () => { $("exportOverlay").classList.remove("hidden"); renderExportSettings(); } },
+      { label: "Keep " + (left === 1 ? "it" : "them"), onClick: () => runExport(false) },
+      { label: "Delete " + (left === 1 ? "it" : "them"), danger: true, onClick: () => runExport(true) },
     ]);
   }
 
   ui.saveBtn.addEventListener("click", () => startSave(false));
-  ui.saveSelectAll.addEventListener("click", () => setAllSaveBoxes(true));
-  ui.saveUnselectAll.addEventListener("click", () => setAllSaveBoxes(false));
-  ui.saveCancel.addEventListener("click", () => ui.saveOverlay.classList.add("hidden"));
-  ui.saveConfirm.addEventListener("click", confirmSaveChoice);
+  $("modePhotos").addEventListener("click", () => openExport("photos"));
+  $("modeSequence").addEventListener("click", () => openExport("sequence"));
+  $("modeCancel").addEventListener("click", () => $("modeOverlay").classList.add("hidden"));
+  $("exportModePhotos").addEventListener("click", () => { exp.mode = "photos"; renderExport(); });
+  $("exportModeSequence").addEventListener("click", () => { exp.mode = "sequence"; renderExport(); });
+  $("exportSelectAll").addEventListener("click", () => { exp.selected = new Set(sessions.map((s) => s.name)); renderExportList(); updateExportCount(); });
+  $("exportUnselectAll").addEventListener("click", () => { exp.selected.clear(); renderExportList(); updateExportCount(); });
+  $("exportCancel").addEventListener("click", closeExport);
+  $("exportConfirm").addEventListener("click", confirmExport);
+  $("progressCancel").addEventListener("click", () => {
+    $("progressCancel").disabled = true;
+    $("progressStep").textContent = "Cancelling…";
+    window.cancelExport();
+  });
+
+  function showProgress(e) {
+    const overlay = $("progressOverlay");
+    if (overlay.classList.contains("hidden")) {
+      overlay.classList.remove("hidden");
+      $("progressCancel").disabled = false;
+    }
+    const total = e.total || 1;
+    $("progressTitle").textContent = "Saving " + plural(total, "session", "sessions");
+    const stepNames = { photos: "reading the photos", done: "done" };
+    const step = stepNames[e.step] || (/^(MP4|MOV|GIF|WEBP|AVIF)$/.test(e.step) ? "making the " + e.step : "converting to " + String(e.step).toUpperCase());
+    $("progressStep").textContent = sessionLabel(e.session).date + " · " + step;
+    const pct = Math.round(((e.index + Math.min(1, e.fraction || 0)) / total) * 100);
+    $("progressBar").style.width = pct + "%";
+    $("progressSession").textContent = "Session " + (e.index + 1) + " of " + total;
+    $("progressPercent").textContent = pct + "%";
+  }
 
   function confirmExit(count) {
     dialog(
@@ -1294,9 +1599,11 @@
     // Fotos guardadas
     sessions(e) { setSessions(e.sessions); },
     saving() { activity.saving = true; renderActivity(); },
+    exportProgress(e) { showProgress(e); },
     saveCancelled() { toast("Save cancelled"); },
     saved(e) {
       activity.saving = false;
+      $("progressOverlay").classList.add("hidden");
       if (e.error) {
         toast(e.error, 8000);
         log(e.error, "error");

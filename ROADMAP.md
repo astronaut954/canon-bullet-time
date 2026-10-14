@@ -31,6 +31,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 7 | Instaladores | `.dmg` no Mac (arrastar para Aplicativos, fundo com chuva de código, Read Me em inglês sem Terminal) e instalador de Windows (Inno Setup, mesmo visual, versão de terminal opcional e desmarcada). Os zips continuam na versão. Testado no Mac e no Windows (2026-10-14). | feito |
 | 8 | Atualização pelo app | Ao abrir, o app consulta a última versão no GitHub; botão "Update" no topo, janela com as novidades, download com andamento, conferência (tamanho e SHA-256) e instalação com reabertura. Não atualiza durante disparo ou conexão. Testado no Mac e no Windows (2026-10-14). | feito |
 | 9 | Abertura | Tela de entrada com chuva de código verde aparecendo aos poucos e o logo com fade in; toda vez que o app abre; clique ou tecla pula. Testado no Mac e no Windows (2026-10-14). | feito |
+| 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Versão 2.5.0. | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -152,6 +153,20 @@ Testada e aprovada no Mac e no Windows em 2026-10-14.
 1. Compila nos sistemas que a etapa toca.
 2. `docs/teste-manual.md` passa com câmeras reais no(s) sistema(s) afetado(s).
 3. Branch volta para `main`; se fizer sentido, sai uma versão (`vX.Y.Z`).
+
+### Etapa 10: exportação (iniciada em 2026-10-14)
+
+Telas aprovadas em 2026-10-14. Decisões do dono do projeto: na sequência, as fotos originais
+vão junto por padrão; GIF, WEBP e AVIF repetem sem parar (os loops ficam dentro do MP4/MOV);
+sai junto com o Reverse loop, a velocidade e o "abrir a pasta" (v2.5.0).
+- Código comum em `src/gui/exporter.cpp` (GIF próprio com paleta única e pontilhado; WEBP com
+  libwebp; AVIF com libavif + libaom; MP4/MOV com minimp4). Bibliotecas em `cmake/export.cmake`.
+- Por sistema (`include/platform/media.h`): H.264 pelo VideoToolbox (Mac) e Media Foundation
+  (Windows); HEIC pelo ImageIO (Mac) e WIC (Windows, só com as extensões HEIF e HEVC).
+- Tamanhos: 720p, 1080p, 4K (cabem em 1280×720, 1920×1080, 3840×2160); GIF/WEBP/AVIF até 1080p.
+- Teste no Linux sem câmeras: `tests/export` (gera todos os formatos da sessão de teste).
+- Verificado aqui: todos os formatos comuns gerados e conferidos (ffprobe/Pillow); telas testadas
+  num navegador; código de Windows compila (MinGW). Falta: compilar e testar no Mac e no Windows.
 
 ## Futuro (não planejado ainda)
 

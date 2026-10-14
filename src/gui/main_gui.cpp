@@ -31,6 +31,8 @@
 
 #include "native_window.h"
 #include "photo_store.h"
+#include "exporter.h"
+#include "platform/media.h"
 
 #include "webview/webview.h"
 
@@ -945,6 +947,170 @@ namespace
                         if (std::find(names.begin(), names.end(), session.name) == names.end())
                             store.DeleteSession(session.name);
                 listener.Emit(Json("saved").Add("count", moved).Add("folder", folder).Add("error", error));
+                emitSessions();
+                if (exitAfter && error.empty())
+                    window.dispatch([&] { closeNow(); });
+            });
+            return "null";
+        });
+
+        // --- Exportação: fotos convertidas ou sequência ---
+        // exportFormats() -> formatos de foto que este computador não grava, com o motivo
+        window.bind("exportFormats", [&](const std::string&) -> std::string
+        {
+            std::string reason;
+            const bool heic = Export::FormatAvailable("heic", reason);
+            return Json("formats").Add("heic", heic).Add("heicReason", reason).Str();
+        });
+
+        std::atomic<bool> exportCancel{ false };
+        window.bind("cancelExport", [&](const std::string&) -> std::string
+        {
+            exportCancel = true;
+            return "null";
+        });
+
+        // exportSessions("exit" ou "", "delete" ou "", especificação, ...). Cada sessão:
+        //   "nome|photos|original|jpg|png|webp|tiff|heic" (só um formato) ou
+        //   "nome|sequence|mp4,gif|fps|loops|reverse 0/1|altura|fotos junto 0/1"
+        window.bind("exportSessions", [&](const std::string& request) -> std::string
+        {
+            auto args = ParseStringArgs(request);
+            const bool exitAfter = !args.empty() && args[0] == "exit";
+            const bool deleteRest = args.size() > 1 && args[1] == "delete";
+            std::vector<std::vector<std::string>> specs;
+            for (size_t i = 2; i < args.size(); ++i)
+            {
+                std::vector<std::string> fields;
+                std::stringstream text(args[i]);
+                for (std::string field; std::getline(text, field, '|');)
+                    fields.push_back(field);
+                if (fields.size() >= 3)
+                    specs.push_back(fields);
+            }
+            if (specs.empty())
+                return "null";
+            const std::string folder = NativeWindow::ChooseFolder("Choose where to save your bullet time sessions");
+            if (folder.empty())
+            {
+                listener.Emit(Json("saveCancelled"));
+                return "null";
+            }
+            exportCancel = false;
+            listener.Emit(Json("saving").Add("folder", folder));
+            previews.Post([&, folder, exitAfter, deleteRest, specs]
+            {
+                std::string error;
+                std::vector<std::filesystem::path> savedTo;
+                std::vector<std::string> names;
+                const auto stored = store.ListSessions();
+                int done = 0;
+                for (size_t index = 0; index < specs.size() && error.empty(); ++index)
+                {
+                    const auto& spec = specs[index];
+                    const std::string& name = spec[0];
+                    names.push_back(name);
+                    auto session = std::find_if(stored.begin(), stored.end(), [&](const StoredSession& s) { return s.name == name; });
+                    if (session == stored.end())
+                        continue;
+                    auto report = [&](double fraction, const std::string& step)
+                    {
+                        listener.Emit(Json("exportProgress").Add("session", name).Add("index", static_cast<int>(index))
+                                          .Add("total", static_cast<int>(specs.size())).Add("step", step)
+                                          .Add("fraction", fraction));
+                    };
+                    // Uma foto por câmera, na ordem (com RAW + JPG, o JPG)
+                    std::vector<std::string> files;
+                    std::map<std::string, std::string> byCamera;
+                    std::vector<std::string> groups;
+                    for (const auto& photo : session->photos)
+                    {
+                        const std::string group = photo.camera.empty() ? photo.file : std::to_string(1000 + photo.order) + photo.camera;
+                        if (!byCamera.count(group))
+                            groups.push_back(group);
+                        if (!photo.previewable)
+                            continue;
+                        if (!byCamera.count(group) || byCamera[group].empty() || IsJpegPhoto(photo.file))
+                            byCamera[group] = photo.file;
+                    }
+                    std::sort(groups.begin(), groups.end());
+                    for (const auto& g : groups)
+                        if (!byCamera[g].empty())
+                            files.push_back(byCamera[g]);
+
+                    const std::filesystem::path source = store.Root() / name;
+                    std::filesystem::path target;
+                    std::error_code ec;
+                    const bool sequence = spec[1] == "sequence";
+                    const bool keepOriginals = sequence ? (spec.size() > 7 && spec[7] == "1") : spec[2] == "original";
+                    if (keepOriginals)
+                    {
+                        // As fotos vão como a câmera salvou (move a pasta da sessão)
+                        std::vector<std::filesystem::path> moved;
+                        if (store.SaveSessions(folder, { name }, error, &moved) != 1 || moved.empty())
+                            break;
+                        target = moved.front();
+                    }
+                    else
+                    {
+                        target = std::filesystem::path(folder) / name;
+                        for (int n = 2; std::filesystem::exists(target, ec); ++n)
+                            target = std::filesystem::path(folder) / (name + " (" + std::to_string(n) + ")");
+                        std::filesystem::create_directories(target, ec);
+                    }
+                    const std::filesystem::path from = keepOriginals ? target : source;
+
+                    if (sequence)
+                    {
+                        Export::SequenceOptions options;
+                        std::stringstream formats(spec[2]);
+                        for (std::string f; std::getline(formats, f, ',');)
+                            if (!f.empty()) options.formats.push_back(f);
+                        try
+                        {
+                            options.fps = spec.size() > 3 ? std::stod(spec[3]) : 6;
+                            options.loops = spec.size() > 4 ? std::stoi(spec[4]) : 3;
+                            options.height = spec.size() > 6 ? std::stoi(spec[6]) : 1080;
+                        }
+                        catch (...) {}
+                        options.reverse = spec.size() <= 5 || spec[5] == "1";
+                        std::vector<std::filesystem::path> photos;
+                        for (const auto& f : files)
+                            photos.push_back(from / f);
+                        if (!Export::WriteSequence(photos, target / name, options, report, &exportCancel, error))
+                            break;
+                    }
+                    else if (!keepOriginals)
+                    {
+                        for (size_t i = 0; i < files.size(); ++i)
+                        {
+                            if (exportCancel) { error = "cancelled"; break; }
+                            report(static_cast<double>(i) / files.size(), spec[2]);
+                            const std::filesystem::path photo = from / files[i];
+                            if (!Export::ConvertPhoto(photo, target / photo.stem(), spec[2], error))
+                                break;
+                        }
+                        if (!error.empty())
+                            break;
+                    }
+                    // Salvo: sai do app (quando as fotos não foram junto, apaga a cópia guardada)
+                    if (!keepOriginals)
+                        store.DeleteSession(name);
+                    savedTo.push_back(target);
+                    ++done;
+                    report(1.0, "done");
+                }
+                if (error == "cancelled")
+                    error = "Saving was cancelled. The sessions that were not saved are still in the app.";
+                if (done > 0)
+                    Platform::OpenInFileManager(done == 1 ? savedTo.front() : std::filesystem::path(folder));
+                if (error.empty() && deleteRest)
+                    for (const auto& session : store.ListSessions())
+                        if (std::find(names.begin(), names.end(), session.name) == names.end())
+                            store.DeleteSession(session.name);
+                if (!error.empty())
+                    Log("Save sessions: " + error);
+                listener.Emit(Json("saved").Add("count", done).Add("folder", folder).Add("error", error));
                 emitSessions();
                 if (exitAfter && error.empty())
                     window.dispatch([&] { closeNow(); });

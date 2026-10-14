@@ -9,6 +9,10 @@ at build time by CMake (they are not stored in this repository):
 | [stb](https://github.com/nothings/stb) (`stb_image`, `stb_image_resize2`, `stb_image_write`) | commit 2c980bb | Reading, resizing and writing JPEG previews | MIT or public domain (Unlicense), at your choice |
 | [LibRaw](https://www.libraw.org) | 0.21.4 | Previews of RAW photos (CR3, CR2, NEF, ARW, DNG...) | LGPL 2.1 or CDDL 1.0, at your choice — this project uses it under the **CDDL 1.0** |
 | [LibRaw-cmake](https://github.com/LibRaw/LibRaw-cmake) | commit eb98e43 | Build recipe for LibRaw | LGPL 2.1 or CDDL 1.0 (same as LibRaw) |
+| [libwebp](https://github.com/webmproject/libwebp) | 1.6.0 | Saving WEBP photos and animations | BSD 3-Clause |
+| [libavif](https://github.com/AOMediaCodec/libavif) | 1.3.0 | Saving AVIF animations | BSD 2-Clause |
+| [libaom](https://aomedia.googlesource.com/aom) | version pinned by libavif 1.3.0 | AV1 encoder used by libavif | BSD 2-Clause + Alliance for Open Media patent license |
+| [minimp4](https://github.com/lieff/minimp4) | commit 2a3014a | Writing the MP4 and MOV files (the H.264 video comes from the system's encoder) | CC0 (public domain) |
 | [Nocturne](https://github.com/starside-io/nocturne) | commit 9693bd5 | Structure of the window's look: layout, panel rails, component styles from nocturne-css and type scale, adapted to the app's classes in `assets/ui/themes/nocturne-neo.css` | Apache 2.0 (`assets/ui/themes/LICENSE-nocturne.txt`) |
 | [Neo Terminal UI](https://github.com/Dyltom/neo-terminal-ui) | commit 0eaf72d | Color palette of the window's look, in `assets/ui/themes/nocturne-neo.css` | MIT |
 | [Rajdhani](https://fonts.google.com/specimen/Rajdhani) | Google Fonts | Font of the window (Regular, SemiBold, Bold), reduced to Latin characters | SIL Open Font License 1.1 (`assets/ui/fonts/OFL-Rajdhani.txt`) |

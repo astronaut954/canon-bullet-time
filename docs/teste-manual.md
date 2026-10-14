@@ -132,6 +132,19 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] "Save sessions" com uma sessão: no fim abre a pasta dessa sessão (Finder/Explorador).
 - [ ] Com várias sessões salvas de uma vez: abre a pasta escolhida, com todas dentro.
 
+## 13. Salvar como fotos ou sequência
+- [ ] "Save sessions" pergunta Photos ou Sequence.
+- [ ] Photos: Original move as fotos como antes; PNG, JPG, WEBP, TIFF e HEIC criam os arquivos
+      convertidos (Windows: HEIC desativado se faltar a extensão, com o motivo).
+- [ ] Sequence: prévia toca na velocidade escolhida; o total muda com Speed, Loops e Reverse loop.
+- [ ] MP4, MOV, GIF, WEBP e AVIF abrem e tocam (GIF/WEBP/AVIF repetem sem parar; MP4/MOV com o
+      número de loops escolhido). 4K só no MP4/MOV.
+- [ ] "Also save the photos" marcado: fotos e vídeos na mesma pasta; desmarcado: só os vídeos.
+- [ ] "Apply to all sessions" copia a configuração; sessões com configurações diferentes saem cada
+      uma do seu jeito.
+- [ ] Andamento aparece; "Cancel" para e as sessões não salvas continuam no app.
+- [ ] No fim abre a pasta (uma sessão: a dela; várias: a escolhida).
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

@@ -163,21 +163,62 @@
     </div>
   </div>
 
-  <!-- Escolher quais sessões salvar (quando há mais de uma) -->
-  <div id="saveOverlay" class="overlay hidden">
-    <div class="dialog save-dialog">
-      <h3>Choose the sessions to save</h3>
-      <div class="save-tools">
-        <button id="saveSelectAll" class="btn btn-link btn-small">Select all</button>
-        <button id="saveUnselectAll" class="btn btn-link btn-small">Unselect all</button>
-        <span class="spacer"></span>
-        <span id="saveCount" class="save-count"></span>
+  <!-- Salvar: escolher Fotos ou Sequência -->
+  <div id="modeOverlay" class="overlay hidden">
+    <div class="dialog mode-dialog">
+      <h3>Save sessions</h3>
+      <p id="modeText" style="padding-bottom:0"></p>
+      <div class="mode-choices">
+        <button id="modePhotos" class="mode-card">
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="9" width="20" height="16"/><rect x="8" y="6" width="20" height="16" opacity=".6"/><rect x="13" y="3" width="18" height="14" opacity=".35"/><path d="M5 22l5-6 4 4 3-3 5 5"/></svg>
+          <b>Photos</b><span>One file per camera. Keep the format the camera saved, or convert.</span>
+          <em>Original · JPG · PNG · WEBP · TIFF · HEIC</em>
+        </button>
+        <button id="modeSequence" class="mode-card">
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="28" height="20"/><path d="M3 11h28M3 23h28M8 7v4M14 7v4M20 7v4M26 7v4M8 23v4M14 23v4M20 23v4M26 23v4"/><path d="M15 14l5 3-5 3z" fill="currentColor"/></svg>
+          <b>Sequence</b><span>A video or animated image of each session, with the speed and loops you choose.</span>
+          <em>MP4 · MOV · GIF · WEBP · AVIF</em>
+        </button>
       </div>
-      <ul id="saveList" class="save-list"></ul>
-      <div class="dialog-actions">
-        <button id="saveCancel" class="btn btn-secondary">Cancel</button>
-        <button id="saveConfirm" class="btn btn-primary">Save</button>
+      <div class="dialog-actions"><button id="modeCancel" class="btn btn-secondary">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Salvar: sessões e configuração de cada uma -->
+  <div id="exportOverlay" class="overlay hidden">
+    <div class="sheet export-sheet">
+      <div class="export-head">
+        <h3><span id="exportTitle"></span><small id="exportSub"></small></h3>
+        <div class="segmented"><button id="exportModePhotos">Photos</button><button id="exportModeSequence">Sequence</button></div>
       </div>
+      <div class="export-body">
+        <div class="export-sessions">
+          <div class="save-tools">
+            <button id="exportSelectAll" class="btn btn-link btn-small">Select all</button>
+            <button id="exportUnselectAll" class="btn btn-link btn-small">Unselect all</button>
+          </div>
+          <ul id="exportList" class="export-list"></ul>
+        </div>
+        <div id="exportSettings" class="export-settings"></div>
+      </div>
+      <div class="export-foot">
+        <span id="exportCount" class="save-count"></span><span class="spacer"></span>
+        <button id="exportCancel" class="btn btn-secondary">Cancel</button>
+        <button id="exportConfirm" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Salvar: andamento -->
+  <div id="progressOverlay" class="overlay hidden">
+    <div class="dialog export-progress-dialog">
+      <h3 id="progressTitle">Saving</h3>
+      <div class="export-progress-body">
+        <div id="progressStep" class="export-note"></div>
+        <div class="update-bar"><div id="progressBar"></div></div>
+        <div class="update-bar-text"><span id="progressSession"></span><span id="progressPercent"></span></div>
+      </div>
+      <div class="dialog-actions"><button id="progressCancel" class="btn btn-secondary">Cancel</button></div>
     </div>
   </div>
 
