@@ -231,9 +231,12 @@ if(STILLPOINT_BUILD_GUI)
     unset(CMAKE_DISABLE_FIND_PACKAGE_ZLIB)
     unset(CMAKE_DISABLE_FIND_PACKAGE_JPEG)
 
+    # Exportação: bibliotecas e o código comum (cmake/export.cmake)
+    set(STILLPOINT_SOURCE_ROOT "${CMAKE_SOURCE_DIR}")
+    include(cmake/export.cmake)
+
     set(STILLPOINT_GUI_SOURCES
         src/gui/main_gui.cpp
-        src/gui/photo_store.cpp
     )
     if(WIN32)
         list(APPEND STILLPOINT_GUI_SOURCES src/gui/native_window_win.cpp "${CMAKE_BINARY_DIR}/app.rc")
@@ -244,7 +247,7 @@ if(STILLPOINT_BUILD_GUI)
     add_executable(Stillpoint WIN32 ${STILLPOINT_GUI_SOURCES})
     set_target_properties(Stillpoint PROPERTIES OUTPUT_NAME "Stillpoint")
     target_include_directories(Stillpoint PRIVATE src/gui "${stb_SOURCE_DIR}")
-    target_link_libraries(Stillpoint PRIVATE stillpoint_core webview::core libraw::libraw)
+    target_link_libraries(Stillpoint PRIVATE stillpoint_core stillpoint_export webview::core libraw::libraw)
     target_compile_definitions(Stillpoint PRIVATE STILLPOINT_VERSION="${STILLPOINT_VERSION}")
     if(WIN32)
         target_link_libraries(Stillpoint PRIVATE comctl32 ole32)

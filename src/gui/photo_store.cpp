@@ -218,6 +218,45 @@ namespace
     }
 }
 
+bool IsRawPhoto(const std::string& file) { return IsRaw(file); }
+bool IsJpegPhoto(const std::string& file) { return IsJpeg(file); }
+
+bool LoadPhotoRgb(const fs::path& file, RgbFrame& out, std::string* jpegBytes)
+{
+    const std::string name = file.filename().string();
+    const std::string original = ReadFile(file);
+    if (original.empty())
+        return false;
+
+    RgbImage decoded;
+    if (IsRaw(name))
+    {
+        if (!DecodeRawPreview(original, decoded))
+            return false;
+        if (jpegBytes)
+        {
+            auto raw = std::make_unique<LibRaw>();
+            jpegBytes->clear();
+            if (raw->open_buffer(original.data(), original.size()) == LIBRAW_SUCCESS && raw->unpack_thumb() == LIBRAW_SUCCESS
+                && raw->imgdata.thumbnail.tformat == LIBRAW_THUMBNAIL_JPEG)
+                jpegBytes->assign(raw->imgdata.thumbnail.thumb, raw->imgdata.thumbnail.tlength);
+        }
+    }
+    else
+    {
+        if (!DecodeJpeg(original, decoded))
+            return false;
+        decoded.orientation = ReadExifOrientation(original);
+        if (jpegBytes)
+            *jpegBytes = original;
+    }
+    int w = decoded.width, h = decoded.height;
+    out.pixels = Rotate(decoded.pixels, w, h, decoded.orientation);
+    out.width = w;
+    out.height = h;
+    return true;
+}
+
 PhotoStore::PhotoStore(fs::path root) : root(std::move(root))
 {
     std::error_code ec;
