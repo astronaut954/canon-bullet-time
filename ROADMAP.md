@@ -100,8 +100,8 @@ Atualizar esta tabela sempre que uma função mudar de status.
   aberta numa thread auxiliar abria, mas os comandos seguintes davam erro 2 e a câmera
   "parava de responder". Corrigido: no Windows a sessão abre na própria thread das
   câmeras (Platform::SdkSessionsInWorkerThreads). Testado em 2026-10-14 com SL3 e
-  T7: conexão, disparo, sessões, USB e fechar funcionando. Falta testar "Restart app"
-  no Windows (abrir com CBT_TEST_RESTART=1 mostra o botão sem precisar de câmera presa). Texto antigo:
+  T7: conexão, disparo, sessões, USB, fechar e "Restart app" funcionando. Falta testar
+  "Restart app" no Mac (abrir com CBT_TEST_RESTART=1 mostra o botão sem câmera presa). Texto antigo:
   **Windows: conexão em paralelo não testada com câmeras.** Desde a branch
   `fix-feedback-conexao`, a sessão de cada câmera é aberta numa thread auxiliar
   (com COM inicializado, como pede o manual da Canon). Compila, mas ainda não
