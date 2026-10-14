@@ -688,7 +688,8 @@
   const fasterBtn = button("", () => changeSpeed(1), { icon: "plus", title: "Faster" });
   function playInterval() { return Math.round(220 / PLAY_SPEEDS[speedIndex]); }
   function renderSpeed() {
-    speedLabel.textContent = PLAY_SPEEDS[speedIndex] + "x";
+    const v = PLAY_SPEEDS[speedIndex];
+    speedLabel.textContent = (v % 1 === 0 ? v.toFixed(1) : String(v)) + "x";  // 1.0x, 1.25x, 2.0x
     slowerBtn.disabled = speedIndex === 0;
     fasterBtn.disabled = speedIndex === PLAY_SPEEDS.length - 1;
   }
@@ -701,14 +702,19 @@
     }
   }
   renderSpeed();
+  // Velocidade num grupo à parte (com separador), para não se misturar com ‹ ▶ ›
+  const speedGroup = document.createElement("div");
+  speedGroup.className = "play-group";
+  const speedCaption = document.createElement("span");
+  speedCaption.className = "play-group-caption";
+  speedCaption.textContent = "Speed";
+  speedGroup.append(speedCaption, slowerBtn, speedLabel, fasterBtn);
 
   const viewActions = [
     button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
     playBtn,
     button("", () => { stopPlay(); sessionGallery.next(); }, { icon: "right", title: "Next photo" }),
-    slowerBtn,
-    speedLabel,
-    fasterBtn,
+    speedGroup,
     reverseLoopOption,
     button("Reorder", startReorder, { title: "Change the order of the photos in this session" }),
     button("", deleteCurrentPhoto, { icon: "trash", title: "Delete this photo (Delete key)" }),

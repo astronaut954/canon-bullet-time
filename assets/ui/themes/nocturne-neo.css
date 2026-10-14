@@ -535,5 +535,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   color: var(--noct-primary); text-shadow: 0 0 10px rgba(var(--noct-primary-rgb), .6); }
 
 /* "Reverse loop" ao lado dos botões da tela cheia */
-.play-option { margin: 0 6px 0 4px; white-space: nowrap; }
+.play-option { margin: 0 6px 0 0; padding-left: 14px; border-left: 1px solid var(--noct-border); height: 30px; white-space: nowrap; }
+.play-group { display: inline-flex; align-items: center; gap: 6px; margin: 0 10px 0 10px; padding: 0 14px;
+  border-left: 1px solid var(--noct-border); height: 30px; }
+.play-group-caption { font: 11px var(--noct-font-mono); color: var(--noct-text-muted); text-transform: uppercase; letter-spacing: .08em; margin-right: 4px; }
 .play-speed { min-width: 44px; text-align: center; font: 600 12px var(--noct-font-mono); color: var(--noct-primary); letter-spacing: .04em; }
