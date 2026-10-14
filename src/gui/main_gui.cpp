@@ -16,6 +16,9 @@
 // se o app fechar de forma inesperada, as fotos continuam lá e são oferecidas na
 // próxima abertura.
 
+#if defined(_WIN32) && !defined(NOMINMAX)
+#define NOMINMAX  // windows.h (via SDK e webview) define min/max, que quebram std::min/std::max
+#endif
 #include "bullet_time.h"
 #include "canon_controller.h"
 #include "logger.h"

@@ -467,7 +467,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
                 // Câmera nova: menor número livre do modelo (T7_1, T7_2...) e último lugar na ordem
                 int maxOrder = 0;
                 for (const auto& c : cameras)
-                    maxOrder = std::max(maxOrder, c.orderPrefix);
+                    maxOrder = (std::max)(maxOrder, c.orderPrefix);
                 cam.modelIndex = FirstFreeModelIndex(cam.baseShortName, false);
                 cam.shortName = cam.baseShortName + "_" + std::to_string(cam.modelIndex);
                 cam.orderPrefix = maxOrder + 1;
@@ -501,7 +501,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
             auto& retry = portRetry[EntryKey(cam)];
             ++retry.failures;
             static const int kWait[] = { 5, 10, 15, 30, 60 };
-            const int waitSeconds = kWait[std::min(retry.failures, 5) - 1];
+            const int waitSeconds = kWait[(std::min)(retry.failures, 5) - 1];
             retry.retryAt = Clock::now() + seconds(waitSeconds);
 
             // Três falhas seguidas: para de insistir até uma câmera ser conectada
@@ -969,7 +969,7 @@ std::vector<StartingCameraInfo> CanonController::GetStartingCameras() const
     }
     std::stable_partition(left.begin(), left.end(),
         [&](const UsbSeen* u) { return usbModels.count(u->productId) > 0; });
-    size_t covered = std::min(models.size(), left.size());
+    size_t covered = (std::min)(models.size(), left.size());
     // As desconhecidas são cobertas pelas entradas restantes do SDK
     std::vector<const UsbSeen*> unknown, knownLeft;
     for (const auto* u : left)
