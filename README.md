@@ -19,7 +19,8 @@ Designed for bullet time photography workflows.
 
 * Windows 10 or 11 (64-bit)
 * Compatible Canon camera
-* Keep these files in the same folder: `Canon Bullet Time GUI.exe`, `Canon Bullet Time.exe`, `EDSDK.dll`, `EdsImage.dll`, `assets/`
+* Keep these files in the same folder: `Canon Bullet Time.exe`, `EDSDK.dll`, `EdsImage.dll`, `assets/`
+* Terminal app (optional): `Terminal App/Canon Bullet Time Terminal App.exe`, with its own copies of those files
 * The window app uses Microsoft Edge WebView2, already included in up-to-date Windows 10 and 11
 
 **macOS**
@@ -27,7 +28,7 @@ Designed for bullet time photography workflows.
 * Mac with Apple Silicon (M1 or newer), macOS 13.3 or later
 * Compatible Canon camera
 * Window app: `Canon Bullet Time.app` (everything it needs is inside it)
-* Terminal app: in the `Terminal version` folder; keep `Canon Bullet Time`, `Frameworks/` and `assets/` together
+* Terminal app (optional): in the `Terminal App` folder; keep `Canon Bullet Time Terminal App`, `Frameworks/` and `assets/` together
 * The app is not signed by Apple yet. After extracting the zip, run once in Terminal:
 
   ```
@@ -35,7 +36,7 @@ Designed for bullet time photography workflows.
   ```
 
   Then open `Canon Bullet Time` (the app) with a double-click. The terminal app is in the
-  `Terminal version` folder: run `./"Canon Bullet Time"` there in Terminal
+  `Terminal App` folder: run `./"Canon Bullet Time Terminal App"` there in Terminal
 
 
 
@@ -49,7 +50,7 @@ Designed for bullet time photography workflows.
 
 1. Extract all release files into the same folder
 2. Connect your Canon cameras via USB
-3. Run `Canon Bullet Time GUI` (window app), or `Canon Bullet Time` (terminal app)
+3. Open `Canon Bullet Time` (the terminal app is in the `Terminal App` folder)
 4. In the window app, the cameras connect by themselves; press "It's bullet time".
    In the terminal app, follow the instructions on screen
 5. Enter the Matrix
@@ -126,7 +127,7 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64-release
 ```
 
-Two apps are generated in `build/windows-x64/Release/`: `Canon Bullet Time.exe` (terminal) and `Canon Bullet Time GUI.exe` (window), with the SDK DLLs and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries and Microsoft WebView2 headers (internet required).
+Two apps are generated in `build/windows-x64/Release/`: `Canon Bullet Time.exe` (terminal) and `Canon Bullet Time GUI.exe` (window; in the release package it is renamed `Canon Bullet Time.exe` and the terminal app goes to `Terminal App/`), with the SDK DLLs and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries and Microsoft WebView2 headers (internet required).
 
 ### Build (macOS, Apple Silicon)
 
@@ -137,7 +138,7 @@ cmake --preset macos-arm64
 cmake --build --preset macos-arm64-release
 ```
 
-Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries (internet required).
+Two apps are generated in `build/macos-arm64/`: `Canon Bullet Time` (terminal) and `Canon Bullet Time GUI` (window; in the release package it goes inside `Canon Bullet Time.app` and the terminal app goes to `Terminal App/`), with `Frameworks/EDSDK.framework` and `assets/` next to them. The first configure downloads the webview, stb and LibRaw libraries (internet required).
 
 The window's look combines the structure of [Nocturne](https://github.com/starside-io/nocturne)
 (layout, panel rails, fonts Rajdhani and JetBrains Mono) with the colors of

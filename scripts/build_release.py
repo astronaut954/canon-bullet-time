@@ -115,6 +115,8 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
 
 
 APP_NAME = "Canon Bullet Time.app"
+TERMINAL_DIR_NAME = "Terminal App"
+TERMINAL_EXE_NAME = "Canon Bullet Time Terminal App"
 APP_BUNDLE_ID = "io.github.astronaut954.canonbullettime"
 
 
@@ -187,29 +189,28 @@ def main():
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
+    # O programa principal é o de janela ("Canon Bullet Time"). O de terminal vai numa
+    # subpasta, com outro nome, para não confundir quem baixa.
+    terminal_dir = DIST_DIR / TERMINAL_DIR_NAME
+    terminal_dir.mkdir()
     if IS_MAC:
-        # Janela: o aplicativo. Terminal: numa pasta à parte, porque o Finder esconde o
-        # ".app" e os dois apareceriam com o mesmo nome, "Canon Bullet Time".
         make_mac_app(DIST_DIR)
-        terminal_dir = DIST_DIR / "Terminal version"
-        terminal_dir.mkdir()
-        copy_file(BUILD_EXE, terminal_dir / BUILD_EXE.name)
+        copy_file(BUILD_EXE, terminal_dir / TERMINAL_EXE_NAME)
         # ditto preserva links simbólicos e a assinatura do framework da Canon
         (terminal_dir / "Frameworks").mkdir()
         subprocess.run(["ditto", str(EDSDK_FRAMEWORK), str(terminal_dir / "Frameworks" / "EDSDK.framework")], check=True)
         print(f"[COPYDIR] {EDSDK_FRAMEWORK} -> {terminal_dir / 'Frameworks' / 'EDSDK.framework'}")
         copy_tree(ASSETS_DIR, terminal_dir / "assets")
     else:
-        copy_file(BUILD_EXE, DIST_DIR / BUILD_EXE.name)
-        copy_file(BUILD_GUI, DIST_DIR / BUILD_GUI.name)
-        copy_file(EDSDK_DLL, DIST_DIR / "EDSDK.dll")
-        copy_file(EDSIMAGE_DLL, DIST_DIR / "EdsImage.dll")
-        # Outras bibliotecas que a compilação colocou ao lado dos programas (ex.: o
-        # carregador do WebView2, se a versão do webview usar um)
-        for dll in BUILD_EXE.parent.glob("*.dll"):
-            if dll.name not in ("EDSDK.dll", "EdsImage.dll"):
-                copy_file(dll, DIST_DIR / dll.name)
-        copy_tree(ASSETS_DIR, DIST_DIR / "assets")
+        # Cada programa precisa das DLLs do SDK e da pasta assets ao lado dele
+        dlls = [EDSDK_DLL, EDSIMAGE_DLL] + [
+            d for d in BUILD_EXE.parent.glob("*.dll") if d.name not in ("EDSDK.dll", "EdsImage.dll")]
+        copy_file(BUILD_GUI, DIST_DIR / "Canon Bullet Time.exe")
+        copy_file(BUILD_EXE, terminal_dir / (TERMINAL_EXE_NAME + ".exe"))
+        for folder in (DIST_DIR, terminal_dir):
+            for dll in dlls:
+                copy_file(dll, folder / dll.name)
+            copy_tree(ASSETS_DIR, folder / "assets")
     copy_file(THIRD_PARTY_NOTICES, DIST_DIR / "THIRD_PARTY_NOTICES.md")
     copy_file(README_MD, DIST_DIR / "README.md")
     copy_file(LICENSE_FILE, DIST_DIR / "LICENSE")
