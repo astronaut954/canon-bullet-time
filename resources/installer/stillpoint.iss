@@ -68,7 +68,5 @@ Name: "{autoprograms}\Stillpoint Terminal App"; Filename: "{app}\Terminal App\St
 
 [Run]
 Filename: "{app}\Stillpoint.exe"; Description: "{cm:LaunchProgram,Stillpoint}"; Flags: nowait postinstall skipifsilent
-; Update started by the app itself (silent install): open Stillpoint again at the end
-Filename: "{app}\Stillpoint.exe"; Flags: nowait runasoriginaluser; Check: WizardSilent
 
 ; Photos kept by the app live in %LOCALAPPDATA%\Stillpoint and are not removed on uninstall.

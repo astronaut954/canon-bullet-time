@@ -119,13 +119,16 @@ durante disparo/conexão, aviso "Updated to ..." ao reabrir).
   compara as versões e escolhe o arquivo (`-setup.exe` ou `.dmg`).
 - **Download:** só de `github.com/astronaut954/stillpoint-bullet-time-photography/releases/download/`,
   para a pasta temporária; confere tamanho e SHA-256 (o GitHub informa o "digest" de cada arquivo).
-- **Instalação:** Windows: instalador em modo silencioso (pede permissão de administrador;
-  `stillpoint.iss` reabre o app no fim). Mac: script espera o app fechar, troca o `.app`
+- **Instalação:** Windows: instalador em modo silencioso (pede permissão de administrador);
+  um PowerShell escondido espera o instalador terminar e abre o app de novo (não depende
+  do instalador baixado). Mac: script espera o app fechar, troca o `.app`
   pelo do `.dmg` (com volta atrás se falhar) e abre de novo. Só quando dá: Windows instalado
   pelo instalador; Mac em `.app` numa pasta com escrita. Senão, abre a página de download.
 - **Novidades:** `docs/release-notes/vX.Y.Z.md` (obrigatório para publicar), mostradas na janela.
 - **Teste sem versão nova:** `STILLPOINT_TEST_VERSION=2.1.0` faz o app se apresentar como
   antigo e oferecer a versão publicada. `STILLPOINT_NO_UPDATE_CHECK=1` desliga a consulta.
+- 1º teste no Windows (2026-10-14): instalou, mas não reabriu. Causa: a reabertura estava
+  no instalador novo, e o teste instala a v2.2.0 (instalador antigo). Corrigido como acima.
 - Verificado aqui: fluxo da página (aviso, janela, andamento, cancelar, falha, instalar,
   modo sem atualização automática, espera com câmera conectando) num navegador; código de
   Windows compila (MinGW); script do Mac testado com ferramentas simuladas. Falta testar

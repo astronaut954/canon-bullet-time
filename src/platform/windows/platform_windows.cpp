@@ -382,22 +382,52 @@ namespace Platform
 
     bool StartUpdateInstall(const fs::path& installer, std::string& error)
     {
-        // Modo silencioso: mostra só o andamento; pede permissão de administrador
-        // (Arquivos de Programas) e, no fim, abre o Stillpoint de novo (stillpoint.iss).
-        const std::wstring file = installer.wstring();
-        const std::wstring params = L"/SILENT /SP- /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS";
-        SHELLEXECUTEINFOW info{};
-        info.cbSize = sizeof(info);
-        info.fMask = SEE_MASK_NOASYNC;
-        info.lpVerb = L"open";
-        info.lpFile = file.c_str();
-        info.lpParameters = params.c_str();
-        info.nShow = SW_SHOWNORMAL;
-        if (!ShellExecuteExW(&info))
+        // Um PowerShell escondido roda o instalador em modo silencioso (ele pede permissão
+        // de administrador para Arquivos de Programas), espera terminar e abre o Stillpoint
+        // de novo. Assim a reabertura não depende do instalador baixado. Se a permissão for
+        // negada, o app abre de novo na versão atual.
+        wchar_t system[MAX_PATH] = {};
+        const UINT length = GetSystemDirectoryW(system, MAX_PATH);
+        if (length == 0)
         {
-            error = GetLastError() == ERROR_CANCELLED ? "Permission to install was not given." : "The installer could not start.";
+            error = "The installer could not start.";
             return false;
         }
+        const std::wstring powershell = std::wstring(system, length) + L"\\WindowsPowerShell\\v1.0\\powershell.exe";
+
+        std::vector<wchar_t> exe(MAX_PATH);
+        DWORD exeLength = GetModuleFileNameW(nullptr, exe.data(), static_cast<DWORD>(exe.size()));
+        while (exeLength == exe.size())
+        {
+            exe.resize(exe.size() * 2);
+            exeLength = GetModuleFileNameW(nullptr, exe.data(), static_cast<DWORD>(exe.size()));
+        }
+        // Texto entre aspas simples do PowerShell: ' vira ''
+        auto quoted = [](std::wstring text)
+        {
+            for (size_t pos = 0; (pos = text.find(L'\'', pos)) != std::wstring::npos; pos += 2)
+                text.insert(pos, 1, L'\'');
+            return L"'" + text + L"'";
+        };
+        const std::wstring script =
+            L"Remove-Item Env:STILLPOINT_TEST_VERSION -ErrorAction SilentlyContinue; "
+            L"try { Start-Process -FilePath " + quoted(installer.wstring()) +
+            L" -ArgumentList '/SILENT /SP- /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS' -Wait -ErrorAction Stop } catch { } "
+            L"Start-Process -FilePath " + quoted(std::wstring(exe.data(), exeLength));
+
+        std::wstring commandLine = QuoteArg(powershell) +
+            L" -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -Command " + QuoteArg(script);
+        STARTUPINFOW startup{};
+        startup.cb = sizeof(startup);
+        PROCESS_INFORMATION process{};
+        if (!CreateProcessW(powershell.c_str(), commandLine.data(), nullptr, nullptr, FALSE,
+                            CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process))
+        {
+            error = "The installer could not start.";
+            return false;
+        }
+        CloseHandle(process.hThread);
+        CloseHandle(process.hProcess);
         return true;
     }
 
