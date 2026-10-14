@@ -58,12 +58,19 @@ def build_release(version: str):
     run([sys.executable, "scripts/build_release.py", version])
 
 
-def find_zip(version: str) -> Path:
+def find_assets(version: str) -> list:
+    """Arquivos deste sistema para a página da versão: o zip e o instalador
+    (.dmg no Mac, -setup.exe no Windows)."""
     platform = "macos-arm64" if sys.platform == "darwin" else "windows-x64"
-    zip_path = RELEASE_DIR / f"{PROJECT_NAME}-{version}-{platform}.zip"
-    if not zip_path.exists():
-        raise SystemExit(f"\n[ERROR] Release ZIP not found: {zip_path}")
-    return zip_path
+    base = f"{PROJECT_NAME}-{version}-{platform}"
+    installer = f"{base}.dmg" if sys.platform == "darwin" else f"{base}-setup.exe"
+    assets = []
+    for name in (installer, f"{base}.zip"):
+        path = RELEASE_DIR / name
+        if not path.exists():
+            raise SystemExit(f"\n[ERROR] Release file not found: {path}")
+        assets.append(path)
+    return assets
 
 
 def create_tag(version: str):
@@ -81,16 +88,21 @@ def push_tag(version: str):
     run(["git", "push", "origin", version])
 
 
-def create_github_release(version: str, zip_path: Path):
+def create_github_release(version: str, assets: list):
     notes = (
-        f"Release {version}\n\n"
-        "- Updated release package\n"
-        "- Windows x64 and macOS arm64 builds (macOS added separately)\n"
+        f"Stillpoint {version}\n\n"
+        "**Download**\n\n"
+        f"- **macOS** (Apple Silicon): `{PROJECT_NAME}-{version}-macos-arm64.dmg`. Open it and drag "
+        "Stillpoint to Applications. The first time, follow the steps in *Read Me* (inside the .dmg) "
+        "to allow the app in System Settings.\n"
+        f"- **Windows** 10/11 (64-bit): `{PROJECT_NAME}-{version}-windows-x64-setup.exe`. If Windows shows "
+        "\"Windows protected your PC\", click **More info** and then **Run anyway**.\n"
+        "- The `.zip` files have the same apps without an installer (on Mac, also the terminal app).\n"
     )
 
     run([
         "gh", "release", "create", version,
-        str(zip_path),
+        *[str(a) for a in assets],
         "--title", version,
         "--notes", notes
     ])
@@ -114,21 +126,23 @@ def main():
     tag_exists = version in get_output(["git", "tag"]).splitlines()
 
     build_release(version)
-    zip_path = find_zip(version)
+    assets = find_assets(version)
 
     if tag_exists:
-        # A versão já foi publicada pelo outro sistema: só anexa o pacote deste sistema
-        run(["gh", "release", "upload", version, str(zip_path), "--clobber"])
-        print(f"\n[OK] Asset added to existing release {version}: {zip_path}")
+        # A versão já foi publicada pelo outro sistema: só anexa os arquivos deste sistema
+        run(["gh", "release", "upload", version, *[str(a) for a in assets], "--clobber"])
+        for a in assets:
+            print(f"[OK] Asset added to existing release {version}: {a}")
         return
 
     push_branch()
     create_tag(version)
     push_tag(version)
-    create_github_release(version, zip_path)
+    create_github_release(version, assets)
 
     print(f"\n[OK] GitHub release published successfully: {version}")
-    print(f"[OK] Asset attached: {zip_path}")
+    for a in assets:
+        print(f"[OK] Asset attached: {a}")
 
 
 if __name__ == "__main__":

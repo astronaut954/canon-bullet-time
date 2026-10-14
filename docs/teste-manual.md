@@ -92,6 +92,18 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Sessões não salvas da versão antiga aparecem ao abrir o Stillpoint (a pasta
       "Canon Bullet Time" vira "Stillpoint").
 
+## 8. Instaladores
+- [ ] Mac: abrir o `.dmg`: janela com o fundo de chuva, Stillpoint à esquerda, Aplicativos
+      à direita, Read Me embaixo; os nomes ficam sobre as placas verdes (modo claro e escuro).
+- [ ] Mac: arrastar para Aplicativos e abrir; seguir o Read Me (Ajustes do Sistema →
+      Privacidade e Segurança → "Abrir Mesmo Assim"); os nomes dos botões batem com o texto.
+- [ ] Windows: abrir o `-setup.exe`: telas com as imagens de chuva; opções "atalho na área de
+      trabalho" e "versão de terminal" desmarcadas; instala em Arquivos de Programas.
+- [ ] Windows: Stillpoint no menu Iniciar abre e conecta as câmeras; com a opção marcada,
+      "Stillpoint Terminal App" também aparece e funciona.
+- [ ] Windows: desinstalar por Configurações → Aplicativos; as sessões guardadas continuam
+      em `%LOCALAPPDATA%\Stillpoint`.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

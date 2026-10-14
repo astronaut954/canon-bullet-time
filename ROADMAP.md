@@ -28,6 +28,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
 | 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). Funcionando no Mac e no Windows (2026-10-14). | feito |
+| 7 | Instaladores | `.dmg` no Mac (arrastar para Aplicativos, fundo com chuva de código, Read Me em inglês sem Terminal) e instalador de Windows (Inno Setup, mesmo visual, versão de terminal opcional e desmarcada). Os zips continuam na versão. | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -84,6 +85,21 @@ version/"). Próxima versão: v2.0.0.
   (`Canon Bullet Time`) é renomeada na primeira abertura. Nomes internos do código
   também mudaram (`cbt_core` → `stillpoint_core`, variáveis `CBT_*` → `STILLPOINT_*`,
   ex.: `STILLPOINT_TEST_RESTART`). Funcionando nos dois sistemas (2026-10-14).
+
+### Etapa 7: instaladores (iniciada em 2026-10-14)
+
+Visual aprovado em 2026-10-14 (fundo do `.dmg`, imagens do instalador de Windows e Read Me).
+- **Mac:** `scripts/build_release.py` cria `stillpoint-vX.Y.Z-macos-arm64.dmg` com o
+  dmgbuild (instalado sozinho em `build/release-tools` na primeira vez): Stillpoint.app,
+  atalho para Aplicativos e `Read Me.pdf`, fundo em `resources/installer/`. Primeira
+  abertura sem Terminal: Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim".
+- **Windows:** `resources/installer/stillpoint.iss` (Inno Setup 6.5.2 ou mais novo) gera
+  `stillpoint-vX.Y.Z-windows-x64-setup.exe`: instala em Arquivos de Programas, atalho no menu
+  Iniciar, atalho na área de trabalho e versão de terminal opcionais (desmarcados), desinstala
+  por Configurações → Aplicativos sem apagar as fotos guardadas.
+- `scripts/publish_release.py` envia o zip e o instalador de cada sistema.
+- Aguardando o primeiro teste nos dois sistemas (posição dos ícones no `.dmg` e textos do
+  macOS no Read Me podem precisar de ajuste).
 
 ### Critério para fechar uma etapa
 
