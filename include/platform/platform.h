@@ -4,6 +4,7 @@
 // Cada sistema tem sua própria implementação em src/platform/<sistema>/.
 // O restante do programa usa apenas estas funções, nunca APIs do sistema direto.
 
+#include <atomic>
 #include <ctime>
 #include <filesystem>
 #include <string>
@@ -69,4 +70,31 @@ namespace Platform
     // de começar (WaitForPreviousInstance, no início do programa). false se não abriu.
     bool RelaunchAfterExit();
     void WaitForPreviousInstance();
+
+    // --- Atualização do app (só o app de janela) ---
+
+    // curl do próprio sistema (Windows 10/11: System32\curl.exe; Mac: /usr/bin/curl),
+    // usado para falar com o GitHub e baixar a versão nova.
+    std::filesystem::path CurlExecutable();
+
+    // Roda um programa sem abrir janela e espera ele terminar. Devolve o código de
+    // saída, ou -1 se não abriu, se passou de timeoutSeconds ou se cancel virou true
+    // (nesses casos o programa é encerrado).
+    int RunProcess(const std::vector<std::string>& args, int timeoutSeconds, const std::atomic<bool>* cancel = nullptr);
+
+    // SHA-256 do arquivo em hexadecimal minúsculo ("" se não deu para ler).
+    std::string Sha256OfFile(const std::filesystem::path& file);
+
+    // Se este app pode se atualizar sozinho. Windows: só se foi instalado pelo
+    // instalador (tem o desinstalador ao lado). Mac: só se roda de dentro de um .app
+    // numa pasta em que dá para escrever (ex.: Aplicativos). reason explica o não.
+    bool CanSelfUpdate(std::string& reason);
+
+    // Começa a instalar a versão baixada e devolve logo; o app deve fechar em seguida.
+    // Windows: roda o instalador em modo silencioso (ele reabre o app no fim).
+    // Mac: um script espera o app fechar, troca o .app pelo do .dmg e abre de novo.
+    bool StartUpdateInstall(const std::filesystem::path& installer, std::string& error);
+
+    // Abre um endereço da internet no navegador padrão.
+    void OpenUrl(const std::string& url);
 }

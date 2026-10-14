@@ -54,6 +54,55 @@
 namespace
 {
     // ---------------------------------------------------------------------
+    // Versão e atualização (versão vem do arquivo VERSION, pelo CMake)
+    // ---------------------------------------------------------------------
+#ifndef STILLPOINT_VERSION
+#define STILLPOINT_VERSION "0.0.0"
+#endif
+    const char* const kRepo = "astronaut954/stillpoint-bullet-time-photography";
+    const std::string kReleaseDownloads = std::string("https://github.com/") + kRepo + "/releases/download/";
+    const std::string kRepoPages = std::string("https://github.com/") + kRepo;
+
+    // STILLPOINT_TEST_VERSION=2.1.0: o app se apresenta como uma versão antiga, para
+    // testar a atualização com a versão publicada no GitHub
+    std::string AppVersion()
+    {
+        const char* test = std::getenv("STILLPOINT_TEST_VERSION");
+        return test && *test ? test : STILLPOINT_VERSION;
+    }
+
+    // Versão da última vez que o app abriu (para avisar "Updated to ..."); grava a atual
+    std::string SwapLastVersion(const std::string& current)
+    {
+        const auto file = Platform::AppDataFolder() / "last-version.txt";
+        std::string previous;
+        {
+            std::ifstream in(file);
+            std::getline(in, previous);
+        }
+        std::error_code ec;
+        std::filesystem::create_directories(file.parent_path(), ec);
+        std::ofstream(file, std::ios::trunc) << current;
+        return previous;
+    }
+
+    std::string ReadTextFile(const std::filesystem::path& file)
+    {
+        std::ifstream in(file, std::ios::binary);
+        std::stringstream content;
+        content << in.rdbuf();
+        return content.str();
+    }
+
+    struct UpdateState
+    {
+        std::mutex mutex;
+        std::atomic<bool> downloading{ false };
+        std::atomic<bool> cancel{ false };
+        std::filesystem::path ready;  // instalador baixado e conferido
+    };
+
+    // ---------------------------------------------------------------------
     // JSON mínimo (só o necessário para conversar com a página)
     // ---------------------------------------------------------------------
     std::string JsonString(const std::string& text)
@@ -675,6 +724,10 @@ namespace
             controller.SetOutputFolder(store.Root().string());
         };
 
+        const std::string version = AppVersion();
+        const std::string previousVersion = SwapLastVersion(STILLPOINT_VERSION);
+        UpdateState update;
+
         window.bind("uiReady", [&](const std::string&) -> std::string
         {
             // Só liga o SDK: a procura e a conexão das câmeras são automáticas
@@ -686,8 +739,20 @@ namespace
             });
             // STILLPOINT_TEST_RESTART=1: mostra o botão "Restart app" o tempo todo, para testar
             // o reinício sem precisar de uma câmera presa conectando
+            std::string selfUpdateReason;
+            const bool canSelfUpdate = Platform::CanSelfUpdate(selfUpdateReason);
             return Json("startup").Add("unsavedSessions", store.CountSessions())
-                .Add("testRestart", std::getenv("STILLPOINT_TEST_RESTART") != nullptr).Str();
+                .Add("testRestart", std::getenv("STILLPOINT_TEST_RESTART") != nullptr)
+                .Add("version", version)
+                .Add("previousVersion", previousVersion)
+#ifdef _WIN32
+                .Add("os", "windows")
+#else
+                .Add("os", "macos")
+#endif
+                .Add("canSelfUpdate", canSelfUpdate)
+                .Add("selfUpdateReason", selfUpdateReason)
+                .Add("checkUpdates", std::getenv("STILLPOINT_NO_UPDATE_CHECK") == nullptr).Str();
         });
 
         // Solução de problemas: fecha a conexão com todas as câmeras e deixa a
@@ -910,6 +975,134 @@ namespace
         {
             store.DeleteAll();
             emitSessions();
+            return "null";
+        });
+
+        // --- Atualização (GitHub) ---
+
+        // checkForUpdate() -> texto JSON da última versão publicada no GitHub, ou null.
+        // A página compara as versões e escolhe o arquivo do sistema.
+        window.bind("checkForUpdate", [&](const std::string& id, const std::string&, void*)
+        {
+            std::thread([&, id]
+            {
+                const auto file = std::filesystem::temp_directory_path() / "stillpoint-latest-release.json";
+                std::error_code ec;
+                std::filesystem::remove(file, ec);
+                const int code = Platform::RunProcess({
+                    Platform::CurlExecutable().string(), "-fsSL", "--max-time", "15",
+                    "-H", "Accept: application/vnd.github+json",
+                    "-H", "User-Agent: Stillpoint/" + version,
+                    "-o", file.string(),
+                    std::string("https://api.github.com/repos/") + kRepo + "/releases/latest" }, 20);
+                const std::string text = code == 0 ? ReadTextFile(file) : std::string();
+                std::filesystem::remove(file, ec);
+                Log(code == 0 ? "Update check: release information received"
+                              : "Update check failed (curl exit code " + std::to_string(code) + ")");
+                window.dispatch([&, id, text] { window.resolve(id, 0, text.empty() ? "null" : JsonString(text)); });
+            }).detach();
+        }, nullptr);
+
+        // downloadUpdate(endereço, "sha256:...", nome, "tamanho"): baixa o instalador para
+        // a pasta temporária, com avisos de andamento, e confere tamanho e SHA-256
+        window.bind("downloadUpdate", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            const std::string url = args.size() > 0 ? args[0] : "";
+            const std::string digest = args.size() > 1 ? args[1] : "";
+            const std::string name = args.size() > 2 ? args[2] : "";
+            long long size = 0;
+            try { size = args.size() > 3 ? std::stoll(args[3]) : 0; } catch (...) { size = 0; }
+            // Só arquivos das versões publicadas deste projeto
+            if (url.rfind(kReleaseDownloads, 0) != 0 || name.empty() || name.find_first_of("/\\") != std::string::npos)
+                return Json("download").Add("ok", false).Str();
+            if (update.downloading.exchange(true))
+                return Json("download").Add("ok", false).Str();
+            update.cancel = false;
+
+            std::thread([&, url, digest, name, size]
+            {
+                const auto file = std::filesystem::temp_directory_path() / name;
+                std::error_code ec;
+                std::filesystem::remove(file, ec);
+
+                std::atomic<bool> finished{ false };
+                std::thread progress([&, file, size]
+                {
+                    while (!finished)
+                    {
+                        std::error_code sizeError;
+                        const auto done = std::filesystem::file_size(file, sizeError);
+                        listener.Emit(Json("updateProgress").Add("done", static_cast<double>(sizeError ? 0 : done))
+                                                            .Add("total", static_cast<double>(size)));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                    }
+                });
+                const int code = Platform::RunProcess({
+                    Platform::CurlExecutable().string(), "-fsSL", "--retry", "2", "--max-time", "900",
+                    "-H", "User-Agent: Stillpoint/" + version, "-o", file.string(), url }, 960, &update.cancel);
+                finished = true;
+                progress.join();
+
+                std::string error;
+                if (update.cancel)
+                    error = "cancelled";
+                else if (code != 0)
+                    error = "The download failed. Check the internet connection and try again.";
+                else if (size > 0 && static_cast<long long>(std::filesystem::file_size(file, ec)) != size)
+                    error = "The downloaded file is incomplete. Try again.";
+                else if (digest.rfind("sha256:", 0) == 0 && Platform::Sha256OfFile(file) != digest.substr(7))
+                    error = "The downloaded file did not pass the safety check. Try again.";
+
+                if (!error.empty())
+                {
+                    std::filesystem::remove(file, ec);
+                    Log("Update download: " + error);
+                    listener.Emit(Json("updateFailed").Add("error", error).Add("cancelled", error == "cancelled"));
+                }
+                else
+                {
+                    {
+                        std::lock_guard<std::mutex> lock(update.mutex);
+                        update.ready = file;
+                    }
+                    Log("Update downloaded and verified: " + file.string());
+                    listener.Emit(Json("updateReady"));
+                }
+                update.downloading = false;
+            }).detach();
+            return Json("download").Add("ok", true).Str();
+        });
+
+        window.bind("cancelUpdate", [&](const std::string&) -> std::string
+        {
+            update.cancel = true;
+            return "null";
+        });
+
+        // installUpdate(): começa a instalação da versão baixada e fecha o app (as
+        // sessões não salvas ficam no disco e aparecem ao abrir de novo)
+        window.bind("installUpdate", [&](const std::string&) -> std::string
+        {
+            std::filesystem::path installer;
+            {
+                std::lock_guard<std::mutex> lock(update.mutex);
+                installer = update.ready;
+            }
+            std::string error = "The update was not downloaded.";
+            if (installer.empty() || !Platform::StartUpdateInstall(installer, error))
+                return Json("install").Add("ok", false).Add("error", error).Str();
+            Log("Installing the update; closing the app");
+            window.dispatch([&] { closeNow(); });
+            return Json("install").Add("ok", true).Str();
+        });
+
+        // openUrl(endereço): só páginas deste projeto no GitHub
+        window.bind("openUrl", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (!args.empty() && args[0].rfind(kRepoPages, 0) == 0)
+                Platform::OpenUrl(args[0]);
             return "null";
         });
 

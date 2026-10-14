@@ -29,6 +29,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
 | 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). Funcionando no Mac e no Windows (2026-10-14). | feito |
 | 7 | Instaladores | `.dmg` no Mac (arrastar para Aplicativos, fundo com chuva de código, Read Me em inglês sem Terminal) e instalador de Windows (Inno Setup, mesmo visual, versão de terminal opcional e desmarcada). Os zips continuam na versão. Testado no Mac e no Windows (2026-10-14). | feito |
+| 8 | Atualização pelo app | Ao abrir, o app consulta a última versão no GitHub; botão "Update" no topo, janela com as novidades, download com andamento, conferência (tamanho e SHA-256) e instalação com reabertura. Não atualiza durante disparo ou conexão. | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -107,6 +108,28 @@ Visual aprovado em 2026-10-14 (fundo do `.dmg`, imagens do instalador de Windows
   barra de título (~32 pt) e a barra de caminho do Finder (~28 pt), que cortavam o nome do
   Read Me. Janela e fundo passaram de 500 para 560 pt de altura.
 - 3º teste no Mac (placas centralizadas) e teste no Windows (instalador): aprovados em 2026-10-14.
+
+### Etapa 8: atualização pelo app (iniciada em 2026-10-14)
+
+Telas aprovadas em 2026-10-14 (aviso no topo, janela com novidades, andamento, espera
+durante disparo/conexão, aviso "Updated to ..." ao reabrir).
+- **Versão:** arquivo `VERSION` (lido pelo CMake e gravado no app). `build_release.py`
+  confere que a tag é igual a ele e que o app em `build/` foi compilado com ele.
+- **Consulta:** curl do próprio sistema (`api.github.com/.../releases/latest`); a página
+  compara as versões e escolhe o arquivo (`-setup.exe` ou `.dmg`).
+- **Download:** só de `github.com/astronaut954/stillpoint-bullet-time-photography/releases/download/`,
+  para a pasta temporária; confere tamanho e SHA-256 (o GitHub informa o "digest" de cada arquivo).
+- **Instalação:** Windows: instalador em modo silencioso (pede permissão de administrador;
+  `stillpoint.iss` reabre o app no fim). Mac: script espera o app fechar, troca o `.app`
+  pelo do `.dmg` (com volta atrás se falhar) e abre de novo. Só quando dá: Windows instalado
+  pelo instalador; Mac em `.app` numa pasta com escrita. Senão, abre a página de download.
+- **Novidades:** `docs/release-notes/vX.Y.Z.md` (obrigatório para publicar), mostradas na janela.
+- **Teste sem versão nova:** `STILLPOINT_TEST_VERSION=2.1.0` faz o app se apresentar como
+  antigo e oferecer a versão publicada. `STILLPOINT_NO_UPDATE_CHECK=1` desliga a consulta.
+- Verificado aqui: fluxo da página (aviso, janela, andamento, cancelar, falha, instalar,
+  modo sem atualização automática, espera com câmera conectando) num navegador; código de
+  Windows compila (MinGW); script do Mac testado com ferramentas simuladas. Falta testar
+  nos dois sistemas.
 
 ### Critério para fechar uma etapa
 

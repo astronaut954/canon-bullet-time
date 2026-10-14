@@ -40,6 +40,17 @@ Stillpoint is not registered with Apple yet, so macOS blocks it the first time. 
 
 The same steps are in *Read Me*, inside the `.dmg`. After installing a new version you may need to repeat them.
 
+### Updates
+
+When a new version is published, Stillpoint shows an **Update** button at the top of the
+window. It downloads the new version from this page, checks it and installs it; the app
+closes and opens again by itself, and unsaved sessions are kept. It does not update while
+shooting or while a camera is connecting. Without internet, the app works as usual.
+
+Updating from the app needs the installed version: on Windows, installed with the installer;
+on macOS, `Stillpoint.app` in the Applications folder. Otherwise the button opens the
+download page.
+
 ### First launch on Windows
 
 Windows may show **"Windows protected your PC"** when you run the installer, because it is not
@@ -270,6 +281,13 @@ Windows embeds `app-icon.ico` in both `.exe` files at build time; the macOS rele
 script copies `app-icon.icns` into the `.app`.
 
 ### Publishing a release
+
+Before a new version:
+
+1. Set the version number in the `VERSION` file (e.g. `2.3.0`) and build the app again on
+   each machine. The app uses this number to know when a newer version is published.
+2. Write what's new in `docs/release-notes/vX.Y.Z.md`, one line per item starting with `- `.
+   The app shows these lines in its update window.
 
 Each platform packages its own zip and installer (`.dmg` on macOS, `-setup.exe` on Windows).
 Run on each machine, after building:

@@ -571,6 +571,8 @@
     ui.saveBtn.textContent = sessions.length ? "Save sessions (" + sessions.length + ")" : "Save sessions";
     ui.sessionCount.textContent = sessions.length;
     ui.sessionCount.classList.toggle("hidden", sessions.length === 0);
+    // A janela de atualização aberta acompanha o estado (ex.: libera "Update now")
+    if (upd && upd.release && !updEl.overlay.classList.contains("hidden")) renderUpdate();
   }
 
   // =================== Sessões ===================
@@ -1130,6 +1132,32 @@
     // Reordenar por foto
     orderPhotos(e) { if (order.open) showOrderPhotos(e.sessions); },
 
+    // Atualização
+    updateProgress(e) {
+      if (upd.state !== "downloading") return;
+      const total = e.total || (upd.release.asset && upd.release.asset.size) || 0;
+      const pct = total ? Math.min(100, Math.round((e.done * 100) / total)) : 0;
+      updEl.bar.style.width = pct + "%";
+      updEl.bytes.textContent = mb(e.done) + " of " + mb(total) + " MB";
+      updEl.percent.textContent = pct + "%";
+    },
+    updateReady() {
+      upd.state = "installing";
+      renderUpdate();
+      Promise.resolve(window.installUpdate()).then((res) => {
+        if (res && res.ok) return;
+        upd.state = "failed";
+        upd.error = (res && res.error) || "The update could not be installed.";
+        renderUpdate();
+      });
+    },
+    updateFailed(e) {
+      upd.state = e.cancelled ? restingState() : "failed";
+      upd.error = e.cancelled ? "" : e.error;
+      if (!e.cancelled) log("The update did not finish.", "error", e.error);
+      renderUpdate();
+    },
+
     // Fotos guardadas
     sessions(e) { setSessions(e.sessions); },
     saving() { activity.saving = true; renderActivity(); },
@@ -1163,6 +1191,167 @@
   document.addEventListener("contextmenu", (e) => {
     if (!e.target.closest("input, textarea")) e.preventDefault();
   });
+
+  // =================== Atualização (versão nova no GitHub) ===================
+  // Ao abrir, o app pergunta ao GitHub qual é a última versão. Se for mais nova,
+  // aparece o botão "Update x.y.z" no topo; a janela mostra o que mudou e baixa,
+  // confere e instala a versão nova (o app fecha e abre de novo sozinho).
+  // var: updateButtons() pode rodar antes desta linha (fica undefined até aqui)
+  var upd = {
+    info: null,       // do uiReady: versão, sistema, se dá para atualizar pelo app
+    release: null,    // { version, page, notes, asset }
+    state: "offer",   // offer | manual | downloading | installing | failed
+    error: "",
+  };
+  const updEl = {
+    chip: $("updateChip"), chipText: $("updateChipText"), overlay: $("updateOverlay"), title: $("updateTitle"),
+    versions: $("updateVersions"), notes: $("updateNotes"), progress: $("updateProgress"), bar: $("updateBar"),
+    bytes: $("updateBytes"), percent: $("updatePercent"), hint: $("updateHint"), busyNote: $("updateBusy"),
+    actions: $("updateActions"),
+  };
+
+  function versionParts(v) { return String(v || "").replace(/^v/i, "").split(".").map((n) => parseInt(n, 10) || 0); }
+  function isNewer(a, b) {
+    const x = versionParts(a), y = versionParts(b);
+    for (let i = 0; i < Math.max(x.length, y.length); i++)
+      if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+    return false;
+  }
+
+  // Itens "- ..." logo abaixo do título "What's new" no texto da versão no GitHub
+  function releaseNotes(body) {
+    const items = [];
+    let inside = false;
+    for (const line of String(body || "").split(/\r?\n/)) {
+      const t = line.trim();
+      if (/^#+\s/.test(t) || /^\*\*[^*]+\*\*:?$/.test(t)) { inside = /what.?s new/i.test(t); continue; }
+      if (inside && /^[-*]\s+/.test(t)) items.push(t.replace(/^[-*]\s+/, "").replace(/[*`]/g, "").trim());
+      if (items.length >= 6) break;
+    }
+    return items.filter(Boolean);
+  }
+
+  const mb = (bytes) => (bytes / 1048576).toFixed(1);
+  const restingState = () => (upd.info && upd.info.canSelfUpdate && upd.release && upd.release.asset ? "offer" : "manual");
+
+  // Não atualiza no meio de um disparo nem enquanto uma câmera conecta
+  function updateBlockedReason() {
+    if (busy) return "Stillpoint is busy. Update when it finishes.";
+    if (cameras.some((c) => c.state === "connecting" && !c.starting)) return "A camera is connecting. Update when it finishes.";
+    return "";
+  }
+
+  function renderUpdate() {
+    const r = upd.release;
+    if (!r) return;
+    const s = upd.state;
+    updEl.title.textContent =
+      s === "downloading" ? "Downloading the update"
+      : s === "installing" ? "Installing the update"
+      : s === "failed" ? "The update did not finish"
+      : "Stillpoint " + r.version + " is available";
+
+    const strong = (text) => { const b = document.createElement("b"); b.textContent = text; return b; };
+    updEl.versions.innerHTML = "";
+    if (s === "downloading" || s === "installing") updEl.versions.append("Stillpoint ", strong(r.version));
+    else updEl.versions.append("You have ", strong(upd.info.version), "  →  new ", strong(r.version));
+
+    updEl.notes.innerHTML = "";
+    r.notes.forEach((n) => { const li = document.createElement("li"); li.textContent = n; updEl.notes.appendChild(li); });
+    updEl.notes.classList.toggle("hidden", !((s === "offer" || s === "manual") && r.notes.length));
+    updEl.progress.classList.toggle("hidden", s !== "downloading");
+
+    updEl.hint.textContent =
+      s === "offer" ? "Stillpoint closes, installs the update and opens again. Your sessions stay saved."
+      : s === "manual" ? ((upd.info.selfUpdateReason ? upd.info.selfUpdateReason + " " : "") + "Download the new version from its release page.")
+      : s === "installing" ? (upd.info.os === "windows"
+          ? "Stillpoint closes now. Allow the installer if Windows asks; Stillpoint opens again when it finishes."
+          : "Stillpoint closes now and opens again in a moment.")
+      : s === "failed" ? upd.error
+      : "";
+    updEl.hint.classList.toggle("error", s === "failed");
+    updEl.hint.classList.toggle("hidden", !updEl.hint.textContent);
+
+    const blocked = s === "offer" || s === "failed" ? updateBlockedReason() : "";
+    updEl.busyNote.textContent = blocked ? "● " + blocked : "";
+    updEl.busyNote.classList.toggle("hidden", !blocked);
+
+    updEl.actions.innerHTML = "";
+    const add = (label, kind, onClick, disabled) => {
+      const b = document.createElement("button");
+      b.className = "btn " + kind;
+      b.textContent = label;
+      b.disabled = !!disabled;
+      b.addEventListener("click", onClick);
+      updEl.actions.appendChild(b);
+    };
+    const openPage = () => { window.openUrl(r.page); closeUpdate(); };
+    if (s === "offer") {
+      add("Later", "btn-secondary", closeUpdate);
+      add("Update now", "btn-primary", startUpdate, !!blocked);
+    } else if (s === "manual") {
+      add("Later", "btn-secondary", closeUpdate);
+      add("Open download page", "btn-primary", openPage);
+    } else if (s === "downloading") {
+      add("Cancel", "btn-secondary", () => window.cancelUpdate());
+    } else if (s === "failed") {
+      add("Open download page", "btn-secondary", openPage);
+      if (r.asset && upd.info.canSelfUpdate) add("Try again", "btn-primary", startUpdate, !!blocked);
+    }
+  }
+
+  function openUpdate() {
+    if (!upd.release) return;
+    renderUpdate();
+    updEl.overlay.classList.remove("hidden");
+  }
+  function closeUpdate() {
+    if (upd.state === "downloading" || upd.state === "installing") return;
+    if (upd.state === "failed") upd.state = restingState();
+    updEl.overlay.classList.add("hidden");
+  }
+
+  function startUpdate() {
+    const a = upd.release.asset;
+    if (!a || updateBlockedReason()) return renderUpdate();
+    upd.state = "downloading";
+    updEl.bar.style.width = "0%";
+    updEl.bytes.textContent = "0.0 of " + mb(a.size) + " MB";
+    updEl.percent.textContent = "0%";
+    renderUpdate();
+    log("Downloading Stillpoint " + upd.release.version);
+    Promise.resolve(window.downloadUpdate(a.url, a.digest || "", a.name, String(a.size))).then((res) => {
+      if (res && res.ok) return;
+      upd.state = "failed";
+      upd.error = "The download could not start. Try again.";
+      renderUpdate();
+    });
+  }
+
+  function checkForUpdate() {
+    if (!upd.info || !upd.info.checkUpdates) return;
+    Promise.resolve(window.checkForUpdate()).then((text) => {
+      if (!text) return;  // sem internet ou GitHub fora: segue sem avisar
+      let rel;
+      try { rel = JSON.parse(text); } catch (e) { return; }
+      if (!rel || rel.draft || rel.prerelease || !rel.tag_name) return;
+      const version = rel.tag_name.replace(/^v/i, "");
+      if (!isNewer(version, upd.info.version)) return;
+      const suffix = upd.info.os === "windows" ? "-windows-x64-setup.exe" : "-macos-arm64.dmg";
+      const asset = (rel.assets || []).find((x) => x.name && x.name.endsWith(suffix));
+      upd.release = {
+        version: version,
+        page: rel.html_url,
+        notes: releaseNotes(rel.body),
+        asset: asset ? { url: asset.browser_download_url, size: asset.size, digest: asset.digest, name: asset.name } : null,
+      };
+      upd.state = restingState();
+      updEl.chipText.textContent = "Update " + version;
+      updEl.chip.classList.remove("hidden");
+      log("Stillpoint " + version + " is available", "ok");
+    });
+  }
+  updEl.chip.addEventListener("click", openUpdate);
 
   // =================== Ações ===================
   ui.restartBtn.addEventListener("click", () => {
@@ -1212,5 +1401,9 @@
     refreshSessions();
     if (info && info.unsavedSessions > 0) offerRecovery(info.unsavedSessions);
     if (info && info.testRestart) { testRestart = true; ui.restartAppBtn.classList.remove("hidden"); }
+    upd.info = info || null;
+    if (info && info.previousVersion && isNewer(info.version, info.previousVersion))
+      toast("Updated to Stillpoint " + info.version, 5000);
+    checkForUpdate();
   });
 })();

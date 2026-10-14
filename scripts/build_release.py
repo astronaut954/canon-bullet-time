@@ -29,6 +29,15 @@ if not re.fullmatch(r"v\d+\.\d+\.\d+", VERSION):
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# A versão publicada precisa ser a mesma que está dentro do app (arquivo VERSION,
+# lido pelo CMake): é com ela que o app descobre se existe uma versão mais nova.
+APP_VERSION = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+if VERSION.lstrip("v") != APP_VERSION:
+    raise SystemExit(
+        f"\n[ERROR] The release tag {VERSION} does not match the VERSION file ({APP_VERSION}).\n"
+        f"Edit VERSION to {VERSION.lstrip('v')}, build the app again, then run this script.\n"
+    )
+
 IS_MAC = sys.platform == "darwin"
 
 if IS_MAC:
@@ -321,6 +330,16 @@ def main():
         ensure_file(INSTALLER_DIR / "stillpoint.iss", "stillpoint.iss")
         find_iscc()  # avisa antes de montar tudo se o Inno Setup não estiver instalado
     ensure_dir(ASSETS_DIR, "assets")
+    # O app compilado precisa ter a versão do arquivo VERSION
+    built_version_file = BUILD_GUI.parent / "stillpoint-version.txt"
+    if not IS_MAC:
+        built_version_file = BUILD_GUI.parent.parent / "stillpoint-version.txt"
+    built_version = built_version_file.read_text(encoding="utf-8").strip() if built_version_file.exists() else "?"
+    if built_version != APP_VERSION:
+        raise SystemExit(
+            f"\n[ERROR] The app in build/ was compiled as version {built_version}, but VERSION is {APP_VERSION}.\n"
+            "Build the app again (cmake --build ...), then run this script.\n"
+        )
     ensure_file(README_MD, "README.md")
     ensure_file(LICENSE_FILE, "LICENSE")
     ensure_file(THIRD_PARTY_NOTICES, "THIRD_PARTY_NOTICES.md")

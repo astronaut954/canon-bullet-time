@@ -104,6 +104,18 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Windows: desinstalar por Configurações → Aplicativos; as sessões guardadas continuam
       em `%LOCALAPPDATA%\Stillpoint`.
 
+## 9. Atualização pelo app
+- [ ] Abrir o app instalado (Windows: pelo instalador; Mac: em Aplicativos) com
+      `STILLPOINT_TEST_VERSION=2.1.0`: aparece "UPDATE x.y.z" no topo (versão publicada).
+- [ ] Clicar: janela com "You have 2.1.0 → new x.y.z", novidades (se houver) e "Update now".
+- [ ] Com uma câmera conectando, "Update now" fica desativado com o aviso; libera ao conectar.
+- [ ] "Update now": barra de andamento; "Cancel" volta para a janela anterior.
+- [ ] "Update now" até o fim: o app fecha, instala (Windows pede permissão) e abre de novo
+      na versão publicada; sessões não salvas continuam lá.
+- [ ] Sem internet: o app abre normalmente, sem aviso.
+- [ ] Cópia fora do lugar (Windows: zip; Mac: fora de Aplicativos): a janela oferece
+      "Open download page".
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(Stillpoint LANGUAGES CXX)
+# Versão do app: arquivo VERSION (o mesmo número da tag da versão, sem o "v").
+# scripts/build_release.py confere que a tag publicada é igual a ele.
+file(READ "${CMAKE_SOURCE_DIR}/VERSION" STILLPOINT_VERSION)
+string(STRIP "${STILLPOINT_VERSION}" STILLPOINT_VERSION)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/VERSION")
+
+project(Stillpoint VERSION ${STILLPOINT_VERSION} LANGUAGES CXX)
+file(WRITE "${CMAKE_BINARY_DIR}/stillpoint-version.txt" "${STILLPOINT_VERSION}")
 
 # ---------------------------------------------------------------------------
 # Plataformas suportadas (ver ROADMAP.md)
@@ -110,6 +117,7 @@ if(WIN32)
         "${EDSDK_LIB}"
         winmm
         setupapi
+        bcrypt
     )
 else()
     # O SDK da Canon para Mac exige esta macro para escolher os tipos do macOS
@@ -237,6 +245,7 @@ if(STILLPOINT_BUILD_GUI)
     set_target_properties(Stillpoint PROPERTIES OUTPUT_NAME "Stillpoint")
     target_include_directories(Stillpoint PRIVATE src/gui "${stb_SOURCE_DIR}")
     target_link_libraries(Stillpoint PRIVATE stillpoint_core webview::core libraw::libraw)
+    target_compile_definitions(Stillpoint PRIVATE STILLPOINT_VERSION="${STILLPOINT_VERSION}")
     if(WIN32)
         target_link_libraries(Stillpoint PRIVATE comctl32 ole32)
     else()

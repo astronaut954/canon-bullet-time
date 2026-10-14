@@ -1,11 +1,15 @@
 #include "platform/platform.h"
 
 #include <windows.h>
+#include <bcrypt.h>
 #include <objbase.h>
+#include <shellapi.h>
 #include <setupapi.h>
 #include <cwctype>
+#include <chrono>
 #include <clocale>
 #include <cstdlib>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -246,5 +250,159 @@ namespace Platform
             WaitForSingleObject(handle, 20000);
             CloseHandle(handle);
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Atualização do app
+    // ---------------------------------------------------------------------
+    namespace
+    {
+        std::wstring Widen(const std::string& text)
+        {
+            if (text.empty())
+                return std::wstring();
+            const int size = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+            std::wstring out(size, L'\0');
+            MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), out.data(), size);
+            return out;
+        }
+
+        // Regras de aspas da linha de comando do Windows (CommandLineToArgvW)
+        std::wstring QuoteArg(const std::wstring& arg)
+        {
+            if (!arg.empty() && arg.find_first_of(L" \t\"") == std::wstring::npos)
+                return arg;
+            std::wstring out = L"\"";
+            size_t slashes = 0;
+            for (wchar_t c : arg)
+            {
+                if (c == L'\\') { ++slashes; continue; }
+                if (c == L'"') out.append(slashes * 2 + 1, L'\\');
+                else out.append(slashes, L'\\');
+                slashes = 0;
+                out += c;
+            }
+            out.append(slashes * 2, L'\\');
+            return out + L"\"";
+        }
+    }
+
+    fs::path CurlExecutable()
+    {
+        wchar_t windir[MAX_PATH] = {};
+        const UINT length = GetSystemDirectoryW(windir, MAX_PATH);
+        return length > 0 ? fs::path(std::wstring(windir, length)) / L"curl.exe" : fs::path(L"curl.exe");
+    }
+
+    int RunProcess(const std::vector<std::string>& args, int timeoutSeconds, const std::atomic<bool>* cancel)
+    {
+        if (args.empty())
+            return -1;
+        std::wstring commandLine;
+        for (const auto& arg : args)
+            commandLine += (commandLine.empty() ? L"" : L" ") + QuoteArg(Widen(arg));
+        const std::wstring program = Widen(args[0]);
+
+        STARTUPINFOW startup{};
+        startup.cb = sizeof(startup);
+        PROCESS_INFORMATION process{};
+        if (!CreateProcessW(program.c_str(), commandLine.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
+                            nullptr, nullptr, &startup, &process))
+            return -1;
+        CloseHandle(process.hThread);
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeoutSeconds);
+        int result = -1;
+        for (;;)
+        {
+            if (WaitForSingleObject(process.hProcess, 200) == WAIT_OBJECT_0)
+            {
+                DWORD code = 0;
+                GetExitCodeProcess(process.hProcess, &code);
+                result = static_cast<int>(code);
+                break;
+            }
+            if ((cancel && cancel->load()) || std::chrono::steady_clock::now() > deadline)
+            {
+                TerminateProcess(process.hProcess, 1);
+                WaitForSingleObject(process.hProcess, 2000);
+                break;
+            }
+        }
+        CloseHandle(process.hProcess);
+        return result;
+    }
+
+    std::string Sha256OfFile(const fs::path& file)
+    {
+        std::ifstream in(file, std::ios::binary);
+        if (!in)
+            return "";
+        BCRYPT_ALG_HANDLE algorithm = nullptr;
+        BCRYPT_HASH_HANDLE hash = nullptr;
+        if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) != 0)
+            return "";
+        std::string hex;
+        if (BCryptCreateHash(algorithm, &hash, nullptr, 0, nullptr, 0, 0) == 0)
+        {
+            std::vector<char> buffer(1 << 16);
+            bool ok = true;
+            while (ok && in)
+            {
+                in.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+                const auto got = in.gcount();
+                if (got > 0)
+                    ok = BCryptHashData(hash, reinterpret_cast<PUCHAR>(buffer.data()), static_cast<ULONG>(got), 0) == 0;
+            }
+            unsigned char digest[32] = {};
+            if (ok && BCryptFinishHash(hash, digest, sizeof(digest), 0) == 0)
+            {
+                static const char* digits = "0123456789abcdef";
+                for (unsigned char b : digest)
+                {
+                    hex += digits[b >> 4];
+                    hex += digits[b & 15];
+                }
+            }
+            BCryptDestroyHash(hash);
+        }
+        BCryptCloseAlgorithmProvider(algorithm, 0);
+        return hex;
+    }
+
+    bool CanSelfUpdate(std::string& reason)
+    {
+        // Instalado pelo instalador (Inno Setup): o desinstalador fica ao lado do .exe
+        std::error_code ec;
+        if (fs::exists(ExecutableDirectory() / "unins000.exe", ec))
+            return true;
+        reason = "This copy was not installed with the Stillpoint installer.";
+        return false;
+    }
+
+    bool StartUpdateInstall(const fs::path& installer, std::string& error)
+    {
+        // Modo silencioso: mostra só o andamento; pede permissão de administrador
+        // (Arquivos de Programas) e, no fim, abre o Stillpoint de novo (stillpoint.iss).
+        const std::wstring file = installer.wstring();
+        const std::wstring params = L"/SILENT /SP- /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS";
+        SHELLEXECUTEINFOW info{};
+        info.cbSize = sizeof(info);
+        info.fMask = SEE_MASK_NOASYNC;
+        info.lpVerb = L"open";
+        info.lpFile = file.c_str();
+        info.lpParameters = params.c_str();
+        info.nShow = SW_SHOWNORMAL;
+        if (!ShellExecuteExW(&info))
+        {
+            error = GetLastError() == ERROR_CANCELLED ? "Permission to install was not given." : "The installer could not start.";
+            return false;
+        }
+        return true;
+    }
+
+    void OpenUrl(const std::string& url)
+    {
+        ShellExecuteW(nullptr, L"open", Widen(url).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     }
 }

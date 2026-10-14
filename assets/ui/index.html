@@ -16,6 +16,7 @@
     </div>
     <div class="topbar-right">
       <div id="status" class="status">Starting</div>
+      <button id="updateChip" class="update-chip hidden" title="A new version of Stillpoint is available"><span class="pulse" aria-hidden="true"></span><span id="updateChipText">Update</span></button>
       <button id="saveBtn" class="btn btn-primary btn-small" disabled>Save sessions</button>
     </div>
   </header>
@@ -131,6 +132,24 @@
       <h3 id="dialogTitle"></h3>
       <p id="dialogText"></p>
       <div id="dialogActions" class="dialog-actions"></div>
+    </div>
+  </div>
+
+  <!-- Atualização: versão nova publicada no GitHub -->
+  <div id="updateOverlay" class="overlay hidden">
+    <div class="dialog update-dialog">
+      <h3 id="updateTitle"></h3>
+      <div class="update-body">
+        <p id="updateVersions" class="version-line"></p>
+        <ul id="updateNotes" class="update-notes hidden"></ul>
+        <div id="updateProgress" class="hidden">
+          <div class="progress"><div id="updateBar"></div></div>
+          <div class="progress-text"><span id="updateBytes"></span><span id="updatePercent"></span></div>
+        </div>
+        <p id="updateHint" class="update-hint"></p>
+        <p id="updateBusy" class="update-note-busy hidden"></p>
+      </div>
+      <div id="updateActions" class="dialog-actions"></div>
     </div>
   </div>
 

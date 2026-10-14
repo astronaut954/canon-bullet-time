@@ -88,9 +88,26 @@ def push_tag(version: str):
     run(["git", "push", "origin", version])
 
 
+def whats_new(version: str) -> str:
+    """Lista de novidades da versão (docs/release-notes/vX.Y.Z.md). O app mostra estes
+    itens na janela de atualização, então cada linha deve começar com "- "."""
+    path = REPO_ROOT / "docs" / "release-notes" / f"{version}.md"
+    if not path.exists():
+        raise SystemExit(
+            f"\n[ERROR] Missing {path.relative_to(REPO_ROOT)}.\n"
+            "Write the new features of this version there, one per line starting with \"- \".\n"
+        )
+    items = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip().startswith("- ")]
+    if not items:
+        raise SystemExit(f"\n[ERROR] {path.relative_to(REPO_ROOT)} has no lines starting with \"- \".")
+    return "\n".join(items)
+
+
 def create_github_release(version: str, assets: list):
     notes = (
         f"Stillpoint {version}\n\n"
+        "**What's new**\n\n"
+        f"{whats_new(version)}\n\n"
         "**Download**\n\n"
         f"- **macOS** (Apple Silicon): `{PROJECT_NAME}-{version}-macos-arm64.dmg`. Open it and drag "
         "Stillpoint to Applications. The first time, follow the steps in *Read Me* (inside the .dmg) "
@@ -119,6 +136,7 @@ def main():
     version = sys.argv[1]
 
     ensure_version(version)
+    whats_new(version)  # avisa antes de montar tudo se faltar a lista de novidades
     ensure_clean_git_tree()
     ensure_gh_available()
 
