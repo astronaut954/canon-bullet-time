@@ -159,9 +159,11 @@ def dmg_background(s):
     img.alpha_composite(arrow)
     # Placas sob os nomes dos ícones: o Finder escreve os nomes em preto (Mac claro) ou
     # branco (Mac escuro); este verde médio deixa os dois legíveis
+    # Centro da placa medido no macOS 26 (2026-10-14): o nome fica ~2,5 pt abaixo e ~0,75 pt
+    # à esquerda do ponto calculado pela posição do ícone
     for (cx, cy) in (APP_POS, APPS_POS, README_POS):
-        ly = cy + ICON_SIZE // 2 + 14
-        d.rounded_rectangle(((cx - 62) * s, (ly - 11) * s, (cx + 62) * s, (ly + 11) * s), radius=11 * s, fill=(46, 128, 70, 235))
+        lx, ly = cx - 0.75, cy + ICON_SIZE // 2 + 16.5
+        d.rounded_rectangle(((lx - 62) * s, (ly - 11) * s, (lx + 62) * s, (ly + 11) * s), radius=11 * s, fill=(46, 128, 70, 235))
     glow_text(img, (330 * s, 312 * s), "First time? Open “Read Me” to see how to open Stillpoint.",
               font("Rajdhani-SemiBold.ttf", 17 * s), (180, 255, 200), radius=6 * s)
     return img.convert("RGB")
