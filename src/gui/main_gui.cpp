@@ -19,6 +19,9 @@
 #if defined(_WIN32) && !defined(NOMINMAX)
 #define NOMINMAX  // windows.h (via SDK e webview) define min/max, que quebram std::min/std::max
 #endif
+#if defined(_WIN32) && !defined(_CRT_SECURE_NO_WARNINGS)
+#define _CRT_SECURE_NO_WARNINGS  // getenv: com /sdl, o aviso do Visual Studio vira erro
+#endif
 #include "bullet_time.h"
 #include "canon_controller.h"
 #include "logger.h"
