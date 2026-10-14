@@ -425,7 +425,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 /* Contagem: número enorme com o efeito "glitch" do Nocturne (sombras deslocadas) */
 .countdown-number {
   font: 700 220px/1 var(--noct-font-sans); color: var(--noct-primary); font-variant-numeric: tabular-nums;
-  text-shadow: 3px 0 0 var(--noct-info), -3px 0 0 var(--noct-danger), 0 0 40px rgba(var(--noct-primary-rgb), .35);
+  text-shadow: 3px 0 0 var(--noct-info), -3px 0 0 var(--neo-green-400), 0 0 40px rgba(var(--noct-primary-rgb), .35);
 }
 .flash { position: fixed; inset: 0; z-index: 11; background: #eaffee; pointer-events: none; animation: flash .45s ease-out forwards; }
 @keyframes flash { from { opacity: .9; } to { opacity: 0; } }
