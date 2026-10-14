@@ -83,6 +83,10 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       Para testar o botão sem câmera presa: abrir o app com a variável CBT_TEST_RESTART=1
       (Windows/PowerShell: `$env:CBT_TEST_RESTART=1` antes de abrir; Mac: `CBT_TEST_RESTART=1 "./..."`).
 - [ ] Enquanto uma câmera conecta, "Restart camera connections" fica desativado.
+- [ ] Ícone (câmera com o projétil na lente): Windows — nos dois `.exe` no Explorer, na
+      barra de título e na barra de tarefas do app de janela. Mac — no `.app` no Finder e
+      no Dock com o app aberto (se o Finder mostrar o ícone antigo, mover o `.app` para
+      outra pasta e de volta).
 
 ## Resultado
 

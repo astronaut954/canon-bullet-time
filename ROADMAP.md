@@ -27,6 +27,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | feito |
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
+| 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo sem "Canon" (o app não ficará restrito à Canon). | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -65,6 +66,18 @@ Contents/Resources, Info.plist, assinatura local). O programa acha os assets por
 Platform::ResourcesDirectory e o SDK por @executable_path/../Frameworks. Testado no
 Mac em 2026-10-14 (abre com dois cliques; a versão de terminal fica em "Terminal
 version/"). Próxima versão: v2.0.0.
+
+### Etapa 6: ícone e nome (iniciada em 2026-10-14)
+
+- **Ícone:** escolhido o conceito "E" (câmera vista de perto, lente ocupando o ícone,
+  projétil reto dentro do vidro com as ondas de ar e a chuva de código). Gerado por
+  `scripts/make_icon.py` em `resources/icon/`; tamanhos pequenos (até 48 px no Windows,
+  32 px no Mac) usam uma versão simplificada. Windows: embutido nos dois `.exe`
+  (`resources/windows/app.rc.in`, ID 32512, que a janela também usa). Mac: `AppIcon.icns`
+  no `.app` (`scripts/build_release.py`). Aguardando compilação e teste nos dois sistemas.
+- **Nome:** em discussão. "Bullet Time" sozinho tem registro de marca ativo da Warner
+  Bros. no Reino Unido (vindo da União Europeia) que cobre software; nos EUA o registro
+  da Warner para software foi cancelado em 2014. Decisão do dono do projeto pendente.
 
 ### Critério para fechar uma etapa
 

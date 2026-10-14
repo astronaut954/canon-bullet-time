@@ -186,6 +186,19 @@ python3 scripts/update_compat_list.py v13.20.0
 Regional model names (e.g. Rebel T7 = EOS 2000D = Kiss X90) are mapped in
 `src/core/sdk_diagnostics.cpp`.
 
+### App icon
+
+The icon files are in `resources/icon/` (generated, kept in Git). To change the drawing,
+edit `scripts/make_icon.py` and run:
+
+```
+pip install cairosvg pillow
+python3 scripts/make_icon.py
+```
+
+Windows embeds `app-icon.ico` in both `.exe` files at build time; the macOS release
+script copies `app-icon.icns` into the `.app`.
+
 ### Publishing a release
 
 Each platform packages its own zip. Run on each machine, after building:

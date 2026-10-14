@@ -21,6 +21,13 @@ else()
     message(FATAL_ERROR "Sistema não suportado. Apenas Windows x64 e macOS arm64.")
 endif()
 
+# Windows: compilador de recursos, para embutir o ícone no .exe
+if(WIN32)
+    enable_language(RC)
+    set(CBT_ICON_FILE "${CMAKE_SOURCE_DIR}/resources/icon/app-icon.ico")
+    configure_file(resources/windows/app.rc.in "${CMAKE_BINARY_DIR}/app.rc" @ONLY)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -159,6 +166,7 @@ set_target_properties(CanonBulletTime PROPERTIES OUTPUT_NAME "Canon Bullet Time"
 target_link_libraries(CanonBulletTime PRIVATE cbt_core)
 if(WIN32)
     target_compile_definitions(CanonBulletTime PRIVATE _CONSOLE)
+    target_sources(CanonBulletTime PRIVATE "${CMAKE_BINARY_DIR}/app.rc")
 endif()
 cbt_copy_runtime_files(CanonBulletTime)
 
@@ -220,7 +228,7 @@ if(CBT_BUILD_GUI)
         src/gui/photo_store.cpp
     )
     if(WIN32)
-        list(APPEND CBT_GUI_SOURCES src/gui/native_window_win.cpp)
+        list(APPEND CBT_GUI_SOURCES src/gui/native_window_win.cpp "${CMAKE_BINARY_DIR}/app.rc")
     else()
         list(APPEND CBT_GUI_SOURCES src/gui/native_window_mac.cpp)
     endif()

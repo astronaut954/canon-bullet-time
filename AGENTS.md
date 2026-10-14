@@ -35,6 +35,7 @@ etapa atual.
 | `src/cli/` | Interface de terminal: menus, textos, leitura do teclado | Só chama o núcleo. Os textos da tela ficam aqui. |
 | `src/gui/` + `assets/ui/` | Interface gráfica: janela nativa (biblioteca webview) com página HTML/CSS/JS | `main_gui.cpp` traduz os avisos do núcleo em eventos para a página e roda as câmeras numa thread própria. Visual em `assets/ui/themes/nocturne-neo.css` (variáveis no topo). `photo_store.cpp`: fotos guardadas na pasta de dados do app, prévias e salvar. `native_window_*.cpp`: seletor de pastas e confirmação ao fechar (Windows/Mac). |
 | `src/platform/<sistema>/` + `include/platform/platform.h` | Tudo que muda entre Windows e Mac | Único lugar com APIs do sistema. |
+| `resources/` | Ícone do app (`icon/`, gerado por `scripts/make_icon.py`) e o recurso de Windows que o embute no `.exe` (`windows/app.rc.in`) | Não editar os arquivos gerados à mão: mudar o script e rodar de novo. |
 
 Os textos da tela são definidos pelo dono do projeto: manter exatamente os mesmos
 emojis, espaçamentos e palavras ao mexer em `src/cli/` (ex.: `Option:` nos menus,

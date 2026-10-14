@@ -48,6 +48,7 @@ README_MD = REPO_ROOT / "README.md"
 LICENSE_FILE = REPO_ROOT / "LICENSE"
 THIRD_PARTY_NOTICES = REPO_ROOT / "THIRD_PARTY_NOTICES.md"
 COMPAT_PDF = REPO_ROOT / "docs" / "CDC_EDSDK_Compat_List.pdf"
+MAC_ICON = REPO_ROOT / "resources" / "icon" / "app-icon.icns"  # gerado por scripts/make_icon.py
 
 DIST_DIR = REPO_ROOT / "dist" / PLATFORM
 OUTPUT_DIR = REPO_ROOT / "release"
@@ -127,6 +128,7 @@ def make_mac_app(dest_dir: Path) -> None:
         MacOS/Canon Bullet Time GUI      (o programa de janela)
         Frameworks/EDSDK.framework       (o SDK da Canon)
         Resources/assets                 (sons e a página da interface)
+        Resources/AppIcon.icns           (ícone)
     O programa acha o SDK por @executable_path/../Frameworks e os arquivos por
     Contents/Resources (Platform::ResourcesDirectory)."""
     app = dest_dir / APP_NAME
@@ -139,6 +141,7 @@ def make_mac_app(dest_dir: Path) -> None:
     subprocess.run(["ditto", str(EDSDK_FRAMEWORK), str(contents / "Frameworks" / "EDSDK.framework")], check=True)
     print(f"[COPYDIR] {EDSDK_FRAMEWORK} -> {contents / 'Frameworks' / 'EDSDK.framework'}")
     copy_tree(ASSETS_DIR, contents / "Resources" / "assets")
+    copy_file(MAC_ICON, contents / "Resources" / "AppIcon.icns")
 
     short_version = VERSION.lstrip("v")
     plist = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -149,6 +152,7 @@ def make_mac_app(dest_dir: Path) -> None:
     <key>CFBundleDisplayName</key><string>Canon Bullet Time</string>
     <key>CFBundleIdentifier</key><string>{APP_BUNDLE_ID}</string>
     <key>CFBundleExecutable</key><string>{BUILD_GUI.name}</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>{short_version}</string>
     <key>CFBundleVersion</key><string>{short_version}</string>
@@ -174,6 +178,7 @@ def main():
     ensure_file(BUILD_GUI, f"{BUILD_GUI.name} (Release build of the window app)")
     if IS_MAC:
         ensure_dir(EDSDK_FRAMEWORK, "EDSDK.framework")
+        ensure_file(MAC_ICON, "app-icon.icns")
     else:
         ensure_file(EDSDK_DLL, "EDSDK.dll")
         ensure_file(EDSIMAGE_DLL, "EdsImage.dll")
