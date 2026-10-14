@@ -160,7 +160,8 @@ Atualizar esta tabela sempre que uma função mudar de status.
   cancelar uma conexão em andamento e bloqueia tudo enquanto ela dura; se ela nunca
   terminar, o disparo nunca libera. Feito: "Restart camera connections" desativado
   durante uma conexão; depois de 60 s, aviso com o botão "Restart app" (abre o app de
-  novo e fecha este; fotos não salvas ficam no disco). Se travamentos acontecerem de
+  novo e fecha este; fotos não salvas ficam no disco). Testado no Mac (2026-10-13): desligar a T7
+  no meio da conexão faz a conexão falhar e libera o disparo; o aviso diz isso. Se travamentos acontecerem de
   verdade com frequência: passar a comunicação com as câmeras para um programa
   auxiliar, que o app pode encerrar e abrir de novo sozinho, sem fechar a janela.
 

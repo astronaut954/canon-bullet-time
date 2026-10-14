@@ -519,7 +519,8 @@
     const names = slow.map((c) => cameraLabel(c.name, c.model));
     ui.shootNote.classList.remove("hidden");
     ui.shootNote.textContent = names.join(" and ") + (names.length === 1 ? " is" : " are") +
-      " taking too long to connect. Restarting the app usually fixes this. Photos that are not saved are kept.";
+      " taking too long to connect. Turn " + (names.length === 1 ? "that camera" : "those cameras") +
+      " off to shoot with the others, or restart the app. Photos that are not saved are kept.";
     const fresh = slow.filter((c) => !slowWarned.has(c.name));
     if (!fresh.length) return;
     fresh.forEach((c) => slowWarned.add(c.name));
@@ -527,7 +528,8 @@
     if (ui.dialogOverlay.classList.contains("hidden") && ui.saveOverlay.classList.contains("hidden"))
       dialog("A camera is taking too long to connect",
         names.join(" and ") + " has been connecting for over a minute. Shooting stays blocked until it finishes. " +
-        "Restarting the app usually fixes this. Photos that are not saved are kept.", [
+        "Turn " + (names.length === 1 ? "that camera" : "those cameras") + " off to shoot with the others right away, " +
+        "or restart the app. Photos that are not saved are kept.", [
         { label: "Keep waiting" },
         { label: "Restart app", primary: true, onClick: restartApp },
       ]);
