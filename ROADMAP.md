@@ -27,7 +27,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 4 | Separar terminal da lógica | `main.cpp` vira só o menu; a lógica de câmera fica chamável por outra interface, com espaço para outras marcas. | feito |
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
-| 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). | em andamento |
+| 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). Funcionando no Mac e no Windows (2026-10-14). | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -74,7 +74,7 @@ version/"). Próxima versão: v2.0.0.
   `scripts/make_icon.py` em `resources/icon/`; tamanhos pequenos (até 48 px no Windows,
   32 px no Mac) usam uma versão simplificada. Windows: embutido nos dois `.exe`
   (`resources/windows/app.rc.in`, ID 32512, que a janela também usa). Mac: `AppIcon.icns`
-  no `.app` (`scripts/build_release.py`). Aguardando compilação e teste nos dois sistemas.
+  no `.app` (`scripts/build_release.py`). Funcionando nos dois sistemas (2026-10-14).
 - **Nome:** **Stillpoint**, com o complemento "Bullet Time Photography" em lugares
   estratégicos (repositório `stillpoint-bullet-time-photography`, descrição do GitHub,
   título do README) para facilitar a busca. Decidido em 2026-10-14.
@@ -83,7 +83,7 @@ version/"). Próxima versão: v2.0.0.
   `stillpoint-vX.Y.Z-<sistema>.zip`. A pasta de dados passa a ser `Stillpoint`; a antiga
   (`Canon Bullet Time`) é renomeada na primeira abertura. Nomes internos do código
   também mudaram (`cbt_core` → `stillpoint_core`, variáveis `CBT_*` → `STILLPOINT_*`,
-  ex.: `STILLPOINT_TEST_RESTART`). Aguardando compilação e teste.
+  ex.: `STILLPOINT_TEST_RESTART`). Funcionando nos dois sistemas (2026-10-14).
 
 ### Critério para fechar uma etapa
 
