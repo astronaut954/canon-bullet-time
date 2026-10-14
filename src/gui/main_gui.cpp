@@ -580,6 +580,28 @@ namespace
             return out;
         };
 
+        // Imagens: src="__IMAGE:arquivo.png__" vira o próprio arquivo embutido (assets/ui/images)
+        auto embedImages = [&](std::string text)
+        {
+            static const std::regex imageMarker(R"(__IMAGE:([A-Za-z0-9_.\-]+)__)");
+            std::string out;
+            auto begin = text.cbegin();
+            for (std::sregex_iterator it(text.begin(), text.end(), imageMarker), end; it != end; ++it)
+            {
+                out.append(begin, text.cbegin() + it->position());
+                const std::string name = (*it)[1].str();
+                const std::string data = read(dir / "images" / name);
+                const bool svg = name.size() > 4 && name.compare(name.size() - 4, 4, ".svg") == 0;
+                const bool jpg = name.size() > 4 && (name.compare(name.size() - 4, 4, ".jpg") == 0);
+                const std::string mime = svg ? "image/svg+xml" : jpg ? "image/jpeg" : "image/png";
+                out += data.empty() ? std::string() : "data:" + mime + ";base64," + Base64Encode(data);
+                begin = text.cbegin() + it->position() + it->length();
+            }
+            out.append(begin, text.cend());
+            return out;
+        };
+        html = embedImages(html);
+
         replace("/*__THEME__*/", embedFonts(read(dir / "themes" / (std::string(kTheme) + ".css"))));
         replace("/*__SCRIPT__*/", read(dir / "app.js"));
         return html;

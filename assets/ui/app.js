@@ -11,6 +11,83 @@
 (function () {
   const $ = (id) => document.getElementById(id);
 
+  // =================== Abertura ===================
+  // Chuva de código que vai aparecendo coluna por coluna; depois o logo surge e a
+  // abertura some sozinha. Clique ou qualquer tecla pula. As câmeras já começam a
+  // conectar por trás enquanto ela roda.
+  (function splash() {
+    const root = $("splash");
+    const canvas = $("splashRain");
+    if (!root || !canvas) return;
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const LOGO_AT = reduced ? 0 : 2300;   // ms até o logo aparecer
+    const LEAVE_AT = reduced ? 1200 : 4600; // ms até a abertura começar a sumir
+    const ctx = canvas.getContext("2d");
+    const glyphs = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789Z:=*+-<>";
+    const cell = 18;
+    let width = 0, height = 0, columns = [], started = 0, last = 0, done = false;
+
+    function resize() {
+      const ratio = window.devicePixelRatio || 1;
+      width = window.innerWidth; height = window.innerHeight;
+      canvas.width = width * ratio; canvas.height = height * ratio;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, width, height);
+      const count = Math.ceil(width / cell);
+      // Cada coluna começa num momento diferente: a chuva vai "chegando"
+      columns = Array.from({ length: count }, () => ({
+        y: -Math.random() * height * 0.6,
+        speed: 0.6 + Math.random() * 0.8,
+        startAt: Math.random() * 1800,
+      }));
+    }
+
+    function frame(now) {
+      if (done) return;
+      if (!started) started = now;
+      const t = now - started;
+      if (now - last >= 50) {  // ~20 quadros por segundo, como no filme
+        last = now;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.09)";
+        ctx.fillRect(0, 0, width, height);
+        ctx.font = "15px 'Hiragino Sans', 'Yu Gothic', 'Meiryo', 'MS Gothic', 'JetBrains Mono', monospace";
+        ctx.textBaseline = "top";
+        columns.forEach((c, i) => {
+          if (t < c.startAt) return;
+          const x = i * cell;
+          const ch = glyphs[(Math.random() * glyphs.length) | 0];
+          // rastro verde e a "cabeça" da coluna mais clara
+          ctx.fillStyle = "#00cc33";
+          ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, c.y - cell);
+          ctx.fillStyle = "#c8ffd6";
+          ctx.shadowColor = "#00ff41"; ctx.shadowBlur = 8;
+          ctx.fillText(ch, x, c.y);
+          ctx.shadowBlur = 0;
+          c.y += cell * c.speed;
+          if (c.y > height + cell && Math.random() > 0.96) c.y = -cell * (1 + Math.random() * 10);
+        });
+      }
+      if (t >= LOGO_AT) root.classList.add("show-logo");
+      if (t >= LEAVE_AT) return leave();
+      requestAnimationFrame(frame);
+    }
+
+    function leave() {
+      if (done) return;
+      done = true;
+      root.classList.add("show-logo", "leaving");
+      setTimeout(() => root.remove(), 800);
+      window.removeEventListener("resize", resize);
+      document.removeEventListener("keydown", leave, true);
+    }
+
+    resize();
+    window.addEventListener("resize", resize);
+    root.addEventListener("click", leave);
+    document.addEventListener("keydown", leave, true);
+    requestAnimationFrame(frame);
+  })();
+
   const ui = {
     status: $("status"), saveBtn: $("saveBtn"), sessionCount: $("sessionCount"),
     sessionList: $("sessionList"), noSessions: $("noSessions"),

@@ -518,3 +518,18 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .update-bar-text { font-family: var(--noct-font-mono); font-size: 12px; color: var(--noct-text-muted);
   display: flex; justify-content: space-between; margin-bottom: 4px; }
 .update-note-busy { font-family: var(--noct-font-mono); font-size: 11px; color: var(--noct-pending); letter-spacing: .05em; margin: 10px 0 0 !important; }
+
+/* ---------- Abertura (chuva de código e logo) ---------- */
+.splash { position: fixed; inset: 0; z-index: 1000; background: #000; overflow: hidden; cursor: pointer;
+  transition: opacity .7s ease; }
+.splash.leaving { opacity: 0; pointer-events: none; }
+.splash canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.splash-logo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; transform: scale(.96); transition: opacity 1.1s ease, transform 1.6s cubic-bezier(.2, .7, .2, 1);
+  background: radial-gradient(closest-side, rgba(0, 0, 0, .92), rgba(0, 0, 0, .75) 55%, rgba(0, 0, 0, 0)); }
+.splash.show-logo .splash-logo { opacity: 1; transform: none; }
+.splash-logo img { width: 168px; height: 168px; filter: drop-shadow(0 0 28px rgba(var(--noct-primary-rgb), .35)); }
+.splash-title { margin-top: 6px; font: 700 64px/1 var(--noct-font-sans); letter-spacing: var(--noct-tracking-logo); padding-left: var(--noct-tracking-logo);
+  color: #e1ffe8; text-shadow: 0 0 18px rgba(var(--noct-primary-rgb), .7), 0 0 42px rgba(var(--noct-primary-rgb), .35); }
+.splash-sub { margin-top: 12px; font: 600 13px var(--noct-font-mono); letter-spacing: var(--noct-tracking-widest); padding-left: var(--noct-tracking-widest);
+  color: var(--noct-primary); text-shadow: 0 0 10px rgba(var(--noct-primary-rgb), .6); }
