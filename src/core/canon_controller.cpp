@@ -389,6 +389,17 @@ EdsError EDSCALLBACK CanonController::HandleCameraAdded(EdsVoid* context)
     return EDS_ERR_OK;
 }
 
+namespace
+{
+    // Identifica uma entrada da lista do SDK pelo modelo e pela porta. Dado observado
+    // no Mac: a "porta" não é única; depois de religada, a T7 apareceu com a mesma
+    // porta da SL3 conectada e o app achou que ela já estava conectada.
+    std::string EntryKey(const CameraContext& cam)
+    {
+        return cam.baseShortName + "@" + cam.portName;
+    }
+}
+
 bool CanonController::MonitorTick(ConnectionObserver* observer)
 {
     // Dado observado no Mac: enquanto uma câmera está abrindo a sessão
@@ -429,8 +440,8 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
 
         if (p.result == EDS_ERR_OK)
         {
-            portRetry.erase(cam.portName);
-            suspectPorts.erase(cam.portName);
+            portRetry.erase(EntryKey(cam));
+            suspectPorts.erase(EntryKey(cam));
             cam.sessionOpen = true;
             cam.connectionLost = false;
             cam.lastError = 0;
@@ -470,14 +481,22 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
             if (cam.camera != nullptr)
                 RetireCamera(cam.camera);
 
-            // Conexão suspeita que falhou: só tenta de novo depois de outro aviso de conexão
-            auto suspect = suspectPorts.find(cam.portName);
+            // Conexão suspeita que falhou devagar (pode ser a entrada antiga, que trava):
+            // só tenta de novo depois de outro aviso de conexão. Se falhou rápido, com
+            // erro, segue as tentativas normais abaixo (dado observado: a T7 religada
+            // falhou uma vez com 8195 e ficou de lado até reiniciar o app).
+            auto suspect = suspectPorts.find(EntryKey(cam));
             if (suspect != suspectPorts.end())
-                suspect->second.seen = camerasAdded.load();
+            {
+                if (secs >= 10.0)
+                    suspect->second.seen = camerasAdded.load();
+                else
+                    suspectPorts.erase(suspect);
+            }
 
             // Espera cada vez mais antes de tentar a mesma conexão (ex.: entrada
             // "fantasma" que o SDK do Mac mantém depois de a câmera sair)
-            auto& retry = portRetry[cam.portName];
+            auto& retry = portRetry[EntryKey(cam)];
             ++retry.failures;
             static const int kWait[] = { 5, 10, 15, 30, 60 };
             const int waitSeconds = kWait[std::min(retry.failures, 5) - 1];
@@ -485,9 +504,9 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
 
             // Três falhas seguidas: para de insistir até uma câmera ser conectada
             // (cada tentativa pode deixar o SDK ocupado por muito tempo)
-            if (retry.failures >= 3 && suspectPorts.count(cam.portName) == 0)
+            if (retry.failures >= 3 && suspectPorts.count(EntryKey(cam)) == 0)
             {
-                suspectPorts[cam.portName] = Suspect{ camerasAdded.load(), false };
+                suspectPorts[EntryKey(cam)] = Suspect{ camerasAdded.load(), false };
                 retry.retryAt = Clock::now();
                 LogMessage("Connection kept aside until a camera is plugged in: " + cam.portName);
             }
@@ -529,7 +548,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
                 RetireCamera(cam.camera);
                 cam.camera = nullptr;
                 cam.connectionLost = true;
-                suspectPorts[cam.portName] = Suspect{ camerasAdded.load(), true };
+                suspectPorts[EntryKey(cam)] = Suspect{ camerasAdded.load(), true };
                 listChanged = true;
                 LogMessage("Camera lost during the shot: " + cam.shortName + " (" + cam.portName + ")");
                 continue;
@@ -546,7 +565,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
                 listChanged = true;
                 // A entrada antiga pode continuar na lista do SDK: não abrir de novo
                 // até uma câmera ser conectada (ver HandleCameraAdded)
-                suspectPorts[cam.portName] = Suspect{ camerasAdded.load(), true };
+                suspectPorts[EntryKey(cam)] = Suspect{ camerasAdded.load(), true };
                 LogMessage("Camera stopped responding: " + cam.shortName + " (" + cam.portName + ")");
             }
         }
@@ -568,10 +587,10 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
     // Serve para saber se a T7 aparece no USB antes de aparecer no SDK.
     {
         std::string usb;
-        const auto devices = Platform::CanonUsbDevices();
-        for (const auto& d : devices)
-            usb += (usb.empty() ? " - " : ", ") + d;
-        usb = std::to_string(devices.size()) + usb;
+        for (const auto& d : Platform::CanonUsbDevices())
+            usb += (usb.empty() ? "" : ", ") + d;
+        if (usb.empty())
+            usb = "none";
         if (usb != lastUsbDevices)
         {
             lastUsbDevices = usb;
@@ -624,15 +643,15 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         }
 
         const bool alreadyConnected = std::any_of(cameras.begin(), cameras.end(),
-            [&](const CameraContext& c) { return c.sessionOpen && c.portName == info.portName; });
+            [&](const CameraContext& c) { return c.sessionOpen && EntryKey(c) == EntryKey(info); });
         const bool alreadyFound = std::any_of(found.begin(), found.end(),
-            [&](const Found& f) { return f.candidate.portName == info.portName; });
-        auto retry = portRetry.find(info.portName);
+            [&](const Found& f) { return EntryKey(f.candidate) == EntryKey(info); });
+        auto retry = portRetry.find(EntryKey(info));
         const bool waitingRetry = retry != portRetry.end() && now < retry->second.retryAt;
 
         // Conexão de uma câmera que caiu: só depois de o sistema avisar que uma
         // câmera foi conectada (e a lista ter tido tempo de assentar)
-        auto suspect = suspectPorts.find(info.portName);
+        auto suspect = suspectPorts.find(EntryKey(info));
         const bool suspectWaiting = suspect != suspectPorts.end()
             && (camerasAdded.load() <= suspect->second.seen || recentlyAdded);
 
@@ -721,7 +740,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         const bool missing = !it->slotName.empty();
         if (otherEntry || !missing)
         {
-            suspectPorts[it->candidate.portName].seen = camerasAdded.load();
+            suspectPorts[EntryKey(it->candidate)].seen = camerasAdded.load();
             EdsRelease(it->candidate.camera);
             it = found.erase(it);
         }
@@ -831,7 +850,7 @@ std::vector<PendingConnectionInfo> CanonController::GetPendingConnections() cons
         info.order = p->slotName.empty() ? 0 : p->candidate.orderPrefix;
         info.reconnecting = !p->slotName.empty();
         info.seconds = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(now - p->start).count());
-        auto retry = portRetry.find(p->candidate.portName);
+        auto retry = portRetry.find(EntryKey(p->candidate));
         info.retrying = retry != portRetry.end() && retry->second.failures > 0;
         list.push_back(info);
     }

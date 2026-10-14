@@ -89,22 +89,34 @@ namespace Platform
     {
         std::vector<std::string> devices;
 
-        // Aparelhos USB com o código de fabricante da Canon (0x04A9)
+        // Todos os aparelhos USB; depois fica só com os da Canon (fabricante 0x04A9).
+        // O último item é o total de aparelhos USB vistos (diagnóstico).
         CFMutableDictionaryRef matching = IOServiceMatching("IOUSBHostDevice");
         if (matching == nullptr)
             return devices;
-        SInt32 vendor = 0x04A9;
-        CFNumberRef vendorNumber = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &vendor);
-        CFDictionarySetValue(matching, CFSTR("idVendor"), vendorNumber);
-        CFRelease(vendorNumber);
 
         io_iterator_t iterator = 0;
         // IOServiceGetMatchingServices fica com "matching" (não liberar aqui)
         if (IOServiceGetMatchingServices(MACH_PORT_NULL, matching, &iterator) != KERN_SUCCESS)
             return devices;
 
+        int total = 0;
         for (io_service_t service = IOIteratorNext(iterator); service != 0; service = IOIteratorNext(iterator))
         {
+            ++total;
+            SInt32 vendor = 0;
+            if (CFTypeRef value = IORegistryEntryCreateCFProperty(service, CFSTR("idVendor"), kCFAllocatorDefault, 0))
+            {
+                if (CFGetTypeID(value) == CFNumberGetTypeID())
+                    CFNumberGetValue(static_cast<CFNumberRef>(value), kCFNumberSInt32Type, &vendor);
+                CFRelease(value);
+            }
+            if (vendor != 0x04A9)
+            {
+                IOObjectRelease(service);
+                continue;
+            }
+
             std::string name = "Canon USB device";
             if (CFTypeRef value = IORegistryEntryCreateCFProperty(service, CFSTR("USB Product Name"), kCFAllocatorDefault, 0))
             {
@@ -134,6 +146,7 @@ namespace Platform
             IOObjectRelease(service);
         }
         IOObjectRelease(iterator);
+        devices.push_back("(" + std::to_string(total) + " USB devices in total)");
         return devices;
     }
 }

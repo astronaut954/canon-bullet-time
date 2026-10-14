@@ -131,8 +131,16 @@ Atualizar esta tabela sempre que uma função mudar de status.
   nos detalhes técnicos, para comparar com "SDK camera list".
 
 - **T7 não reconecta depois de desconectar (Mac, registrado em 2026-10-13).** Depois
-  que a T7 se desconecta, ela só volta reiniciando o app. Ainda não investigado:
-  falta o log (detalhes técnicos) de uma vez em que acontecer.
+  que a T7 se desconecta, às vezes ela só volta reiniciando o app (ou o Mac).
+  Dado do log de 21:44: religada, a T7 voltou com a mesma "porta" da SL3 conectada
+  (`SL3@2:connected T7@2:connected`) e o app a tratou como já conectada. Corrigido
+  em 2026-10-13: cada entrada é identificada por modelo + porta. Também: uma
+  tentativa que falha rápido (a T7 deu 8195, "sessão não aberta") volta às tentativas
+  normais em vez de esperar outro aviso de conexão. Aguardando teste no Mac.
+  Ainda sem explicação: por que às vezes só reiniciando o Mac.
+  Teste do USB (1º log): "USB Canon devices: 0" o tempo todo, mesmo com as duas
+  câmeras conectadas; a busca foi refeita (todos os aparelhos USB, filtrando a Canon,
+  e com o total de aparelhos no log).
 
 ## Histórico de versões do SDK
 
