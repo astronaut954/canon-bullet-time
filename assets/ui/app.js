@@ -119,6 +119,8 @@
 
   // =================== Ícones ===================
   const ICONS = {
+    minus: '<path d="M3 7h8"/>',
+    plus: '<path d="M3 7h8M7 3v8"/>',
     up: '<path d="M3 9l4-4 4 4"/>',
     down: '<path d="M3 5l4 4 4-4"/>',
     left: '<path d="M9 3L5 7l4 4"/>',
@@ -676,10 +678,37 @@
   reverseLoopOption.innerHTML = '<input type="checkbox" checked> Reverse loop';
   const reverseLoop = reverseLoopOption.querySelector("input");
 
+  // Velocidade do play: de 0,5x a 2x (sem extremos); 1x = 220 ms por foto
+  const PLAY_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  let speedIndex = PLAY_SPEEDS.indexOf(1);
+  const speedLabel = document.createElement("span");
+  speedLabel.className = "play-speed";
+  speedLabel.title = "Playback speed";
+  const slowerBtn = button("", () => changeSpeed(-1), { icon: "minus", title: "Slower" });
+  const fasterBtn = button("", () => changeSpeed(1), { icon: "plus", title: "Faster" });
+  function playInterval() { return Math.round(220 / PLAY_SPEEDS[speedIndex]); }
+  function renderSpeed() {
+    speedLabel.textContent = PLAY_SPEEDS[speedIndex] + "x";
+    slowerBtn.disabled = speedIndex === 0;
+    fasterBtn.disabled = speedIndex === PLAY_SPEEDS.length - 1;
+  }
+  function changeSpeed(delta) {
+    speedIndex = Math.max(0, Math.min(PLAY_SPEEDS.length - 1, speedIndex + delta));
+    renderSpeed();
+    if (playTimer) {  // já tocando: continua, na velocidade nova
+      clearInterval(playTimer);
+      playTimer = setInterval(playStep, playInterval());
+    }
+  }
+  renderSpeed();
+
   const viewActions = [
     button("", () => { stopPlay(); sessionGallery.prev(); }, { icon: "left", title: "Previous photo" }),
     playBtn,
     button("", () => { stopPlay(); sessionGallery.next(); }, { icon: "right", title: "Next photo" }),
+    slowerBtn,
+    speedLabel,
+    fasterBtn,
     reverseLoopOption,
     button("Reorder", startReorder, { title: "Change the order of the photos in this session" }),
     button("", deleteCurrentPhoto, { icon: "trash", title: "Delete this photo (Delete key)" }),
@@ -899,7 +928,7 @@
     if (!currentSession || editing.on) return;
     playBtn.innerHTML = icon("pause");
     playDirection = 1;
-    playTimer = setInterval(playStep, 220);
+    playTimer = setInterval(playStep, playInterval());
   }
 
   // =================== Reordenar por foto ===================
