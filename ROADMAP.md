@@ -28,7 +28,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 4.1 | Diagnóstico para o usuário | Aviso de modelo fora da lista de compatibilidade (com nomes regionais), guia quando nenhuma câmera é encontrada, explicação dos erros mais comuns de conexão e disparo. | feito |
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
 | 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). Funcionando no Mac e no Windows (2026-10-14). | feito |
-| 7 | Instaladores | `.dmg` no Mac (arrastar para Aplicativos, fundo com chuva de código, Read Me em inglês sem Terminal) e instalador de Windows (Inno Setup, mesmo visual, versão de terminal opcional e desmarcada). Os zips continuam na versão. | em andamento |
+| 7 | Instaladores | `.dmg` no Mac (arrastar para Aplicativos, fundo com chuva de código, Read Me em inglês sem Terminal) e instalador de Windows (Inno Setup, mesmo visual, versão de terminal opcional e desmarcada). Os zips continuam na versão. Testado no Mac e no Windows (2026-10-14). | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -106,7 +106,7 @@ Visual aprovado em 2026-10-14 (fundo do `.dmg`, imagens do instalador de Windows
 - 2º teste no Mac: fundo aparecendo. A janela ficou baixa: a altura do `.dmg` inclui a
   barra de título (~32 pt) e a barra de caminho do Finder (~28 pt), que cortavam o nome do
   Read Me. Janela e fundo passaram de 500 para 560 pt de altura.
-- Aguardando novo teste no Mac e o primeiro no Windows.
+- 3º teste no Mac (placas centralizadas) e teste no Windows (instalador): aprovados em 2026-10-14.
 
 ### Critério para fechar uma etapa
 
