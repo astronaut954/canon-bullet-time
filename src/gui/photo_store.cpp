@@ -1,5 +1,7 @@
 #ifdef _WIN32
 #define NOMINMAX  // o LibRaw inclui windows.h, que define min/max
+// A biblioteca stb usa sprintf; com /sdl, o aviso do Visual Studio vira erro
+#define _CRT_SECURE_NO_WARNINGS
 #endif
 
 #include "photo_store.h"
