@@ -3,6 +3,8 @@
 #include "platform/platform.h"
 #include "sdk_diagnostics.h"
 
+#include <fstream>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -538,13 +540,25 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         lastUsbCheck = Clock::now();
         int totalUsb = -1;
         const auto devices = Platform::CanonUsbDevices(totalUsb);
-        usbCanonCount = totalUsb < 0 ? -1 : static_cast<int>(devices.size());
+        usbAvailable = totalUsb >= 0;
+        std::vector<UsbSeen> seen;
         std::string usb;
         for (const auto& d : devices)
-            usb += (usb.empty() ? "" : ", ") + d;
+        {
+            UsbSeen entry{ d.location, d.productId, Clock::now() };
+            for (const auto& old : usbSeen)
+                if (old.location == d.location && old.productId == d.productId)
+                    entry.firstSeen = old.firstSeen;   // já estava: mantém desde quando
+            seen.push_back(entry);
+            char product[16] = {};
+            std::snprintf(product, sizeof(product), "%04x", d.productId);
+            usb += (usb.empty() ? "" : ", ") + d.name + " " + product + " @ " + d.location;
+        }
+        usbSeen = seen;
         usb = (usb.empty() ? "none" : usb) + " (" + std::to_string(totalUsb) + " USB devices in total)";
         if (usb != lastUsbDevices)
         {
+            listChanged = true;   // a página redesenha (câmera ligando ou saindo do USB)
             lastUsbDevices = usb;
             LogMessage("USB Canon devices: " + usb);
         }
@@ -605,6 +619,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
 
     const auto scanStart = Clock::now();
     std::string scanPorts;   // diagnóstico: o que o SDK listou nesta procura
+    std::vector<std::string> listedModels;
 
     const size_t queuedBefore = queued.size();
     queued.clear();
@@ -647,6 +662,7 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
             EdsRelease(ref);
             continue;
         }
+        listedModels.push_back(info.modelName);
 
         const bool alreadyConnected = std::any_of(cameras.begin(), cameras.end(),
             [&](const CameraContext& c) { return c.sessionOpen && EntryKey(c) == EntryKey(info); });
@@ -719,7 +735,10 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
     }
     EdsRelease(cameraList);
 
-    lastSdkCount = static_cast<int>(count);
+    // Modelos que o SDK lista agora (para comparar com o USB)
+    lastSdkModels = listedModels;
+    sdkScanned = true;
+    LearnUsbModels();
 
     // Diagnóstico: registra a lista do SDK quando ela muda, e procuras demoradas
     const double scanSecs = std::chrono::duration<double>(Clock::now() - scanStart).count();
@@ -866,20 +885,116 @@ std::vector<PendingConnectionInfo> CanonController::GetPendingConnections() cons
     return list;
 }
 
-int CanonController::GetStartingCount() const
+namespace
+{
+    std::filesystem::path UsbModelsFile()
+    {
+        return Platform::AppDataFolder() / "usb-models.txt";
+    }
+}
+
+void CanonController::LearnUsbModels()
+{
+    // O nome no USB é igual para todas as câmeras ("Canon Digital Camera"), mas o
+    // código do produto muda por modelo. O app aprende qual código é qual modelo
+    // quando sobra exatamente um de cada ao comparar o USB com a lista do SDK, e
+    // guarda isso em usb-models.txt (pasta de dados do app) para as próximas vezes.
+    if (!usbModelsLoaded)
+    {
+        usbModelsLoaded = true;
+        std::ifstream file(UsbModelsFile());
+        std::string line;
+        while (std::getline(file, line))
+        {
+            const auto eq = line.find('=');
+            if (eq != std::string::npos)
+                usbModels[std::atoi(line.substr(0, eq).c_str())] = line.substr(eq + 1);
+        }
+    }
+    if (!usbAvailable)
+        return;
+
+    std::vector<int> products;
+    for (const auto& u : usbSeen)
+        products.push_back(u.productId);
+    std::vector<std::string> models = lastSdkModels;
+
+    // Tira os pares já conhecidos
+    for (auto it = products.begin(); it != products.end();)
+    {
+        auto known = usbModels.find(*it);
+        auto match = known == usbModels.end() ? models.end() : std::find(models.begin(), models.end(), known->second);
+        if (match != models.end())
+        {
+            models.erase(match);
+            it = products.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    if (products.size() != 1 || models.size() != 1 || usbModels.count(products[0]) > 0)
+        return;
+
+    usbModels[products[0]] = models[0];
+    LogMessage("USB product " + std::to_string(products[0]) + " is " + models[0]);
+    std::error_code ec;
+    std::filesystem::create_directories(UsbModelsFile().parent_path(), ec);
+    std::ofstream file(UsbModelsFile());
+    for (const auto& [product, model] : usbModels)
+        file << product << "=" << model << "\n";
+}
+
+std::vector<StartingCameraInfo> CanonController::GetStartingCameras() const
 {
     // Câmeras Canon que o sistema já vê no USB mas que o SDK ainda não lista (a T7
-    // leva ~40 s para aparecer no SDK depois de ligada). Sem a lista do USB: 0.
-    if (usbCanonCount < 0 || lastSdkCount < 0)
-        return 0;
-    return std::max(0, usbCanonCount - lastSdkCount);
+    // leva ~40 s para aparecer no SDK depois de ligada). Sem a lista do USB: nenhuma.
+    std::vector<StartingCameraInfo> starting;
+    if (!usbAvailable || !sdkScanned)
+        return starting;
+
+    // Cada modelo da lista do SDK "cobre" uma câmera do USB: primeiro as de modelo
+    // conhecido, depois as de modelo ainda desconhecido
+    std::vector<std::string> models = lastSdkModels;
+    std::vector<const UsbSeen*> left;
+    for (const auto& u : usbSeen)
+    {
+        auto known = usbModels.find(u.productId);
+        auto match = known == usbModels.end() ? models.end() : std::find(models.begin(), models.end(), known->second);
+        if (match != models.end())
+            models.erase(match);
+        else
+            left.push_back(&u);
+    }
+    std::stable_partition(left.begin(), left.end(),
+        [&](const UsbSeen* u) { return usbModels.count(u->productId) > 0; });
+    size_t covered = std::min(models.size(), left.size());
+    // As desconhecidas são cobertas pelas entradas restantes do SDK
+    std::vector<const UsbSeen*> unknown, knownLeft;
+    for (const auto* u : left)
+        (usbModels.count(u->productId) ? knownLeft : unknown).push_back(u);
+    while (covered > 0 && !unknown.empty()) { unknown.pop_back(); --covered; }
+    while (covered > 0 && !knownLeft.empty()) { knownLeft.pop_back(); --covered; }
+
+    const auto now = std::chrono::steady_clock::now();
+    for (const auto* list : { &knownLeft, &unknown })
+        for (const auto* u : *list)
+        {
+            StartingCameraInfo info;
+            auto known = usbModels.find(u->productId);
+            info.model = known == usbModels.end() ? "" : known->second;
+            info.seconds = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(now - u->firstSeen).count());
+            starting.push_back(info);
+        }
+    return starting;
 }
 
 void CanonController::ResetConnectionHistory()
 {
     lastScanPorts.clear();
     lastUsbDevices.clear();
-    lastSdkCount = -1;
+    sdkScanned = false;
     portRetry.clear();
     queued.clear();
     lastScan = {};

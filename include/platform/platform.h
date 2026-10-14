@@ -40,9 +40,16 @@ namespace Platform
     void BeginSdkThread();
     void EndSdkThread();
 
-    // Aparelhos da Canon ligados no USB, segundo o próprio sistema (sem passar pelo
-    // SDK da Canon): "nome @ endereço" de cada um. Dado observado no Mac: a T7 aparece
-    // no USB ~40 s antes de aparecer no SDK. totalUsb recebe quantos aparelhos USB o
-    // sistema listou, ou -1 se não deu para ler (no Windows, por enquanto, sempre -1).
-    std::vector<std::string> CanonUsbDevices(int& totalUsb);
+    // Aparelho da Canon ligado no USB, segundo o próprio sistema (sem o SDK da Canon)
+    struct UsbDevice
+    {
+        std::string name;       // ex.: "Canon Digital Camera" (o mesmo para todos os modelos)
+        std::string location;   // endereço da entrada USB (fixo por entrada física)
+        int productId = 0;      // código do produto: diferente para cada modelo de câmera
+    };
+
+    // Aparelhos da Canon ligados no USB. Dado observado no Mac: a T7 aparece no USB
+    // ~40 s antes de aparecer no SDK. totalUsb recebe quantos aparelhos USB o sistema
+    // listou, ou -1 se não deu para ler (no Windows, por enquanto, sempre -1).
+    std::vector<UsbDevice> CanonUsbDevices(int& totalUsb);
 }

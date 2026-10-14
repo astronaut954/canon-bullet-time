@@ -151,6 +151,10 @@ Atualizar esta tabela sempre que uma função mudar de status.
   que o USB mostra e o SDK ainda não aparecem como "Connecting" (no lugar de uma
   câmera que caiu, ou como "Canon camera" nova) e não bloqueiam o disparo das outras.
   Só no Mac (no Windows a leitura do USB ainda não existe). Aguardando teste.
+  Depois: mostra o tempo de espera e o modelo. O nome no USB é igual para todas
+  ("Canon Digital Camera"), mas o código do produto USB muda por modelo; o app
+  aprende qual código é qual modelo (quando sobra um de cada ao comparar USB e SDK)
+  e guarda em `usb-models.txt`, na pasta de dados do app.
 
 ## Histórico de versões do SDK
 

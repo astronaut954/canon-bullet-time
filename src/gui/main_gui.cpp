@@ -29,6 +29,7 @@
 #include "webview/webview.h"
 
 #include <algorithm>
+#include <optional>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -374,18 +375,30 @@ namespace
         };
 
         // Câmeras que já aparecem no USB mas que o SDK ainda não lista (a T7 leva ~40 s):
-        // aparecem como "conectando". Primeiro no lugar de uma câmera que caiu; as que
-        // sobrarem, como câmera nova sem nome de modelo.
-        int starting = controller.GetStartingCount();
+        // aparecem como "conectando", com o tempo desde que apareceram no USB. Com o
+        // modelo conhecido, no lugar de uma câmera desse modelo que caiu; senão, como
+        // câmera nova ("Canon camera" enquanto o modelo não é conhecido).
+        auto starting = controller.GetStartingCameras();
+        auto takeStarting = [&](const std::string& model) -> std::optional<StartingCameraInfo>
+        {
+            auto it = std::find_if(starting.begin(), starting.end(),
+                [&](const StartingCameraInfo& s) { return !s.model.empty() && s.model == model; });
+            if (it == starting.end())
+                return std::nullopt;
+            StartingCameraInfo info = *it;
+            starting.erase(it);
+            return info;
+        };
 
         for (const auto* cam : ordered)
         {
             const bool connected = cam->sessionOpen && !cam->connectionLost;
             auto reconnect = std::find_if(pending.begin(), pending.end(),
                 [&](const PendingConnectionInfo& p) { return p.reconnecting && !p.retrying && p.name == cam->shortName; });
-            const bool startingHere = !connected && reconnect == pending.end() && starting > 0;
-            if (startingHere)
-                --starting;
+            std::optional<StartingCameraInfo> startingInfo;
+            if (!connected && reconnect == pending.end())
+                startingInfo = takeStarting(cam->modelName);
+            const bool startingHere = startingInfo.has_value();
             const bool connecting = !connected && (reconnect != pending.end() || startingHere);
             const bool waiting = connecting && !startingHere && reconnect->queued;
 
@@ -395,7 +408,7 @@ namespace
                 .Add("model", cam->modelName)
                 .Add("connected", connected)
                 .Add("state", connected ? "connected" : connecting ? "connecting" : "disconnected")
-                .Add("seconds", connecting && !startingHere ? reconnect->seconds : 0)
+                .Add("seconds", startingHere ? startingInfo->seconds : connecting ? reconnect->seconds : 0)
                 .Add("waiting", waiting)
                 .Add("starting", startingHere)
                 .Add("compatible", cam->onCompatibilityList);
@@ -421,18 +434,18 @@ namespace
                 .Add("compatible", IsOnCompatibilityList(p.model));
             addItem(item);
         }
-        for (int i = 0; i < starting; ++i)
+        for (const auto& s : starting)
         {
             Json item("camera");
             item.Add("order", 0)
                 .Add("name", "")
-                .Add("model", "Canon camera")
+                .Add("model", s.model.empty() ? std::string("Canon camera") : s.model)
                 .Add("connected", false)
                 .Add("state", "connecting")
-                .Add("seconds", 0)
+                .Add("seconds", s.seconds)
                 .Add("waiting", false)
                 .Add("starting", true)
-                .Add("compatible", true);
+                .Add("compatible", s.model.empty() || IsOnCompatibilityList(s.model));
             addItem(item);
         }
         list += "]";
@@ -549,7 +562,10 @@ namespace
                 return;
             if (!controller.HasPendingConnections())
                 EdsGetEvent();  // com uma câmera conectando, o SDK está ocupado
-            if (controller.MonitorTick(&listener) || controller.HasPendingConnections())
+            // Redesenha quando algo mudou, e a cada volta enquanto há câmera conectando
+            // ou ligando (para o tempo de espera andar)
+            if (controller.MonitorTick(&listener) || controller.HasPendingConnections()
+                || !controller.GetStartingCameras().empty())
                 listener.Emit(CamerasSnapshot(controller));
         });
 

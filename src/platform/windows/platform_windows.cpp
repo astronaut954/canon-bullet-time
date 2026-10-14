@@ -95,7 +95,7 @@ namespace Platform
         return DownloadsFolder() / "Canon Bullet Time";
     }
 
-    std::vector<std::string> CanonUsbDevices(int& totalUsb)
+    std::vector<UsbDevice> CanonUsbDevices(int& totalUsb)
     {
         // Ainda não feito no Windows: sem a lista do USB, o app usa só o SDK
         totalUsb = -1;

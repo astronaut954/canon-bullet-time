@@ -41,6 +41,12 @@ struct PendingConnectionInfo
     int seconds = 0;
 };
 
+struct StartingCameraInfo
+{
+    std::string model;       // modelo, quando já se sabe pelo código do produto USB; senão ""
+    int seconds = 0;         // há quanto tempo apareceu no USB
+};
+
 class CanonController
 {
 public:
@@ -67,8 +73,8 @@ public:
     bool MonitorTick(ConnectionObserver* observer);
     std::vector<PendingConnectionInfo> GetPendingConnections() const;
     bool HasPendingConnections() const;
-    // Câmeras ligadas que o USB já mostra e o SDK ainda não (ver GetStartingCount no .cpp)
-    int GetStartingCount() const;
+    // Câmeras ligadas que o USB já mostra e o SDK ainda não (ver o .cpp)
+    std::vector<StartingCameraInfo> GetStartingCameras() const;
     // Espera as conexões em andamento terminarem e descarta o resultado.
     void WaitPendingConnections();
     // Esquece falhas e tempos anteriores: todas as câmeras são tentadas de novo já.
@@ -143,8 +149,19 @@ private:
     std::string lastScanPorts;      // diagnóstico: última lista do SDK registrada
     std::string lastUsbDevices;     // diagnóstico: últimos aparelhos Canon vistos no USB
     std::chrono::steady_clock::time_point lastUsbCheck{};
-    int usbCanonCount = -1;         // câmeras Canon no USB (-1 = lista do USB indisponível)
-    int lastSdkCount = -1;          // entradas na última lista do SDK (-1 = ainda não procurou)
+    struct UsbSeen
+    {
+        std::string location;
+        int productId = 0;
+        std::chrono::steady_clock::time_point firstSeen;
+    };
+    bool usbAvailable = false;                  // a lista do USB pôde ser lida
+    std::vector<UsbSeen> usbSeen;               // câmeras Canon no USB agora
+    bool sdkScanned = false;                    // já houve uma procura no SDK
+    std::vector<std::string> lastSdkModels;     // modelos na última lista do SDK
+    std::map<int, std::string> usbModels;       // código do produto USB -> modelo (aprendido)
+    bool usbModelsLoaded = false;
+    void LearnUsbModels();                      // aprende pelo que sobra ao comparar USB e SDK
     static EdsError EDSCALLBACK HandleCameraAdded(EdsVoid* context);
     std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
     std::chrono::steady_clock::time_point lastHealthCheck{};

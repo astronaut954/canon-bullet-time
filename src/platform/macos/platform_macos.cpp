@@ -85,9 +85,9 @@ namespace Platform
         return fs::current_path() / "Canon Bullet Time";
     }
 
-    std::vector<std::string> CanonUsbDevices(int& totalUsb)
+    std::vector<UsbDevice> CanonUsbDevices(int& totalUsb)
     {
-        std::vector<std::string> devices;
+        std::vector<UsbDevice> devices;
         totalUsb = -1;
 
         // Todos os aparelhos USB; depois fica só com os da Canon (fabricante 0x04A9)
@@ -142,7 +142,15 @@ namespace Platform
                 CFRelease(value);
             }
 
-            devices.push_back(name + " @ " + location);
+            SInt32 product = 0;
+            if (CFTypeRef value = IORegistryEntryCreateCFProperty(service, CFSTR("idProduct"), kCFAllocatorDefault, 0))
+            {
+                if (CFGetTypeID(value) == CFNumberGetTypeID())
+                    CFNumberGetValue(static_cast<CFNumberRef>(value), kCFNumberSInt32Type, &product);
+                CFRelease(value);
+            }
+
+            devices.push_back(UsbDevice{ name, location, static_cast<int>(product) });
             IOObjectRelease(service);
         }
         IOObjectRelease(iterator);
