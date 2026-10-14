@@ -98,8 +98,12 @@ Visual aprovado em 2026-10-14 (fundo do `.dmg`, imagens do instalador de Windows
   Iniciar, atalho na área de trabalho e versão de terminal opcionais (desmarcados), desinstala
   por Configurações → Aplicativos sem apagar as fotos guardadas.
 - `scripts/publish_release.py` envia o zip e o instalador de cada sistema.
-- Aguardando o primeiro teste nos dois sistemas (posição dos ícones no `.dmg` e textos do
-  macOS no Read Me podem precisar de ajuste).
+- 1º teste no Mac (macOS 26): o `.dmg` abriu com os ícones nas posições certas, mas sem o
+  fundo. Causa conhecida: o Finder do macOS 26.2+ ignora o fundo quando o `.DS_Store` tem o
+  registro "pBBk", que o dmgbuild grava até a 1.6.6 (a 1.6.7 corrige, mas exige Python 3.10+;
+  o do Mac é 3.9). Corrigido no script: o registro é desligado e o `.dmg` pronto é conferido
+  (falha se o fundo não estiver certo). Nomes sem extensão (".app", ".pdf") na janela.
+- Aguardando novo teste no Mac e o primeiro no Windows.
 
 ### Critério para fechar uma etapa
 

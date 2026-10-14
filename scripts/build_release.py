@@ -173,18 +173,50 @@ def make_dmg(app: Path, dmg_path: Path) -> None:
         "icon_size": DMG_LAYOUT["icon_size"],
         "text_size": 12,
         "icon_locations": {k: list(v) for k, v in DMG_LAYOUT["positions"].items()},
+        "hide_extensions": ["Stillpoint.app", "Read Me.pdf"],
     }
+    # Finder do macOS 26.2+ mostra a janela sem fundo quando o .DS_Store tem o registro
+    # "pBBk" (marcador do fundo), que o dmgbuild grava até a versão 1.6.6. A 1.6.7 já não
+    # grava, mas exige Python 3.10+ (o do Mac é 3.9). Aqui o marcador é desligado e, depois,
+    # o .dmg é aberto só para leitura para conferir que o fundo ficou certo.
     script = (
-        "import json, sys, dmgbuild\n"
+        "import json, sys, dmgbuild, dmgbuild.core\n"
+        "class _NoBookmark:\n"
+        "    @staticmethod\n"
+        "    def for_file(path):\n"
+        "        return None\n"
+        "dmgbuild.core.Bookmark = _NoBookmark\n"
         "s = json.load(open(sys.argv[1]))\n"
         "s['window_rect'] = tuple(tuple(x) for x in s['window_rect'])\n"
         "s['icon_locations'] = {k: tuple(v) for k, v in s['icon_locations'].items()}\n"
         "dmgbuild.build_dmg(sys.argv[2], 'Stillpoint', settings=s)\n"
     )
+    check = (
+        "import os, subprocess, sys, tempfile\n"
+        "from ds_store import DSStore\n"
+        "mnt = tempfile.mkdtemp()\n"
+        "subprocess.run(['hdiutil', 'attach', '-readonly', '-nobrowse', '-noautoopen', '-mountpoint', mnt, sys.argv[1]],\n"
+        "               check=True, stdout=subprocess.DEVNULL)\n"
+        "try:\n"
+        "    with DSStore.open(os.path.join(mnt, '.DS_Store'), 'r') as d:\n"
+        "        codes = {(e.code.decode() if isinstance(e.code, bytes) else e.code) for e in d if e.filename == '.'}\n"
+        "        icvp = d['.']['icvp']\n"
+        "    bg = [f for f in os.listdir(mnt) if f.startswith('.background')]\n"
+        "    problems = []\n"
+        "    if 'pBBk' in codes: problems.append('pBBk record present (Finder on macOS 26.2+ hides the background)')\n"
+        "    if icvp.get('backgroundType') != 2: problems.append('background is not a picture')\n"
+        "    if not bg: problems.append('background file missing')\n"
+        "    if problems: sys.exit('[ERROR] .dmg check failed: ' + '; '.join(problems))\n"
+        "    print('[CHECK] .dmg background OK (' + bg[0] + ', no pBBk)')\n"
+        "finally:\n"
+        "    subprocess.run(['hdiutil', 'detach', mnt, '-quiet'])\n"
+    )
     with tempfile.TemporaryDirectory() as tmp:
         settings_file = Path(tmp) / "dmg.json"
         settings_file.write_text(json.dumps(settings), encoding="utf-8")
-        subprocess.run([dmgbuild_python(), "-c", script, str(settings_file), str(dmg_path)], check=True)
+        py = dmgbuild_python()
+        subprocess.run([py, "-c", script, str(settings_file), str(dmg_path)], check=True)
+        subprocess.run([py, "-c", check, str(dmg_path)], check=True)
     print(f"[DMG] {dmg_path}")
 
 
