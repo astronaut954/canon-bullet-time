@@ -2,6 +2,8 @@
 
 #include <windows.h>
 #include <objbase.h>
+#include <setupapi.h>
+#include <cwctype>
 #include <clocale>
 #include <cstdlib>
 #include <string>
@@ -95,11 +97,81 @@ namespace Platform
         return DownloadsFolder() / "Canon Bullet Time";
     }
 
+    namespace
+    {
+        std::string ToUtf8(const std::wstring& text)
+        {
+            if (text.empty())
+                return {};
+            const int size = WideCharToMultiByte(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
+            std::string out(size, '\0');
+            WideCharToMultiByte(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), out.data(), size, nullptr, nullptr);
+            return out;
+        }
+
+        // Propriedade de texto de um aparelho (várias linhas viram uma, separadas por \0)
+        std::wstring DeviceProperty(HDEVINFO set, SP_DEVINFO_DATA& info, DWORD property)
+        {
+            DWORD size = 0;
+            SetupDiGetDeviceRegistryPropertyW(set, &info, property, nullptr, nullptr, 0, &size);
+            if (size == 0)
+                return {};
+            std::vector<BYTE> buffer(size + sizeof(wchar_t) * 2, 0);
+            if (!SetupDiGetDeviceRegistryPropertyW(set, &info, property, nullptr, buffer.data(), size, nullptr))
+                return {};
+            const auto* text = reinterpret_cast<const wchar_t*>(buffer.data());
+            return std::wstring(text, size / sizeof(wchar_t));
+        }
+
+        std::wstring Upper(std::wstring text)
+        {
+            for (auto& c : text)
+                c = static_cast<wchar_t>(std::towupper(c));
+            return text;
+        }
+    }
+
     std::vector<UsbDevice> CanonUsbDevices(int& totalUsb)
     {
-        // Ainda não feito no Windows: sem a lista do USB, o app usa só o SDK
+        // Aparelhos USB presentes; fica com os da Canon (VID_04A9) que têm a interface
+        // de imagem estática (classe 06, a das câmeras: impressoras e scanners ficam de fora)
+        std::vector<UsbDevice> devices;
         totalUsb = -1;
-        return {};
+        HDEVINFO set = SetupDiGetClassDevsW(nullptr, L"USB", nullptr, DIGCF_PRESENT | DIGCF_ALLCLASSES);
+        if (set == INVALID_HANDLE_VALUE)
+            return devices;
+
+        int total = 0;
+        SP_DEVINFO_DATA info{};
+        info.cbSize = sizeof(info);
+        for (DWORD i = 0; SetupDiEnumDeviceInfo(set, i, &info); ++i)
+        {
+            ++total;
+            const std::wstring hardware = Upper(DeviceProperty(set, info, SPDRP_HARDWAREID));
+            const std::wstring compatible = Upper(DeviceProperty(set, info, SPDRP_COMPATIBLEIDS));
+            if (hardware.find(L"VID_04A9") == std::wstring::npos || compatible.find(L"CLASS_06") == std::wstring::npos)
+                continue;
+
+            UsbDevice device;
+            const size_t pid = hardware.find(L"PID_");
+            if (pid != std::wstring::npos)
+                device.productId = static_cast<int>(wcstol(hardware.substr(pid + 4, 4).c_str(), nullptr, 16));
+
+            std::wstring name = DeviceProperty(set, info, SPDRP_FRIENDLYNAME);
+            if (name.empty() || name[0] == L'\0')
+                name = DeviceProperty(set, info, SPDRP_DEVICEDESC);
+            device.name = ToUtf8(name.c_str());   // até o primeiro \0
+            if (device.name.empty())
+                device.name = "Canon USB device";
+
+            wchar_t instance[512] = {};
+            if (SetupDiGetDeviceInstanceIdW(set, &info, instance, 512, nullptr))
+                device.location = ToUtf8(instance);
+            devices.push_back(device);
+        }
+        SetupDiDestroyDeviceInfoList(set);
+        totalUsb = total;
+        return devices;
     }
 
     bool RelaunchAfterExit()

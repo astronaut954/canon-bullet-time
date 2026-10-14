@@ -102,6 +102,7 @@ if(WIN32)
     target_link_libraries(cbt_core PUBLIC
         "${EDSDK_LIB}"
         winmm
+        setupapi
     )
 else()
     # O SDK da Canon para Mac exige esta macro para escolher os tipos do macOS
