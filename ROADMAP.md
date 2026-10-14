@@ -60,7 +60,7 @@ originais saíram do app e ficaram duas variações dessa mistura em `assets/ui/
 dia ele escolheu o Mix 1, sem os cantos cortados do Nocturne (cantos retos). Ficou um
 único visual, `assets/ui/themes/nocturne-neo.css`, e o seletor de temas saiu do app.
 
-Aplicativo de Mac (2026-10-14): `scripts/build_release.py` monta `Canon Bullet Time.app`
+Aplicativo de Mac (2026-10-14): `scripts/build_release.py` monta o `.app` (na época `Canon Bullet Time.app`, hoje `Stillpoint.app`)
 (programa de janela em Contents/MacOS, SDK em Contents/Frameworks, assets em
 Contents/Resources, Info.plist, assinatura local). O programa acha os assets por
 Platform::ResourcesDirectory e o SDK por @executable_path/../Frameworks. Testado no
@@ -82,7 +82,8 @@ version/"). Próxima versão: v2.0.0.
   `Stillpoint.app` (identificador `io.github.astronaut954.stillpoint`); pacotes
   `stillpoint-vX.Y.Z-<sistema>.zip`. A pasta de dados passa a ser `Stillpoint`; a antiga
   (`Canon Bullet Time`) é renomeada na primeira abertura. Nomes internos do código
-  (`cbt_core`, variáveis `CBT_*`) ficaram iguais. Aguardando compilação e teste.
+  também mudaram (`cbt_core` → `stillpoint_core`, variáveis `CBT_*` → `STILLPOINT_*`,
+  ex.: `STILLPOINT_TEST_RESTART`). Aguardando compilação e teste.
 
 ### Critério para fechar uma etapa
 
@@ -127,7 +128,7 @@ Atualizar esta tabela sempre que uma função mudar de status.
   câmeras (Platform::SdkSessionsInWorkerThreads). Testado em 2026-10-14 com SL3 e
   T7: conexão, disparo, sessões, USB, fechar e "Restart app" funcionando; versão de
   terminal também testada e funcionando. "Restart app" também testado no Mac, dentro
-  do `.app` (CBT_TEST_RESTART=1 mostra o botão sem câmera presa). Texto antigo:
+  do `.app` (STILLPOINT_TEST_RESTART=1 mostra o botão sem câmera presa). Texto antigo:
   **Windows: conexão em paralelo não testada com câmeras.** Desde a branch
   `fix-feedback-conexao`, a sessão de cada câmera é aberta numa thread auxiliar
   (com COM inicializado, como pede o manual da Canon). Compila, mas ainda não

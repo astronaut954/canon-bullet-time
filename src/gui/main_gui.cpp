@@ -684,10 +684,10 @@ namespace
                     startSdk();
                 listener.Emit(CamerasSnapshot(controller));
             });
-            // CBT_TEST_RESTART=1: mostra o botão "Restart app" o tempo todo, para testar
+            // STILLPOINT_TEST_RESTART=1: mostra o botão "Restart app" o tempo todo, para testar
             // o reinício sem precisar de uma câmera presa conectando
             return Json("startup").Add("unsavedSessions", store.CountSessions())
-                .Add("testRestart", std::getenv("CBT_TEST_RESTART") != nullptr).Str();
+                .Add("testRestart", std::getenv("STILLPOINT_TEST_RESTART") != nullptr).Str();
         });
 
         // Solução de problemas: fecha a conexão com todas as câmeras e deixa a

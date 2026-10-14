@@ -80,8 +80,8 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Mac: fechar o app várias vezes (com câmeras ligadas) sem aparecer relatório de erro.
 - [ ] Câmera conectando há mais de 60 s: aparece o aviso com "Restart app"; o botão
       fecha e abre o app de novo, e as sessões não salvas continuam lá.
-      Para testar o botão sem câmera presa: abrir o app com a variável CBT_TEST_RESTART=1
-      (Windows/PowerShell: `$env:CBT_TEST_RESTART=1` antes de abrir; Mac: `CBT_TEST_RESTART=1 "./..."`).
+      Para testar o botão sem câmera presa: abrir o app com a variável STILLPOINT_TEST_RESTART=1
+      (Windows/PowerShell: `$env:STILLPOINT_TEST_RESTART=1` antes de abrir; Mac: `STILLPOINT_TEST_RESTART=1 "./..."`).
 - [ ] Enquanto uma câmera conecta, "Restart camera connections" fica desativado.
 - [ ] Ícone (câmera com o projétil na lente): Windows — nos dois `.exe` no Explorer, na
       barra de título e na barra de tarefas do app de janela. Mac — no `.app` no Finder e

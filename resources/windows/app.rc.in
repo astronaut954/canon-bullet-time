@@ -2,4 +2,4 @@
 // ID 32512 (IDI_APPLICATION) is the icon Explorer shows for the .exe and the one
 // the window app uses in its title bar and in the taskbar.
 // (ASCII only: rc.exe reads this file in the system code page.)
-32512 ICON "@CBT_ICON_FILE@"
+32512 ICON "@STILLPOINT_ICON_FILE@"

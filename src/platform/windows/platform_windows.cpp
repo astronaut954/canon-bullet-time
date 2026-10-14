@@ -219,12 +219,12 @@ namespace Platform
             return false;
 
         // A nova cópia recebe o número deste processo e espera ele terminar
-        SetEnvironmentVariableW(L"CBT_WAIT_PID", std::to_wstring(GetCurrentProcessId()).c_str());
+        SetEnvironmentVariableW(L"STILLPOINT_WAIT_PID", std::to_wstring(GetCurrentProcessId()).c_str());
         STARTUPINFOW startup{};
         startup.cb = sizeof(startup);
         PROCESS_INFORMATION process{};
         const BOOL ok = CreateProcessW(path.data(), nullptr, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &process);
-        SetEnvironmentVariableW(L"CBT_WAIT_PID", nullptr);
+        SetEnvironmentVariableW(L"STILLPOINT_WAIT_PID", nullptr);
         if (!ok)
             return false;
         CloseHandle(process.hThread);
@@ -235,10 +235,10 @@ namespace Platform
     void WaitForPreviousInstance()
     {
         wchar_t value[32] = {};
-        const DWORD length = GetEnvironmentVariableW(L"CBT_WAIT_PID", value, 32);
+        const DWORD length = GetEnvironmentVariableW(L"STILLPOINT_WAIT_PID", value, 32);
         if (length == 0 || length >= 32)
             return;
-        SetEnvironmentVariableW(L"CBT_WAIT_PID", nullptr);
+        SetEnvironmentVariableW(L"STILLPOINT_WAIT_PID", nullptr);
         const DWORD previous = static_cast<DWORD>(wcstoul(value, nullptr, 10));
         // No máximo 20 s: a cópia anterior fecha em poucos segundos
         if (HANDLE handle = OpenProcess(SYNCHRONIZE, FALSE, previous))

@@ -236,21 +236,21 @@ namespace Platform
             return false;
 
         // A nova cópia recebe o número deste processo e espera ele terminar
-        setenv("CBT_WAIT_PID", std::to_string(getpid()).c_str(), 1);
+        setenv("STILLPOINT_WAIT_PID", std::to_string(getpid()).c_str(), 1);
         pid_t child = 0;
         char* argv[] = { path.data(), nullptr };
         const int result = posix_spawn(&child, path.data(), nullptr, nullptr, argv, environ);
-        unsetenv("CBT_WAIT_PID");
+        unsetenv("STILLPOINT_WAIT_PID");
         return result == 0;
     }
 
     void WaitForPreviousInstance()
     {
-        const char* value = std::getenv("CBT_WAIT_PID");
+        const char* value = std::getenv("STILLPOINT_WAIT_PID");
         if (value == nullptr)
             return;
         const pid_t previous = static_cast<pid_t>(std::atoi(value));
-        unsetenv("CBT_WAIT_PID");
+        unsetenv("STILLPOINT_WAIT_PID");
         // No máximo 20 s: a cópia anterior fecha em poucos segundos
         for (int i = 0; i < 200 && previous > 0 && kill(previous, 0) == 0; ++i)
             usleep(100000);

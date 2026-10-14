@@ -24,7 +24,7 @@ endif()
 # Windows: compilador de recursos, para embutir o ícone no .exe
 if(WIN32)
     enable_language(RC)
-    set(CBT_ICON_FILE "${CMAKE_SOURCE_DIR}/resources/icon/app-icon.ico")
+    set(STILLPOINT_ICON_FILE "${CMAKE_SOURCE_DIR}/resources/icon/app-icon.ico")
     configure_file(resources/windows/app.rc.in "${CMAKE_BINARY_DIR}/app.rc" @ONLY)
 endif()
 
@@ -68,9 +68,9 @@ endforeach()
 # ---------------------------------------------------------------------------
 # Núcleo + plataforma (compartilhado pelo terminal e pela interface gráfica)
 # ---------------------------------------------------------------------------
-option(CBT_BUILD_GUI "Compilar também a interface gráfica" ON)
+option(STILLPOINT_BUILD_GUI "Compilar também a interface gráfica" ON)
 
-set(CBT_CORE_SOURCES
+set(STILLPOINT_CORE_SOURCES
     src/core/canon_controller.cpp
     src/core/bullet_time.cpp
     src/core/sdk_diagnostics.cpp
@@ -79,45 +79,45 @@ set(CBT_CORE_SOURCES
 
 # Código específico de cada sistema (ver include/platform/platform.h)
 if(WIN32)
-    list(APPEND CBT_CORE_SOURCES
+    list(APPEND STILLPOINT_CORE_SOURCES
         src/platform/windows/platform_windows.cpp
         src/platform/windows/audio_player_windows.cpp
     )
 else()
-    list(APPEND CBT_CORE_SOURCES
+    list(APPEND STILLPOINT_CORE_SOURCES
         src/platform/macos/platform_macos.cpp
         src/platform/macos/audio_player_macos.cpp
     )
 endif()
 
-add_library(cbt_core STATIC ${CBT_CORE_SOURCES})
+add_library(stillpoint_core STATIC ${STILLPOINT_CORE_SOURCES})
 
-target_include_directories(cbt_core PUBLIC
+target_include_directories(stillpoint_core PUBLIC
     include
     src/core
     "${EDSDK_INCLUDE_DIR}"
 )
 
 if(WIN32)
-    target_compile_definitions(cbt_core PUBLIC UNICODE _UNICODE)
+    target_compile_definitions(stillpoint_core PUBLIC UNICODE _UNICODE)
 
     if(MSVC)
         # Mesmas opções do projeto Visual Studio anterior
-        target_compile_options(cbt_core PUBLIC /W3 /sdl /permissive-)
+        target_compile_options(stillpoint_core PUBLIC /W3 /sdl /permissive-)
     endif()
 
-    target_link_libraries(cbt_core PUBLIC
+    target_link_libraries(stillpoint_core PUBLIC
         "${EDSDK_LIB}"
         winmm
         setupapi
     )
 else()
     # O SDK da Canon para Mac exige esta macro para escolher os tipos do macOS
-    target_compile_definitions(cbt_core PUBLIC __MACOS__)
+    target_compile_definitions(stillpoint_core PUBLIC __MACOS__)
 
-    target_compile_options(cbt_core PUBLIC "-F${EDSDK_FRAMEWORK_DIR}")
-    target_link_options(cbt_core PUBLIC "-F${EDSDK_FRAMEWORK_DIR}")
-    target_link_libraries(cbt_core PUBLIC
+    target_compile_options(stillpoint_core PUBLIC "-F${EDSDK_FRAMEWORK_DIR}")
+    target_link_options(stillpoint_core PUBLIC "-F${EDSDK_FRAMEWORK_DIR}")
+    target_link_libraries(stillpoint_core PUBLIC
         "-framework EDSDK"
         "-framework CoreFoundation"
         "-framework IOKit"
@@ -125,7 +125,7 @@ else()
 endif()
 
 # Junto de cada programa: SDK da Canon e pasta assets (áudios e interface)
-function(cbt_copy_runtime_files target)
+function(stillpoint_copy_runtime_files target)
     if(WIN32)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${EDSDK_DLLS} "$<TARGET_FILE_DIR:${target}>"
@@ -163,17 +163,17 @@ endfunction()
 # ---------------------------------------------------------------------------
 add_executable(StillpointTerminal src/cli/main.cpp)
 set_target_properties(StillpointTerminal PROPERTIES OUTPUT_NAME "Stillpoint Terminal App")
-target_link_libraries(StillpointTerminal PRIVATE cbt_core)
+target_link_libraries(StillpointTerminal PRIVATE stillpoint_core)
 if(WIN32)
     target_compile_definitions(StillpointTerminal PRIVATE _CONSOLE)
     target_sources(StillpointTerminal PRIVATE "${CMAKE_BINARY_DIR}/app.rc")
 endif()
-cbt_copy_runtime_files(StillpointTerminal)
+stillpoint_copy_runtime_files(StillpointTerminal)
 
 # ---------------------------------------------------------------------------
 # Interface gráfica (janela nativa com HTML/CSS; ver assets/ui)
 # ---------------------------------------------------------------------------
-if(CBT_BUILD_GUI)
+if(STILLPOINT_BUILD_GUI)
     include(FetchContent)
     FetchContent_Declare(
         webview
@@ -201,7 +201,7 @@ if(CBT_BUILD_GUI)
         libraw_cmake
         GIT_REPOSITORY https://github.com/LibRaw/LibRaw-cmake
         GIT_TAG eb98e4325aef2ce85d2eb031c2ff18640ca616d3
-        SOURCE_SUBDIR cbt-do-not-add  # adicionado abaixo, só com o necessário
+        SOURCE_SUBDIR stillpoint-do-not-add  # adicionado abaixo, só com o necessário
     )
     FetchContent_MakeAvailable(libraw_src libraw_cmake)
 
@@ -214,33 +214,33 @@ if(CBT_BUILD_GUI)
     # continua sem depender de nada instalado na máquina
     set(CMAKE_DISABLE_FIND_PACKAGE_ZLIB TRUE)
     set(CMAKE_DISABLE_FIND_PACKAGE_JPEG TRUE)
-    set(_cbt_shared ${BUILD_SHARED_LIBS})
+    set(_stillpoint_shared ${BUILD_SHARED_LIBS})
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)  # o LibRaw-cmake respeita o BUILD_SHARED_LIBS acima
     add_subdirectory("${libraw_cmake_SOURCE_DIR}" "${libraw_cmake_BINARY_DIR}" EXCLUDE_FROM_ALL)
-    set(BUILD_SHARED_LIBS ${_cbt_shared})
+    set(BUILD_SHARED_LIBS ${_stillpoint_shared})
     unset(CMAKE_POLICY_DEFAULT_CMP0077)
     unset(CMAKE_DISABLE_FIND_PACKAGE_ZLIB)
     unset(CMAKE_DISABLE_FIND_PACKAGE_JPEG)
 
-    set(CBT_GUI_SOURCES
+    set(STILLPOINT_GUI_SOURCES
         src/gui/main_gui.cpp
         src/gui/photo_store.cpp
     )
     if(WIN32)
-        list(APPEND CBT_GUI_SOURCES src/gui/native_window_win.cpp "${CMAKE_BINARY_DIR}/app.rc")
+        list(APPEND STILLPOINT_GUI_SOURCES src/gui/native_window_win.cpp "${CMAKE_BINARY_DIR}/app.rc")
     else()
-        list(APPEND CBT_GUI_SOURCES src/gui/native_window_mac.cpp)
+        list(APPEND STILLPOINT_GUI_SOURCES src/gui/native_window_mac.cpp)
     endif()
 
-    add_executable(Stillpoint WIN32 ${CBT_GUI_SOURCES})
+    add_executable(Stillpoint WIN32 ${STILLPOINT_GUI_SOURCES})
     set_target_properties(Stillpoint PROPERTIES OUTPUT_NAME "Stillpoint")
     target_include_directories(Stillpoint PRIVATE src/gui "${stb_SOURCE_DIR}")
-    target_link_libraries(Stillpoint PRIVATE cbt_core webview::core libraw::libraw)
+    target_link_libraries(Stillpoint PRIVATE stillpoint_core webview::core libraw::libraw)
     if(WIN32)
         target_link_libraries(Stillpoint PRIVATE comctl32 ole32)
     else()
         target_link_libraries(Stillpoint PRIVATE "-framework AppKit")
     endif()
-    cbt_copy_runtime_files(Stillpoint)
+    stillpoint_copy_runtime_files(Stillpoint)
 endif()
