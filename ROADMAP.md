@@ -221,7 +221,9 @@ Atualizar esta tabela sempre que uma função mudar de status.
   em 2026-10-13: cada entrada é identificada por modelo + porta. Também: uma
   tentativa que falha rápido (a T7 deu 8195, "sessão não aberta") volta às tentativas
   normais em vez de esperar outro aviso de conexão. Testado no Mac (2026-10-14).
-  Ainda sem explicação: por que às vezes só reiniciando o Mac.
+  Às vezes só voltava reiniciando o Mac (sem explicação); segundo o dono do projeto, não
+  aconteceu mais até 2026-10-14 (depois das correções de reconexão e da detecção por USB).
+  Se voltar: pedir o log de Activity com "Show technical details" ligado.
   Teste do USB (1º log): "USB Canon devices: 0" o tempo todo, mesmo com as duas
   câmeras conectadas; a busca foi refeita (todos os aparelhos USB, filtrando a Canon,
   e com o total de aparelhos no log). 2º log (22:00): agora as câmeras aparecem no
