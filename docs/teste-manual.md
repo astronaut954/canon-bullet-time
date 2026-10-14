@@ -128,6 +128,10 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Botões − e + mudam a velocidade (0.5x a 2x), também com o play rodando; nos limites
       o botão fica desativado.
 
+## 12. Abrir a pasta depois de salvar
+- [ ] "Save sessions" com uma sessão: no fim abre a pasta dessa sessão (Finder/Explorador).
+- [ ] Com várias sessões salvas de uma vez: abre a pasta escolhida, com todas dentro.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

@@ -38,7 +38,8 @@ public:
     // Move as sessões para a pasta escolhida: só as de "names" ou, se vazio, todas.
     // Retorna quantas foram movidas; em caso de erro, preenche errorMessage.
     int SaveSessions(const std::filesystem::path& destination, const std::vector<std::string>& names,
-                     std::string& errorMessage) const;
+                     std::string& errorMessage,
+                     std::vector<std::filesystem::path>* savedTo = nullptr) const;  // onde cada uma ficou
 
     bool DeleteSession(const std::string& session) const;
 

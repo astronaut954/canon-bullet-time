@@ -330,7 +330,7 @@ std::string PhotoStore::Preview(const std::string& session, const std::string& f
 }
 
 int PhotoStore::SaveSessions(const fs::path& destination, const std::vector<std::string>& names,
-                             std::string& errorMessage) const
+                             std::string& errorMessage, std::vector<fs::path>* savedTo) const
 {
     std::error_code ec;
     fs::create_directories(destination, ec);
@@ -366,6 +366,8 @@ int PhotoStore::SaveSessions(const fs::path& destination, const std::vector<std:
             }
             fs::remove_all(from, ec);
         }
+        if (savedTo)
+            savedTo->push_back(to);
         ++moved;
     }
     return moved;

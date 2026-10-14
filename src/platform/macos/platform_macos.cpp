@@ -419,4 +419,9 @@ open "$APP"
     {
         Spawn({ "/usr/bin/open", url });
     }
+
+    void OpenInFileManager(const fs::path& folder)
+    {
+        Spawn({ "/usr/bin/open", folder.string() });
+    }
 }

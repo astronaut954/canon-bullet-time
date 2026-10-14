@@ -97,4 +97,7 @@ namespace Platform
 
     // Abre um endereço da internet no navegador padrão.
     void OpenUrl(const std::string& url);
+
+    // Abre uma pasta no Finder (Mac) ou no Explorador de Arquivos (Windows).
+    void OpenInFileManager(const std::filesystem::path& folder);
 }

@@ -934,7 +934,12 @@ namespace
             previews.Post([&, folder, exitAfter, deleteRest, names]
             {
                 std::string error;
-                const int moved = store.SaveSessions(folder, names, error);
+                std::vector<std::filesystem::path> savedTo;
+                const int moved = store.SaveSessions(folder, names, error, &savedTo);
+                // Mostra o resultado: uma sessão -> a pasta dela; várias -> a pasta escolhida
+                if (moved > 0)
+                    Platform::OpenInFileManager(moved == 1 && savedTo.size() == 1 ? savedTo.front()
+                                                                                   : std::filesystem::path(folder));
                 if (error.empty() && deleteRest && !names.empty())
                     for (const auto& session : store.ListSessions())
                         if (std::find(names.begin(), names.end(), session.name) == names.end())
