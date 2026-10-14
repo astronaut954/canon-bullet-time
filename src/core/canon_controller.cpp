@@ -552,10 +552,19 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         }
     }
 
+    // Diagnóstico: aviso do sistema de que uma câmera foi conectada
+    if (const int added = camerasAdded.load(); added != loggedAdded)
+    {
+        loggedAdded = added;
+        LogMessage("System reported a camera plugged in (" + std::to_string(added) + ")");
+    }
+
     // 3) Câmeras na lista do SDK que ainda não estão conectadas
     if (now - lastScan < seconds(1))
         return listChanged;
     lastScan = now;
+    const auto scanStart = Clock::now();
+    std::string scanPorts;   // diagnóstico: o que o SDK listou nesta procura
 
     const size_t queuedBefore = queued.size();
     queued.clear();
@@ -586,8 +595,15 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
             continue;
 
         CameraContext info;
-        if (!BuildCameraContext(ref, info))
+        const auto infoStart = Clock::now();
+        const bool infoOk = BuildCameraContext(ref, info);
+        const double infoSecs = std::chrono::duration<double>(Clock::now() - infoStart).count();
+        if (infoSecs >= 1.0)
+            LogMessage("Reading camera info took " + std::to_string(static_cast<int>(infoSecs)) + " s"
+                + (infoOk ? " (" + info.modelName + ", " + info.portName + ")" : ""));
+        if (!infoOk)
         {
+            scanPorts += " [unreadable]";
             EdsRelease(ref);
             continue;
         }
@@ -605,6 +621,8 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         const bool suspectWaiting = suspect != suspectPorts.end()
             && (camerasAdded.load() <= suspect->second.seen || recentlyAdded);
 
+        scanPorts += " " + info.baseShortName + "@" + info.portName
+            + (alreadyConnected ? ":connected" : waitingRetry ? ":retry-wait" : suspectWaiting ? ":kept-aside" : "");
         if (alreadyConnected || alreadyFound || waitingRetry || suspectWaiting)
         {
             EdsRelease(ref);
@@ -660,6 +678,16 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         found.push_back(f);
     }
     EdsRelease(cameraList);
+
+    // Diagnóstico: registra a lista do SDK quando ela muda, e procuras demoradas
+    const double scanSecs = std::chrono::duration<double>(Clock::now() - scanStart).count();
+    if (scanPorts != lastScanPorts)
+    {
+        lastScanPorts = scanPorts;
+        LogMessage("SDK camera list: " + std::to_string(count) + (scanPorts.empty() ? "" : " -" + scanPorts));
+    }
+    if (scanSecs >= 1.0)
+        LogMessage("Camera search took " + std::to_string(static_cast<int>(scanSecs)) + " s");
 
     // Uma conexão suspeita só é tentada se for a única chance de recuperar uma câmera
     // que caiu: se apareceu outra entrada do mesmo modelo, a câmera voltou por ela
@@ -798,6 +826,7 @@ std::vector<PendingConnectionInfo> CanonController::GetPendingConnections() cons
 
 void CanonController::ResetConnectionHistory()
 {
+    lastScanPorts.clear();
     portRetry.clear();
     queued.clear();
     lastScan = {};

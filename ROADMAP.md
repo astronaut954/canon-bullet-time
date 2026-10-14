@@ -113,8 +113,13 @@ Atualizar esta tabela sempre que uma função mudar de status.
      não recebe atualização enquanto ela dura;
   3. a T7 está na fila atrás de outra câmera e aparece como "Waiting for another
      camera" em vez de "Connecting".
-  Para investigar: com "Show technical details" ligado, guardar o log da
-  Activity de uma vez em que acontecer.
+  Dado de 2026-10-13 (T7 e SL3 ligadas antes de abrir o app): a SL3 conectou em
+  1 s; nada no log por 40 s; depois a T7 apareceu e conectou em 1 s. Ou seja, a
+  espera acontece antes da abertura da sessão (hipóteses 1 ou 2 abaixo, não a 3).
+  Para separar: o app agora registra nos detalhes técnicos a lista de câmeras que
+  o SDK devolve (quando muda), procuras e leituras de câmera que demoram 1 s ou
+  mais, e os avisos do sistema de "câmera conectada". Guardar o log de uma vez em
+  que acontecer.
 
 ## Histórico de versões do SDK
 

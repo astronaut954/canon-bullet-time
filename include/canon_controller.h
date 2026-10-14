@@ -137,6 +137,8 @@ private:
     std::atomic<int> camerasAdded{ 0 };            // avisos de "câmera conectada" do SDK
     std::atomic<long long> lastAddedMs{ 0 };       // quando chegou o último (ms desde o início)
     bool addedHandlerSet = false;
+    int loggedAdded = 0;            // diagnóstico (Activity, detalhes técnicos)
+    std::string lastScanPorts;      // diagnóstico: última lista do SDK registrada
     static EdsError EDSCALLBACK HandleCameraAdded(EdsVoid* context);
     std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
     std::chrono::steady_clock::time_point lastHealthCheck{};

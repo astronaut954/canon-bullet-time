@@ -1107,6 +1107,12 @@
     if (handler) handler(event);
   };
 
+  // Sem o menu do botão direito do navegador ("Reload" deixava a janela em branco);
+  // nos campos de texto ele continua, para copiar e colar.
+  document.addEventListener("contextmenu", (e) => {
+    if (!e.target.closest("input, textarea")) e.preventDefault();
+  });
+
   // =================== Ações ===================
   ui.restartBtn.addEventListener("click", () => {
     dialog("Restart camera connections?", "Use this when a camera is on and plugged in but does not connect. All cameras reconnect.", [
