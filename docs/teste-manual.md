@@ -132,3 +132,4 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 | 2026-10-14 | Mac + Windows | etapa-5-interface | Canon SL3 + Canon T7 | sim | Versão de janela e de terminal nos dois; app de Mac (.app) com dois cliques; "Restart app" testado nos dois |
 | 2026-10-14 | Mac + Windows | etapa-6-icone-e-nome | — | sim | Ícone e nome Stillpoint funcionando nos dois (confirmado pelo dono do projeto) |
 | 2026-10-14 | Mac + Windows | etapa-7-instaladores | — | sim | `.dmg` (fundo, posições, Read Me) e instalador de Windows aprovados pelo dono do projeto |
+| 2026-10-14 | Mac + Windows | etapa-8-atualizacao | Canon T7 (Mac) | sim | Atualização simulada (2.1.0 → 2.2.0) aprovada pelo dono do projeto nos dois sistemas |

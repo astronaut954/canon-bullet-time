@@ -29,7 +29,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 5 | Interface gráfica | Janela nativa com a interface em HTML/CSS (WebView2 no Windows, WebKit no Mac), usando o mesmo núcleo do terminal. Visual em `assets/ui/themes/nocturne-neo.css`. App de Mac (`.app`) e versão de janela nos pacotes. Checklist passou no Mac e no Windows (2026-10-14). | feito |
 | 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). Funcionando no Mac e no Windows (2026-10-14). | feito |
 | 7 | Instaladores | `.dmg` no Mac (arrastar para Aplicativos, fundo com chuva de código, Read Me em inglês sem Terminal) e instalador de Windows (Inno Setup, mesmo visual, versão de terminal opcional e desmarcada). Os zips continuam na versão. Testado no Mac e no Windows (2026-10-14). | feito |
-| 8 | Atualização pelo app | Ao abrir, o app consulta a última versão no GitHub; botão "Update" no topo, janela com as novidades, download com andamento, conferência (tamanho e SHA-256) e instalação com reabertura. Não atualiza durante disparo ou conexão. | em andamento |
+| 8 | Atualização pelo app | Ao abrir, o app consulta a última versão no GitHub; botão "Update" no topo, janela com as novidades, download com andamento, conferência (tamanho e SHA-256) e instalação com reabertura. Não atualiza durante disparo ou conexão. Testado no Mac e no Windows (2026-10-14). | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -131,8 +131,10 @@ durante disparo/conexão, aviso "Updated to ..." ao reabrir).
   no instalador novo, e o teste instala a v2.2.0 (instalador antigo). Corrigido como acima.
 - Verificado aqui: fluxo da página (aviso, janela, andamento, cancelar, falha, instalar,
   modo sem atualização automática, espera com câmera conectando) num navegador; código de
-  Windows compila (MinGW); script do Mac testado com ferramentas simuladas. Falta testar
-  nos dois sistemas.
+  Windows compila (MinGW); script do Mac testado com ferramentas simuladas.
+- Atualização simulada (STILLPOINT_TEST_VERSION) aprovada no Windows e no Mac pelo dono do
+  projeto em 2026-10-14. Junto: sombra da contagem em verde escuro e correção da linha de
+  status abaixo de "It's bullet time".
 
 ### Critério para fechar uma etapa
 
