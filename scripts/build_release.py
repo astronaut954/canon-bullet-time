@@ -34,16 +34,19 @@ IS_MAC = sys.platform == "darwin"
 if IS_MAC:
     PLATFORM = "macos-arm64"
     BUILD_EXE = REPO_ROOT / "build" / "macos-arm64" / "Canon Bullet Time"
+    BUILD_GUI = REPO_ROOT / "build" / "macos-arm64" / "Canon Bullet Time GUI"
     EDSDK_FRAMEWORK = REPO_ROOT / "third_party" / "edsdk" / "macos" / "EDSDK.framework"
 else:
     PLATFORM = "windows-x64"
     BUILD_EXE = REPO_ROOT / "build" / "windows-x64" / "Release" / "Canon Bullet Time.exe"
+    BUILD_GUI = REPO_ROOT / "build" / "windows-x64" / "Release" / "Canon Bullet Time GUI.exe"
     EDSDK_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EDSDK.dll"
     EDSIMAGE_DLL = REPO_ROOT / "third_party" / "edsdk" / "x64" / "Dll" / "EdsImage.dll"
 
 ASSETS_DIR = REPO_ROOT / "assets"
 README_MD = REPO_ROOT / "README.md"
 LICENSE_FILE = REPO_ROOT / "LICENSE"
+THIRD_PARTY_NOTICES = REPO_ROOT / "THIRD_PARTY_NOTICES.md"
 COMPAT_PDF = REPO_ROOT / "docs" / "CDC_EDSDK_Compat_List.pdf"
 
 DIST_DIR = REPO_ROOT / "dist" / PLATFORM
@@ -113,6 +116,7 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
 
 def main():
     ensure_file(BUILD_EXE, f"{BUILD_EXE.name} (Release build)")
+    ensure_file(BUILD_GUI, f"{BUILD_GUI.name} (Release build of the window app)")
     if IS_MAC:
         ensure_dir(EDSDK_FRAMEWORK, "EDSDK.framework")
     else:
@@ -121,6 +125,7 @@ def main():
     ensure_dir(ASSETS_DIR, "assets")
     ensure_file(README_MD, "README.md")
     ensure_file(LICENSE_FILE, "LICENSE")
+    ensure_file(THIRD_PARTY_NOTICES, "THIRD_PARTY_NOTICES.md")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -130,6 +135,7 @@ def main():
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
     copy_file(BUILD_EXE, DIST_DIR / BUILD_EXE.name)
+    copy_file(BUILD_GUI, DIST_DIR / BUILD_GUI.name)
     if IS_MAC:
         # ditto preserva links simbólicos e a assinatura do framework da Canon
         (DIST_DIR / "Frameworks").mkdir()
@@ -138,6 +144,12 @@ def main():
     else:
         copy_file(EDSDK_DLL, DIST_DIR / "EDSDK.dll")
         copy_file(EDSIMAGE_DLL, DIST_DIR / "EdsImage.dll")
+        # Outras bibliotecas que a compilação colocou ao lado dos programas (ex.: o
+        # carregador do WebView2, se a versão do webview usar um)
+        for dll in BUILD_EXE.parent.glob("*.dll"):
+            if dll.name not in ("EDSDK.dll", "EdsImage.dll"):
+                copy_file(dll, DIST_DIR / dll.name)
+    copy_file(THIRD_PARTY_NOTICES, DIST_DIR / "THIRD_PARTY_NOTICES.md")
     copy_file(README_MD, DIST_DIR / "README.md")
     copy_file(LICENSE_FILE, DIST_DIR / "LICENSE")
     copy_tree(ASSETS_DIR, DIST_DIR / "assets")

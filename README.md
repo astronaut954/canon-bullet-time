@@ -19,20 +19,21 @@ Designed for bullet time photography workflows.
 
 * Windows 10 or 11 (64-bit)
 * Compatible Canon camera
-* Keep these files in the same folder: `Canon Bullet Time.exe`, `EDSDK.dll`, `EdsImage.dll`, `assets/`
+* Keep these files in the same folder: `Canon Bullet Time GUI.exe`, `Canon Bullet Time.exe`, `EDSDK.dll`, `EdsImage.dll`, `assets/`
+* The window app uses Microsoft Edge WebView2, already included in up-to-date Windows 10 and 11
 
 **macOS**
 
 * Mac with Apple Silicon (M1 or newer), macOS 13.3 or later
 * Compatible Canon camera
-* Keep these files in the same folder: `Canon Bullet Time`, `Frameworks/`, `assets/`
+* Keep these files in the same folder: `Canon Bullet Time GUI`, `Canon Bullet Time`, `Frameworks/`, `assets/`
 * The app is not signed by Apple yet. After extracting the zip, run once in Terminal:
 
   ```
   xattr -dr com.apple.quarantine path/to/canon-bullet-time-vX.Y.Z
   ```
 
-  Then start it from Terminal: `./"Canon Bullet Time"`
+  Then start it from Terminal: `./"Canon Bullet Time GUI"` (window) or `./"Canon Bullet Time"` (terminal)
 
 
 
@@ -46,8 +47,9 @@ Designed for bullet time photography workflows.
 
 1. Extract all release files into the same folder
 2. Connect your Canon cameras via USB
-3. Run `Canon Bullet Time.exe`
-4. Follow the terminal instructions
+3. Run `Canon Bullet Time GUI` (window app), or `Canon Bullet Time` (terminal app)
+4. In the window app, the cameras connect by themselves; press "It's bullet time".
+   In the terminal app, follow the instructions on screen
 5. Enter the Matrix
 
 
