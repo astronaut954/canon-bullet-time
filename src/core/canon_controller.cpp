@@ -308,13 +308,23 @@ EdsError CanonController::OpenOneSession(CameraContext& cam, ConnectionObserver*
     EdsError err = EDS_ERR_OK;
     EdsCameraRef cameraRef = cam.camera;
 
-    std::thread worker([&]()
+    std::thread worker;
+    if (Platform::SdkSessionsInWorkerThreads())
     {
-        Platform::BeginSdkThread();
+        worker = std::thread([&]()
+        {
+            Platform::BeginSdkThread();
+            err = EdsOpenSession(cameraRef);
+            Platform::EndSdkThread();
+            done = true;
+        });
+    }
+    else
+    {
+        // Windows: a sessão aberta em outra thread não funcionava (dado de 2026-10-14)
         err = EdsOpenSession(cameraRef);
-        Platform::EndSdkThread();
         done = true;
-    });
+    }
 
     int tick = 0;
     while (!done)
@@ -330,7 +340,8 @@ EdsError CanonController::OpenOneSession(CameraContext& cam, ConnectionObserver*
             observer->OnConnectingProgress(cam, secondsSoFar, tick / 4);
         }
     }
-    worker.join();
+    if (worker.joinable())
+        worker.join();
 
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
 
@@ -433,7 +444,8 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
             ++it;
             continue;
         }
-        p.worker.join();
+        if (p.worker.joinable())
+            p.worker.join();
 
         const double secs = std::chrono::duration<double>(p.finish - p.start).count();
         CameraContext cam = p.candidate;
@@ -839,6 +851,17 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
 
     job->start = Clock::now();
     PendingConnection* raw = job.get();
+    if (!Platform::SdkSessionsInWorkerThreads())
+    {
+        // Windows: abre aqui mesmo (na thread das câmeras). Dado de 2026-10-14: aberta
+        // numa thread auxiliar, a sessão abria (0) mas os comandos seguintes davam
+        // erro 2 e a câmera "parava de responder" logo depois.
+        raw->result = EdsOpenSession(raw->candidate.camera);
+        raw->finish = std::chrono::steady_clock::now();
+        raw->done = true;
+        pending.push_back(std::move(job));
+        return true;
+    }
     job->worker = std::thread([raw]()
     {
         Platform::BeginSdkThread();
@@ -1010,7 +1033,8 @@ void CanonController::WaitPendingConnections()
 {
     for (auto& p : pending)
     {
-        p->worker.join();
+        if (p->worker.joinable())
+            p->worker.join();
         if (p->result == EDS_ERR_OK)
             EdsCloseSession(p->candidate.camera);
         if (p->candidate.camera != nullptr)

@@ -77,6 +77,14 @@ namespace Platform
         CoUninitialize();
     }
 
+    bool SdkSessionsInWorkerThreads()
+    {
+        // Dado de 2026-10-14: aberta numa thread auxiliar, a sessão abria, mas os
+        // comandos seguintes davam erro 2. Causa provável: o COM de cada thread é
+        // separado, e a thread auxiliar encerrava o dela ao terminar.
+        return false;
+    }
+
     void DiscardPendingInput()
     {
         FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));

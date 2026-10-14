@@ -96,7 +96,11 @@ Atualizar esta tabela sempre que uma função mudar de status.
   `.zip` das versões (o que os termos da Canon permitem). Os arquivos do SDK
   saíram do repositório; cópias antigas continuam no histórico do Git.
 
-- **Windows: conexão em paralelo não testada com câmeras.** Desde a branch
+- **Windows: conexão em paralelo não funcionava (testado em 2026-10-14).** A sessão
+  aberta numa thread auxiliar abria, mas os comandos seguintes davam erro 2 e a câmera
+  "parava de responder". Corrigido: no Windows a sessão abre na própria thread das
+  câmeras (Platform::SdkSessionsInWorkerThreads). Aguardando novo teste. Texto antigo:
+  **Windows: conexão em paralelo não testada com câmeras.** Desde a branch
   `fix-feedback-conexao`, a sessão de cada câmera é aberta numa thread auxiliar
   (com COM inicializado, como pede o manual da Canon). Compila, mas ainda não
   foi testado com câmeras no Windows. Testar antes da próxima versão publicada.

@@ -40,6 +40,11 @@ namespace Platform
     void BeginSdkThread();
     void EndSdkThread();
 
+    // Se a sessão de uma câmera pode ser aberta numa thread auxiliar (para a janela
+    // continuar mostrando o andamento). Mac: sim (a T7 leva ~40 s). Windows: não;
+    // dado de 2026-10-14: aberta em outra thread, os comandos seguintes falhavam.
+    bool SdkSessionsInWorkerThreads();
+
     // Aparelho da Canon ligado no USB, segundo o próprio sistema (sem o SDK da Canon)
     struct UsbDevice
     {

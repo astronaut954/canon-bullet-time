@@ -74,6 +74,7 @@ namespace Platform
 
     void BeginSdkThread() {}
     void EndSdkThread() {}
+    bool SdkSessionsInWorkerThreads() { return true; }
 
     void DiscardPendingInput()
     {
