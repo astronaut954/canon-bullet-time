@@ -126,7 +126,13 @@ Atualizar esta tabela sempre que uma função mudar de status.
   ~40 s a T7 ainda não existe para o SDK (nem para o macOS), então o app não tem como
   mostrá-la pelo SDK. Possível solução, ainda não decidida: olhar a lista de aparelhos
   USB do sistema (IOKit no Mac, SetupAPI no Windows) e mostrar "uma câmera Canon está
-  ligando" quando há um aparelho Canon no USB que o SDK ainda não lista.
+  ligando" quando há um aparelho Canon no USB que o SDK ainda não lista. Teste
+  antes de implementar: o app agora registra "USB Canon devices" (só no Mac; IOKit)
+  nos detalhes técnicos, para comparar com "SDK camera list".
+
+- **T7 não reconecta depois de desconectar (Mac, registrado em 2026-10-13).** Depois
+  que a T7 se desconecta, ela só volta reiniciando o app. Ainda não investigado:
+  falta o log (detalhes técnicos) de uma vez em que acontecer.
 
 ## Histórico de versões do SDK
 

@@ -112,6 +112,7 @@ else()
     target_link_libraries(cbt_core PUBLIC
         "-framework EDSDK"
         "-framework CoreFoundation"
+        "-framework IOKit"
     )
 endif()
 

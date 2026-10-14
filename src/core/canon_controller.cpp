@@ -563,6 +563,21 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
     if (now - lastScan < seconds(1))
         return listChanged;
     lastScan = now;
+
+    // Diagnóstico: aparelhos Canon que o sistema vê no USB (sem o SDK), quando muda.
+    // Serve para saber se a T7 aparece no USB antes de aparecer no SDK.
+    {
+        std::string usb;
+        const auto devices = Platform::CanonUsbDevices();
+        for (const auto& d : devices)
+            usb += (usb.empty() ? " - " : ", ") + d;
+        usb = std::to_string(devices.size()) + usb;
+        if (usb != lastUsbDevices)
+        {
+            lastUsbDevices = usb;
+            LogMessage("USB Canon devices: " + usb);
+        }
+    }
     const auto scanStart = Clock::now();
     std::string scanPorts;   // diagnóstico: o que o SDK listou nesta procura
 
@@ -827,6 +842,7 @@ std::vector<PendingConnectionInfo> CanonController::GetPendingConnections() cons
 void CanonController::ResetConnectionHistory()
 {
     lastScanPorts.clear();
+    lastUsbDevices.clear();
     portRetry.clear();
     queued.clear();
     lastScan = {};

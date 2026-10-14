@@ -1,11 +1,13 @@
 #include "platform/platform.h"
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
 #include <mach-o/dyld.h>
 #include <termios.h>
 #include <unistd.h>
 
 #include <climits>
+#include <cstdio>
 #include <clocale>
 #include <cstdint>
 #include <cstdlib>
@@ -81,5 +83,57 @@ namespace Platform
             return fs::path(home) / "Library" / "Application Support" / "Canon Bullet Time";
 
         return fs::current_path() / "Canon Bullet Time";
+    }
+
+    std::vector<std::string> CanonUsbDevices()
+    {
+        std::vector<std::string> devices;
+
+        // Aparelhos USB com o código de fabricante da Canon (0x04A9)
+        CFMutableDictionaryRef matching = IOServiceMatching("IOUSBHostDevice");
+        if (matching == nullptr)
+            return devices;
+        SInt32 vendor = 0x04A9;
+        CFNumberRef vendorNumber = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &vendor);
+        CFDictionarySetValue(matching, CFSTR("idVendor"), vendorNumber);
+        CFRelease(vendorNumber);
+
+        io_iterator_t iterator = 0;
+        // IOServiceGetMatchingServices fica com "matching" (não liberar aqui)
+        if (IOServiceGetMatchingServices(MACH_PORT_NULL, matching, &iterator) != KERN_SUCCESS)
+            return devices;
+
+        for (io_service_t service = IOIteratorNext(iterator); service != 0; service = IOIteratorNext(iterator))
+        {
+            std::string name = "Canon USB device";
+            if (CFTypeRef value = IORegistryEntryCreateCFProperty(service, CFSTR("USB Product Name"), kCFAllocatorDefault, 0))
+            {
+                if (CFGetTypeID(value) == CFStringGetTypeID())
+                {
+                    char buffer[256] = {};
+                    if (CFStringGetCString(static_cast<CFStringRef>(value), buffer, sizeof(buffer), kCFStringEncodingUTF8))
+                        name = buffer;
+                }
+                CFRelease(value);
+            }
+
+            std::string location = "?";
+            if (CFTypeRef value = IORegistryEntryCreateCFProperty(service, CFSTR("locationID"), kCFAllocatorDefault, 0))
+            {
+                SInt64 id = 0;
+                if (CFGetTypeID(value) == CFNumberGetTypeID() && CFNumberGetValue(static_cast<CFNumberRef>(value), kCFNumberSInt64Type, &id))
+                {
+                    char buffer[32] = {};
+                    std::snprintf(buffer, sizeof(buffer), "0x%llx", static_cast<unsigned long long>(id));
+                    location = buffer;
+                }
+                CFRelease(value);
+            }
+
+            devices.push_back(name + " @ " + location);
+            IOObjectRelease(service);
+        }
+        IOObjectRelease(iterator);
+        return devices;
     }
 }

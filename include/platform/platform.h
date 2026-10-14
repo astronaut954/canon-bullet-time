@@ -6,6 +6,8 @@
 
 #include <ctime>
 #include <filesystem>
+#include <string>
+#include <vector>
 
 namespace Platform
 {
@@ -37,4 +39,9 @@ namespace Platform
     // No Windows o SDK exige COM inicializado em cada thread; no Mac não faz nada.
     void BeginSdkThread();
     void EndSdkThread();
+
+    // Aparelhos da Canon ligados no USB, segundo o próprio sistema (sem passar pelo
+    // SDK da Canon): "nome @ porta" de cada um. Por enquanto só para diagnóstico
+    // (ver a T7 que leva ~40 s para aparecer no SDK). No Windows ainda devolve vazio.
+    std::vector<std::string> CanonUsbDevices();
 }

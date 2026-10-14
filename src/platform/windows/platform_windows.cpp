@@ -94,4 +94,10 @@ namespace Platform
 
         return DownloadsFolder() / "Canon Bullet Time";
     }
+
+    std::vector<std::string> CanonUsbDevices()
+    {
+        // Ainda não feito no Windows (diagnóstico usado só no Mac por enquanto)
+        return {};
+    }
 }
