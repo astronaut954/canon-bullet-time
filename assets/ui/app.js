@@ -512,10 +512,11 @@
   // Conexão que passa de 1 minuto (a T7 leva ~40 s): o SDK da Canon não deixa
   // cancelar, e o disparo fica bloqueado até ela terminar. Oferece reiniciar o app.
   const SLOW_CONNECT_SECONDS = 60;
+  let testRestart = false;   // CBT_TEST_RESTART=1: botão "Restart app" sempre visível (teste)
   const slowWarned = new Set();
   function checkSlowConnections() {
     const slow = cameras.filter((c) => c.state === "connecting" && !c.starting && !c.waiting && c.seconds >= SLOW_CONNECT_SECONDS);
-    ui.restartAppBtn.classList.toggle("hidden", slow.length === 0);
+    ui.restartAppBtn.classList.toggle("hidden", slow.length === 0 && !testRestart);
     if (!slow.length) return;
     const names = slow.map((c) => cameraLabel(c.name, c.model));
     ui.shootNote.classList.remove("hidden");
@@ -1210,5 +1211,6 @@
   Promise.resolve(window.uiReady()).then((info) => {
     refreshSessions();
     if (info && info.unsavedSessions > 0) offerRecovery(info.unsavedSessions);
+    if (info && info.testRestart) { testRestart = true; ui.restartAppBtn.classList.remove("hidden"); }
   });
 })();
