@@ -550,7 +550,7 @@ namespace Export
             const int boxW = height * 16 / 9, boxH = height;
             if (aspect >= static_cast<double>(boxW) / boxH) { w = boxW; h = static_cast<int>(std::lround(boxW / aspect)); }
             else { h = boxH; w = static_cast<int>(std::lround(boxH * aspect)); }
-            w = std::max(2, w & ~1);
+            w = std::max(16, w & ~15);  // largura múltipla de 16: aceita por todos os codificadores de vídeo
             h = std::max(2, h & ~1);
         };
 
