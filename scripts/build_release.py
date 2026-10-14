@@ -60,7 +60,9 @@ ZIP_NAME = f"{PROJECT_NAME}-{VERSION}-{PLATFORM}.zip"
 INSTALLER_DIR = REPO_ROOT / "resources" / "installer"
 DMG_NAME = f"{PROJECT_NAME}-{VERSION}-{PLATFORM}.dmg"
 SETUP_NAME = f"{PROJECT_NAME}-{VERSION}-{PLATFORM}-setup"   # o Inno Setup acrescenta .exe
-DMGBUILD_VERSION = "1.6.7"
+# 1.6.5 é a última que roda no Python 3.9 (o que vem com as ferramentas da Apple);
+# no Python 3.10+ o pip escolhe a mais nova da série 1.6
+DMGBUILD_REQUIREMENT = "dmgbuild>=1.6.5,<1.7"
 # Posições dos ícones na janela do .dmg (pontos); iguais às de scripts/make_installer_art.py
 DMG_LAYOUT = {
     "window": (660, 500),
@@ -149,8 +151,8 @@ def dmgbuild_python() -> str:
         subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
     check = subprocess.run([str(py), "-c", "import dmgbuild"], capture_output=True)
     if check.returncode != 0:
-        print(f"[SETUP] Installing dmgbuild {DMGBUILD_VERSION} (internet required, one time)")
-        subprocess.run([str(py), "-m", "pip", "install", "--quiet", f"dmgbuild=={DMGBUILD_VERSION}"], check=True)
+        print("[SETUP] Installing dmgbuild (internet required, one time)")
+        subprocess.run([str(py), "-m", "pip", "install", "--quiet", "--disable-pip-version-check", DMGBUILD_REQUIREMENT], check=True)
     return str(py)
 
 
