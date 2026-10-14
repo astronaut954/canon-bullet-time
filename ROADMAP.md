@@ -103,6 +103,9 @@ Visual aprovado em 2026-10-14 (fundo do `.dmg`, imagens do instalador de Windows
   registro "pBBk", que o dmgbuild grava até a 1.6.6 (a 1.6.7 corrige, mas exige Python 3.10+;
   o do Mac é 3.9). Corrigido no script: o registro é desligado e o `.dmg` pronto é conferido
   (falha se o fundo não estiver certo). Nomes sem extensão (".app", ".pdf") na janela.
+- 2º teste no Mac: fundo aparecendo. A janela ficou baixa: a altura do `.dmg` inclui a
+  barra de título (~32 pt) e a barra de caminho do Finder (~28 pt), que cortavam o nome do
+  Read Me. Janela e fundo passaram de 500 para 560 pt de altura.
 - Aguardando novo teste no Mac e o primeiro no Windows.
 
 ### Critério para fechar uma etapa

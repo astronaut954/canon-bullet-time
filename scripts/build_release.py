@@ -65,7 +65,7 @@ SETUP_NAME = f"{PROJECT_NAME}-{VERSION}-{PLATFORM}-setup"   # o Inno Setup acres
 DMGBUILD_REQUIREMENT = "dmgbuild>=1.6.5,<1.7"
 # Posições dos ícones na janela do .dmg (pontos); iguais às de scripts/make_installer_art.py
 DMG_LAYOUT = {
-    "window": (660, 500),
+    "window": (660, 560),   # inclui barra de título e barra de caminho do Finder
     "icon_size": 96,
     "positions": {"Stillpoint.app": (170, 190), "Applications": (490, 190), "Read Me.pdf": (330, 392)},
 }

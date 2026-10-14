@@ -39,8 +39,10 @@ G1, G2, G3, G4, G5 = (0, 255, 65), (0, 204, 51), (0, 153, 38), (0, 102, 25), (0,
 HEAD = (200, 255, 214)
 GLYPHS = [chr(c) for c in range(0xFF66, 0xFF9E)] + list("0123456789") + list("Z:=*+-<>¦")
 
-# Janela do .dmg, em pontos (o arquivo @2x tem o dobro)
-DMG_W, DMG_H = 660, 500
+# Janela do .dmg, em pontos (o arquivo @2x tem o dobro). A altura inclui a barra de título
+# (~32 pt) e, se a pessoa usa, a barra de caminho do Finder (~28 pt): com 560, o Read Me
+# aparece inteiro nos dois casos (medido no macOS 26 em 2026-10-14).
+DMG_W, DMG_H = 660, 560
 APP_POS, APPS_POS, README_POS = (170, 190), (490, 190), (330, 392)
 ICON_SIZE = 96
 
