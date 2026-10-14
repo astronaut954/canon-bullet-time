@@ -140,7 +140,12 @@ Atualizar esta tabela sempre que uma função mudar de status.
   Ainda sem explicação: por que às vezes só reiniciando o Mac.
   Teste do USB (1º log): "USB Canon devices: 0" o tempo todo, mesmo com as duas
   câmeras conectadas; a busca foi refeita (todos os aparelhos USB, filtrando a Canon,
-  e com o total de aparelhos no log).
+  e com o total de aparelhos no log). 2º log (22:00): agora as câmeras aparecem no
+  USB ("Canon Digital Camera"), sempre no mesmo segundo que no SDK quando o SDK está
+  livre; o endereço USB é fixo por entrada física (T7 0x120000, SL3 0x110000 nas
+  duas vezes). Às 22:01 a SL3 foi desligada enquanto a T7 conectava (43 s) e o app
+  só soube no fim (erro 97 ao configurar). A leitura do USB passou a rodar também
+  enquanto uma câmera conecta, para medir quanto antes o USB mostra a mudança.
 
 ## Histórico de versões do SDK
 

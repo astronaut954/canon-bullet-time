@@ -530,6 +530,24 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         SetCapacityForAll();
     }
 
+    // Diagnóstico: aparelhos Canon que o sistema vê no USB (sem o SDK), quando muda.
+    // Não passa pelo SDK da Canon, então roda também enquanto uma câmera conecta:
+    // serve para saber se o USB mostra mudanças que o SDK ocupado ainda não mostra.
+    if (Clock::now() - lastUsbCheck >= seconds(1))
+    {
+        lastUsbCheck = Clock::now();
+        std::string usb;
+        for (const auto& d : Platform::CanonUsbDevices())
+            usb += (usb.empty() ? "" : ", ") + d;
+        if (usb.empty())
+            usb = "none";
+        if (usb != lastUsbDevices)
+        {
+            lastUsbDevices = usb;
+            LogMessage("USB Canon devices: " + usb);
+        }
+    }
+
     // Uma câmera ainda conectando: o SDK está ocupado, não chamar mais nada agora
     if (!pending.empty())
         return listChanged;
@@ -583,20 +601,6 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         return listChanged;
     lastScan = now;
 
-    // Diagnóstico: aparelhos Canon que o sistema vê no USB (sem o SDK), quando muda.
-    // Serve para saber se a T7 aparece no USB antes de aparecer no SDK.
-    {
-        std::string usb;
-        for (const auto& d : Platform::CanonUsbDevices())
-            usb += (usb.empty() ? "" : ", ") + d;
-        if (usb.empty())
-            usb = "none";
-        if (usb != lastUsbDevices)
-        {
-            lastUsbDevices = usb;
-            LogMessage("USB Canon devices: " + usb);
-        }
-    }
     const auto scanStart = Clock::now();
     std::string scanPorts;   // diagnóstico: o que o SDK listou nesta procura
 

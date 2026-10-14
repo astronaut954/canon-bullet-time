@@ -140,6 +140,7 @@ private:
     int loggedAdded = 0;            // diagnóstico (Activity, detalhes técnicos)
     std::string lastScanPorts;      // diagnóstico: última lista do SDK registrada
     std::string lastUsbDevices;     // diagnóstico: últimos aparelhos Canon vistos no USB
+    std::chrono::steady_clock::time_point lastUsbCheck{};
     static EdsError EDSCALLBACK HandleCameraAdded(EdsVoid* context);
     std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
     std::chrono::steady_clock::time_point lastHealthCheck{};
