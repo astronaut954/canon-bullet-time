@@ -146,6 +146,11 @@ Atualizar esta tabela sempre que uma função mudar de status.
   duas vezes). Às 22:01 a SL3 foi desligada enquanto a T7 conectava (43 s) e o app
   só soube no fim (erro 97 ao configurar). A leitura do USB passou a rodar também
   enquanto uma câmera conecta, para medir quanto antes o USB mostra a mudança.
+  3º log (22:08): às 22:08:29 o USB já mostrava as duas câmeras e o SDK só a SL3; a
+  T7 entrou no SDK às 22:09:11 (42 s depois). Implementado em 2026-10-13: câmeras
+  que o USB mostra e o SDK ainda não aparecem como "Connecting" (no lugar de uma
+  câmera que caiu, ou como "Canon camera" nova) e não bloqueiam o disparo das outras.
+  Só no Mac (no Windows a leitura do USB ainda não existe). Aguardando teste.
 
 ## Histórico de versões do SDK
 

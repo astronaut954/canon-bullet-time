@@ -41,7 +41,8 @@ namespace Platform
     void EndSdkThread();
 
     // Aparelhos da Canon ligados no USB, segundo o próprio sistema (sem passar pelo
-    // SDK da Canon): "nome @ porta" de cada um. Por enquanto só para diagnóstico
-    // (ver a T7 que leva ~40 s para aparecer no SDK). No Windows ainda devolve vazio.
-    std::vector<std::string> CanonUsbDevices();
+    // SDK da Canon): "nome @ endereço" de cada um. Dado observado no Mac: a T7 aparece
+    // no USB ~40 s antes de aparecer no SDK. totalUsb recebe quantos aparelhos USB o
+    // sistema listou, ou -1 se não deu para ler (no Windows, por enquanto, sempre -1).
+    std::vector<std::string> CanonUsbDevices(int& totalUsb);
 }

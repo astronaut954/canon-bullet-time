@@ -536,11 +536,13 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
     if (Clock::now() - lastUsbCheck >= seconds(1))
     {
         lastUsbCheck = Clock::now();
+        int totalUsb = -1;
+        const auto devices = Platform::CanonUsbDevices(totalUsb);
+        usbCanonCount = totalUsb < 0 ? -1 : static_cast<int>(devices.size());
         std::string usb;
-        for (const auto& d : Platform::CanonUsbDevices())
+        for (const auto& d : devices)
             usb += (usb.empty() ? "" : ", ") + d;
-        if (usb.empty())
-            usb = "none";
+        usb = (usb.empty() ? "none" : usb) + " (" + std::to_string(totalUsb) + " USB devices in total)";
         if (usb != lastUsbDevices)
         {
             lastUsbDevices = usb;
@@ -717,6 +719,8 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
     }
     EdsRelease(cameraList);
 
+    lastSdkCount = static_cast<int>(count);
+
     // Diagnóstico: registra a lista do SDK quando ela muda, e procuras demoradas
     const double scanSecs = std::chrono::duration<double>(Clock::now() - scanStart).count();
     if (scanPorts != lastScanPorts)
@@ -862,10 +866,20 @@ std::vector<PendingConnectionInfo> CanonController::GetPendingConnections() cons
     return list;
 }
 
+int CanonController::GetStartingCount() const
+{
+    // Câmeras Canon que o sistema já vê no USB mas que o SDK ainda não lista (a T7
+    // leva ~40 s para aparecer no SDK depois de ligada). Sem a lista do USB: 0.
+    if (usbCanonCount < 0 || lastSdkCount < 0)
+        return 0;
+    return std::max(0, usbCanonCount - lastSdkCount);
+}
+
 void CanonController::ResetConnectionHistory()
 {
     lastScanPorts.clear();
     lastUsbDevices.clear();
+    lastSdkCount = -1;
     portRetry.clear();
     queued.clear();
     lastScan = {};

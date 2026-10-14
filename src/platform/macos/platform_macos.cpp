@@ -85,12 +85,12 @@ namespace Platform
         return fs::current_path() / "Canon Bullet Time";
     }
 
-    std::vector<std::string> CanonUsbDevices()
+    std::vector<std::string> CanonUsbDevices(int& totalUsb)
     {
         std::vector<std::string> devices;
+        totalUsb = -1;
 
-        // Todos os aparelhos USB; depois fica só com os da Canon (fabricante 0x04A9).
-        // O último item é o total de aparelhos USB vistos (diagnóstico).
+        // Todos os aparelhos USB; depois fica só com os da Canon (fabricante 0x04A9)
         CFMutableDictionaryRef matching = IOServiceMatching("IOUSBHostDevice");
         if (matching == nullptr)
             return devices;
@@ -146,7 +146,7 @@ namespace Platform
             IOObjectRelease(service);
         }
         IOObjectRelease(iterator);
-        devices.push_back("(" + std::to_string(total) + " USB devices in total)");
+        totalUsb = total;
         return devices;
     }
 }

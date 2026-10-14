@@ -67,6 +67,8 @@ public:
     bool MonitorTick(ConnectionObserver* observer);
     std::vector<PendingConnectionInfo> GetPendingConnections() const;
     bool HasPendingConnections() const;
+    // Câmeras ligadas que o USB já mostra e o SDK ainda não (ver GetStartingCount no .cpp)
+    int GetStartingCount() const;
     // Espera as conexões em andamento terminarem e descarta o resultado.
     void WaitPendingConnections();
     // Esquece falhas e tempos anteriores: todas as câmeras são tentadas de novo já.
@@ -141,6 +143,8 @@ private:
     std::string lastScanPorts;      // diagnóstico: última lista do SDK registrada
     std::string lastUsbDevices;     // diagnóstico: últimos aparelhos Canon vistos no USB
     std::chrono::steady_clock::time_point lastUsbCheck{};
+    int usbCanonCount = -1;         // câmeras Canon no USB (-1 = lista do USB indisponível)
+    int lastSdkCount = -1;          // entradas na última lista do SDK (-1 = ainda não procurou)
     static EdsError EDSCALLBACK HandleCameraAdded(EdsVoid* context);
     std::map<std::string, PortRetry> portRetry;  // conexões USB que falharam
     std::chrono::steady_clock::time_point lastHealthCheck{};

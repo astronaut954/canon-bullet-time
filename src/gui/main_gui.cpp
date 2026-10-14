@@ -373,13 +373,21 @@ namespace
             first = false;
         };
 
+        // Câmeras que já aparecem no USB mas que o SDK ainda não lista (a T7 leva ~40 s):
+        // aparecem como "conectando". Primeiro no lugar de uma câmera que caiu; as que
+        // sobrarem, como câmera nova sem nome de modelo.
+        int starting = controller.GetStartingCount();
+
         for (const auto* cam : ordered)
         {
             const bool connected = cam->sessionOpen && !cam->connectionLost;
             auto reconnect = std::find_if(pending.begin(), pending.end(),
                 [&](const PendingConnectionInfo& p) { return p.reconnecting && !p.retrying && p.name == cam->shortName; });
-            const bool connecting = !connected && reconnect != pending.end();
-            const bool waiting = connecting && reconnect->queued;
+            const bool startingHere = !connected && reconnect == pending.end() && starting > 0;
+            if (startingHere)
+                --starting;
+            const bool connecting = !connected && (reconnect != pending.end() || startingHere);
+            const bool waiting = connecting && !startingHere && reconnect->queued;
 
             Json item("camera");
             item.Add("order", cam->orderPrefix)
@@ -387,8 +395,9 @@ namespace
                 .Add("model", cam->modelName)
                 .Add("connected", connected)
                 .Add("state", connected ? "connected" : connecting ? "connecting" : "disconnected")
-                .Add("seconds", connecting ? reconnect->seconds : 0)
+                .Add("seconds", connecting && !startingHere ? reconnect->seconds : 0)
                 .Add("waiting", waiting)
+                .Add("starting", startingHere)
                 .Add("compatible", cam->onCompatibilityList);
             addItem(item);
         }
@@ -408,7 +417,22 @@ namespace
                 .Add("state", "connecting")
                 .Add("seconds", p.seconds)
                 .Add("waiting", p.queued)
+                .Add("starting", false)
                 .Add("compatible", IsOnCompatibilityList(p.model));
+            addItem(item);
+        }
+        for (int i = 0; i < starting; ++i)
+        {
+            Json item("camera");
+            item.Add("order", 0)
+                .Add("name", "")
+                .Add("model", "Canon camera")
+                .Add("connected", false)
+                .Add("state", "connecting")
+                .Add("seconds", 0)
+                .Add("waiting", false)
+                .Add("starting", true)
+                .Add("compatible", true);
             addItem(item);
         }
         list += "]";

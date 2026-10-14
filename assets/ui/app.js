@@ -474,8 +474,9 @@
       : state === "connecting" && cam.waiting ? "Waiting for another camera"
       : state === "connecting" ? "Connecting" + (cam.seconds >= 2 ? ", " + cam.seconds + " s" : "")
       : "Disconnected, turn it on to reconnect";
-    meta.innerHTML = '<span></span> · <span class="state-' + state + '"></span>';
-    meta.firstChild.textContent = cam.name;
+    // Câmera que o USB já mostra e o SDK ainda não: ainda sem nome (T7_1...)
+    meta.innerHTML = (cam.name ? '<span></span> · ' : "") + '<span class="state-' + state + '"></span>';
+    if (cam.name) meta.firstChild.textContent = cam.name;
     meta.lastChild.textContent = stateText;
     info.append(model, meta);
 
@@ -509,8 +510,9 @@
 
   function updateButtons() {
     const connected = cameras.filter((c) => c.connected).length;
-    // Enquanto uma câmera conecta, o SDK da Canon não aceita outros comandos
-    const connectingNames = cameras.filter((c) => c.state === "connecting").map((c) => cameraLabel(c.name, c.model));
+    // Enquanto uma câmera conecta, o SDK da Canon não aceita outros comandos. Uma câmera
+    // que só o USB mostra (ainda ligando) não ocupa o SDK: dá para disparar com as outras.
+    const connectingNames = cameras.filter((c) => c.state === "connecting" && !c.starting).map((c) => cameraLabel(c.name, c.model));
     const sdkBusy = connectingNames.length > 0;
 
     ui.restartBtn.disabled = busy;
