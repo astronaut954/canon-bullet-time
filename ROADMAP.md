@@ -120,6 +120,13 @@ Atualizar esta tabela sempre que uma função mudar de status.
   o SDK devolve (quando muda), procuras e leituras de câmera que demoram 1 s ou
   mais, e os avisos do sistema de "câmera conectada". Guardar o log de uma vez em
   que acontecer.
+  **Resultado (log de 2026-10-13, 21:22):** a lista do SDK teve só a SL3 de 21:22:12
+  a 21:22:53; nenhuma procura nem leitura demorou. Às 21:22:53 o macOS avisou "câmera
+  conectada", a T7 entrou na lista e conectou em 1 s. Confirmada a hipótese 1: nesses
+  ~40 s a T7 ainda não existe para o SDK (nem para o macOS), então o app não tem como
+  mostrá-la pelo SDK. Possível solução, ainda não decidida: olhar a lista de aparelhos
+  USB do sistema (IOKit no Mac, SetupAPI no Windows) e mostrar "uma câmera Canon está
+  ligando" quando há um aparelho Canon no USB que o SDK ainda não lista.
 
 ## Histórico de versões do SDK
 
