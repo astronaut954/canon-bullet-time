@@ -140,7 +140,7 @@ def main():
     ensure_clean_git_tree()
     ensure_gh_available()
 
-    run(["git", "fetch", "--tags", "origin"])
+    run(["git", "fetch", "--tags", "--force", "origin"])  # --force: aceita tag corrigida no GitHub
     tag_exists = version in get_output(["git", "tag"]).splitlines()
 
     build_release(version)
