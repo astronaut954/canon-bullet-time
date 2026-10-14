@@ -82,6 +82,10 @@ window.getPhoto = (session, file, size) => Promise.resolve(size > 400 ? window._
 for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp','saveSessions','exitApp','takeOrderPhotos','setOrder','discardOrderPhotos','reorderSession','deletePhotos','deleteSession','deleteAllSessions','getOrderPhoto']) window[n] = () => Promise.resolve({});
 """ % photos_js
     html = (UI / "index.html").read_text(encoding="utf-8").replace("/*__THEME__*/", css)
+    html = re.sub(r"__IMAGE:([A-Za-z0-9_.\-]+)__",
+                  lambda m: "data:image/png;base64," + base64.b64encode((UI / "images" / m.group(1)).read_bytes()).decode(), html)
+    # A abertura fica fora do GIF (começa direto no app)
+    html = re.sub(r'<div id="splash".*?</div>\s*</div>\s*</div>', "", html, count=1, flags=re.S)
     html = html.replace("<script>/*__SCRIPT__*/</script>",
                         "<script>" + stub + "</script><script>" + (UI / "app.js").read_text(encoding="utf-8") + "</script>")
     page_file = work / "demo.html"

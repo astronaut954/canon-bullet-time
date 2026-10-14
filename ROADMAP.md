@@ -30,6 +30,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 6 | Ícone e nome | Ícone do app no Windows e no Mac (câmera com o projétil no vidro da lente, cores da interface). Nome novo: Stillpoint — Bullet Time Photography (o app não ficará restrito à Canon). Funcionando no Mac e no Windows (2026-10-14). | feito |
 | 7 | Instaladores | `.dmg` no Mac (arrastar para Aplicativos, fundo com chuva de código, Read Me em inglês sem Terminal) e instalador de Windows (Inno Setup, mesmo visual, versão de terminal opcional e desmarcada). Os zips continuam na versão. Testado no Mac e no Windows (2026-10-14). | feito |
 | 8 | Atualização pelo app | Ao abrir, o app consulta a última versão no GitHub; botão "Update" no topo, janela com as novidades, download com andamento, conferência (tamanho e SHA-256) e instalação com reabertura. Não atualiza durante disparo ou conexão. Testado no Mac e no Windows (2026-10-14). | feito |
+| 9 | Abertura | Tela de entrada com chuva de código verde aparecendo aos poucos e o logo com fade in; toda vez que o app abre; clique ou tecla pula. | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -135,6 +136,13 @@ durante disparo/conexão, aviso "Updated to ..." ao reabrir).
 - Atualização simulada (STILLPOINT_TEST_VERSION) aprovada no Windows e no Mac pelo dono do
   projeto em 2026-10-14. Junto: sombra da contagem em verde escuro e correção da linha de
   status abaixo de "It's bullet time".
+
+### Etapa 9: abertura (iniciada em 2026-10-14)
+
+Prévia aprovada em 2026-10-14; aparece toda vez que o app abre. Chuva desenhada num canvas
+(`app.js`, início), logo e título por cima (`index.html` e `nocturne-neo.css`). O ícone da
+página fica em `assets/ui/images/` e é embutido ao abrir (`__IMAGE:arquivo__`, como as fontes).
+As câmeras começam a conectar enquanto a abertura roda. Versão 2.4.0.
 
 ### Critério para fechar uma etapa
 

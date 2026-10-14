@@ -116,6 +116,12 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Cópia fora do lugar (Windows: zip; Mac: fora de Aplicativos): a janela oferece
       "Open download page".
 
+## 10. Abertura
+- [ ] Ao abrir o app: chuva de código verde aparecendo aos poucos, logo e título com fade in
+      e, em ~5 s, o app; caracteres japoneses aparecem (não quadrados).
+- [ ] Clique ou tecla durante a abertura: ela some na hora.
+- [ ] As câmeras conectam normalmente durante a abertura.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |
