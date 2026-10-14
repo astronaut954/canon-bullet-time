@@ -42,8 +42,9 @@
       }));
     }
 
-    function frame(now) {
+    function frame() {
       if (done) return;
+      const now = performance.now();
       if (!started) started = now;
       const t = now - started;
       if (now - last >= 50) {  // ~20 quadros por segundo, como no filme

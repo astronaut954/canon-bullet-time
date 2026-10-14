@@ -6,7 +6,7 @@ foto de uma câmera, na ordem em que aparecem. Aprovado em 2026-10-14.
 
 Requer Python com Pillow e Playwright (Chromium) e o ffmpeg:
     pip install pillow playwright && python -m playwright install chromium
-    python scripts/make_demo_gif.py caminho/do/video.mp4
+    python scripts/make_demo_gif.py caminho/do/video.mp4 [--no-opening]
 """
 import base64
 import io
@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageStat
@@ -76,6 +77,8 @@ def build(video, work):
                  lambda m: "data:font/ttf;base64," + base64.b64encode((UI / "fonts" / m.group(1)).read_bytes()).decode(), css)
     stub = """
 window.__photos = %s;
+// o relógio do teste controla o Date: a abertura segue o mesmo relógio
+performance.now = () => Date.now();
 window.uiReady = () => Promise.resolve({});
 window.listSessions = () => Promise.resolve(window.__sessions || []);
 window.getPhoto = (session, file, size) => Promise.resolve(size > 400 ? window.__photos[file].big : window.__photos[file].small);
@@ -84,8 +87,9 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
     html = (UI / "index.html").read_text(encoding="utf-8").replace("/*__THEME__*/", css)
     html = re.sub(r"__IMAGE:([A-Za-z0-9_.\-]+)__",
                   lambda m: "data:image/png;base64," + base64.b64encode((UI / "images" / m.group(1)).read_bytes()).decode(), html)
-    # A abertura fica fora do GIF (começa direto no app)
-    html = re.sub(r'<div id="splash".*?</div>\s*</div>\s*</div>', "", html, count=1, flags=re.S)
+    # --no-opening: o GIF começa direto no app, sem a abertura
+    if "--no-opening" in sys.argv:
+        html = re.sub(r'<div id="splash".*?</div>\s*</div>\s*</div>', "", html, count=1, flags=re.S)
     html = html.replace("<script>/*__SCRIPT__*/</script>",
                         "<script>" + stub + "</script><script>" + (UI / "app.js").read_text(encoding="utf-8") + "</script>")
     page_file = work / "demo.html"
@@ -107,15 +111,37 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
     with sync_playwright() as pw:
         b = pw.chromium.launch()
         pg = b.new_page(viewport={"width": W, "height": H})
+        # Relógio parado: o tempo da página só anda quando o script manda (run_for)
         pg.clock.install()
+        pg.clock.pause_at(int(time.time() * 1000) + 2000)
         pg.goto(page_file.as_uri())
-        pg.evaluate(CURSOR)
-        pg.clock.run_for(200)
 
         def shot(sec):
             p = FR / f"{len(frames):04d}.png"
             pg.screenshot(path=str(p))
             frames.append((p, sec))
+
+        # 0. Abertura (chuva e logo), com as câmeras já começando a conectar por trás
+        if pg.locator("#splash").count():
+            t = 0
+            while t < 4600:
+                pg.clock.run_for(120)
+                t += 120
+                if t >= 2300:
+                    pg.wait_for_timeout(60)  # o fade do logo anda em tempo real
+                if t == 1080:
+                    pg.evaluate("c => window.onCoreEvent({type:'cameras', cameras: c})",
+                                [{"name": CAMS[0][0], "model": CAMS[0][1], "connected": False, "state": "connecting",
+                                  "order": 1, "seconds": 3, "compatible": True}])
+                shot(0.12)
+            shot(0.5)
+            pg.clock.run_for(120)  # começa a sumir
+            for _ in range(5):
+                pg.wait_for_timeout(140)
+                shot(0.12)
+            pg.clock.run_for(900)
+        pg.evaluate(CURSOR)
+        pg.clock.run_for(200)
 
         def run(ms):
             pg.clock.run_for(ms)
@@ -147,8 +173,8 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
             shot(0.15)
             pg.evaluate("s => document.querySelector(s).classList.remove('demo-press')", selector)
 
-        # 1. Abrindo: procurando câmeras
-        shot(0.9)
+        # 1. Abrindo
+        shot(0.6)
         # 2. Câmeras conectando uma a uma
         states = [(None, 0)] * n
         for i in range(n):
