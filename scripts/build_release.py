@@ -187,17 +187,21 @@ def main():
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
-    copy_file(BUILD_EXE, DIST_DIR / BUILD_EXE.name)
     if IS_MAC:
-        make_mac_app(DIST_DIR)   # a versão de janela vai dentro do aplicativo
-    else:
-        copy_file(BUILD_GUI, DIST_DIR / BUILD_GUI.name)
-    if IS_MAC:
+        # Janela: o aplicativo. Terminal: numa pasta à parte, porque o Finder esconde o
+        # ".app" e os dois apareceriam com o mesmo nome, "Canon Bullet Time".
+        make_mac_app(DIST_DIR)
+        terminal_dir = DIST_DIR / "Terminal version"
+        terminal_dir.mkdir()
+        copy_file(BUILD_EXE, terminal_dir / BUILD_EXE.name)
         # ditto preserva links simbólicos e a assinatura do framework da Canon
-        (DIST_DIR / "Frameworks").mkdir()
-        subprocess.run(["ditto", str(EDSDK_FRAMEWORK), str(DIST_DIR / "Frameworks" / "EDSDK.framework")], check=True)
-        print(f"[COPYDIR] {EDSDK_FRAMEWORK} -> {DIST_DIR / 'Frameworks' / 'EDSDK.framework'}")
+        (terminal_dir / "Frameworks").mkdir()
+        subprocess.run(["ditto", str(EDSDK_FRAMEWORK), str(terminal_dir / "Frameworks" / "EDSDK.framework")], check=True)
+        print(f"[COPYDIR] {EDSDK_FRAMEWORK} -> {terminal_dir / 'Frameworks' / 'EDSDK.framework'}")
+        copy_tree(ASSETS_DIR, terminal_dir / "assets")
     else:
+        copy_file(BUILD_EXE, DIST_DIR / BUILD_EXE.name)
+        copy_file(BUILD_GUI, DIST_DIR / BUILD_GUI.name)
         copy_file(EDSDK_DLL, DIST_DIR / "EDSDK.dll")
         copy_file(EDSIMAGE_DLL, DIST_DIR / "EdsImage.dll")
         # Outras bibliotecas que a compilação colocou ao lado dos programas (ex.: o
@@ -205,10 +209,10 @@ def main():
         for dll in BUILD_EXE.parent.glob("*.dll"):
             if dll.name not in ("EDSDK.dll", "EdsImage.dll"):
                 copy_file(dll, DIST_DIR / dll.name)
+        copy_tree(ASSETS_DIR, DIST_DIR / "assets")
     copy_file(THIRD_PARTY_NOTICES, DIST_DIR / "THIRD_PARTY_NOTICES.md")
     copy_file(README_MD, DIST_DIR / "README.md")
     copy_file(LICENSE_FILE, DIST_DIR / "LICENSE")
-    copy_tree(ASSETS_DIR, DIST_DIR / "assets")
 
     if COMPAT_PDF.exists():
         copy_file(COMPAT_PDF, DIST_DIR / "CDC_EDSDK_Compat_List.pdf")
