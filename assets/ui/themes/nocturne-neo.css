@@ -512,9 +512,9 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .update-notes li { margin: 3px 0; }
 .update-hint { font-size: 14px; color: var(--noct-text-muted); margin: 0; }
 .update-hint.error { color: var(--noct-danger); }
-.progress { height: 10px; border: 1px solid var(--noct-border-strong); background: var(--noct-surface-inner); margin: 4px 0 8px; }
-.progress > div { height: 100%; width: 0; background: var(--noct-primary); box-shadow: 0 0 12px rgba(var(--noct-primary-rgb), .6);
+.update-bar { height: 10px; border: 1px solid var(--noct-border-strong); background: var(--noct-surface-inner); margin: 4px 0 8px; }
+.update-bar > div { height: 100%; width: 0; background: var(--noct-primary); box-shadow: 0 0 12px rgba(var(--noct-primary-rgb), .6);
   transition: width .2s linear; }
-.progress-text { font-family: var(--noct-font-mono); font-size: 12px; color: var(--noct-text-muted);
+.update-bar-text { font-family: var(--noct-font-mono); font-size: 12px; color: var(--noct-text-muted);
   display: flex; justify-content: space-between; margin-bottom: 4px; }
 .update-note-busy { font-family: var(--noct-font-mono); font-size: 11px; color: var(--noct-pending); letter-spacing: .05em; margin: 10px 0 0 !important; }
