@@ -19,7 +19,7 @@
     shootBtn: $("shootBtn"), shootNote: $("shootNote"), countdown: $("countdown"), sessions: $("sessions"), downloadWait: $("downloadWait"),
     progress: $("progress"),
     log: $("log"), logToggle: $("logToggle"), logLast: $("logLast"), logList: $("logList"), techToggle: $("techToggle"),
-    restartBtn: $("restartBtn"),
+    restartBtn: $("restartBtn"), copyLogBtn: $("copyLogBtn"),
     countdownOverlay: $("countdownOverlay"), countdownNumber: $("countdownNumber"), flash: $("flash"),
     orderOverlay: $("orderOverlay"), orderGallery: $("orderGallery"), orderHelp: $("orderHelp"),
     orderRetake: $("orderRetake"), orderCancel: $("orderCancel"), orderSave: $("orderSave"),
@@ -1129,6 +1129,27 @@
     ui.logList.scrollTop = ui.logList.scrollHeight;
   });
   ui.techToggle.addEventListener("change", () => ui.logList.classList.toggle("show-tech", ui.techToggle.checked));
+
+  // Copia a atividade que está na tela (com os detalhes técnicos, se ligados)
+  function copyText(text) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed"; area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    area.remove();
+    if (!ok && navigator.clipboard) return navigator.clipboard.writeText(text).then(() => true, () => false);
+    return Promise.resolve(ok);
+  }
+  ui.copyLogBtn.addEventListener("click", () => {
+    const lines = [...ui.logList.children]
+      .filter((li) => li.offsetParent !== null)
+      .map((li) => li.querySelector(".log-time").textContent + "  " + li.querySelector(".log-text").textContent);
+    copyText(lines.join("\n")).then((ok) => toast(ok ? "Activity copied (" + plural(lines.length, "line", "lines") + ")" : "Could not copy the activity"));
+  });
 
   updateButtons();
   renderCameras();

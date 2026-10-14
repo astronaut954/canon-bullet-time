@@ -391,7 +391,18 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .log.expanded .log-body { display: flex; }
 .log-options { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .log-option { font: 11px var(--noct-font-mono); color: var(--noct-text-muted); text-transform: uppercase; letter-spacing: .08em; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-.log-option input { accent-color: var(--noct-primary); }
+/* Caixa de seleção quadrada, nas cores do app */
+.log-option input {
+  -webkit-appearance: none; appearance: none; margin: 0; flex: 0 0 14px;
+  width: 14px; height: 14px; border: 1px solid var(--noct-border-strong); border-radius: 0;
+  background: var(--noct-bg); position: relative; cursor: pointer;
+}
+.log-option input:checked { background: var(--noct-primary); border-color: var(--noct-primary); box-shadow: var(--noct-glow-primary-soft); }
+.log-option input:checked::after {
+  content: ""; position: absolute; left: 4px; top: 1px; width: 3px; height: 7px;
+  border: solid var(--noct-on-primary); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.log-option input:focus-visible { outline: 2px solid var(--noct-primary); outline-offset: 2px; }
 .log-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; font-size: 15px; }
 .log-list li { display: grid; grid-template-columns: 74px 10px 1fr; align-items: baseline; gap: 8px; padding: 3px 0; }
 .log-time { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); font-variant-numeric: tabular-nums; }
