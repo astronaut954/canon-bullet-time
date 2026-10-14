@@ -14,6 +14,8 @@ Formerly **Canon Bullet Time**.
 
 [⬇️ Download for Windows and macOS](https://github.com/astronaut954/stillpoint-bullet-time-photography/releases/latest)
 
+The apps are on the **Releases** page (link above), under *Assets* — not in the source code files.
+
 | System | File | How to install |
 | --- | --- | --- |
 | macOS (Apple Silicon) | `stillpoint-vX.Y.Z-macos-arm64.dmg` | Open it and drag Stillpoint to Applications |
@@ -48,24 +50,29 @@ The installer can also add the terminal app (optional, unchecked by default). Un
 
 * Windows 10 or 11 (64-bit)
 * Compatible Canon camera
-* The window app uses Microsoft Edge WebView2, already included in up-to-date Windows 10 and 11
-* Zip version: keep `Stillpoint.exe`, `EDSDK.dll`, `EdsImage.dll` and `assets/` in the same folder;
-  the terminal app is in `Terminal App/`, with its own copies of those files
+* Microsoft Edge WebView2 (already included in up-to-date Windows 10 and 11)
 
 **macOS**
 
 * Mac with Apple Silicon (M1 or newer), macOS 13.3 or later
 * Compatible Canon camera
-* `Stillpoint.app` has everything it needs inside it (including the Canon SDK)
-* Zip version: the terminal app is in the `Terminal App` folder; keep `Stillpoint Terminal App`,
-  `Frameworks/` and `assets/` together and run `./"Stillpoint Terminal App"` there in Terminal.
-  If macOS blocks it, use **Open Anyway** as above, or run once in Terminal:
-
-  ```
-  xattr -dr com.apple.quarantine path/to/stillpoint-vX.Y.Z
-  ```
 
 The Canon SDK files come inside the app; you do not need to install anything from Canon.
+
+### Zip version (no installer)
+
+* **Windows:** keep `Stillpoint.exe`, `EDSDK.dll`, `EdsImage.dll` and `assets/` in the same folder.
+  The terminal app is in `Terminal App/`, with its own copies of those files.
+* **macOS:** `Stillpoint.app` has everything inside it. The terminal app is in `Terminal App/`:
+  keep `Stillpoint Terminal App`, `Frameworks/` and `assets/` together and run
+  `./"Stillpoint Terminal App"` there in Terminal. If macOS blocks it, use **Open Anyway**
+  as above.
+
+Alternative for the macOS zip (Terminal), to allow everything in the folder at once:
+
+```
+xattr -dr com.apple.quarantine path/to/stillpoint-vX.Y.Z
+```
 
 
 
