@@ -471,6 +471,7 @@
     meta.className = "camera-meta";
     const stateText =
       state === "connected" ? "Ready"
+      : state === "stuck" ? "Not responding. Turn it off and on"
       : state === "connecting" && cam.waiting ? "Waiting for another camera"
       : state === "connecting" ? "Connecting" + (cam.seconds >= 2 ? ", " + cam.seconds + " s" : "")
       : "Disconnected, turn it on to reconnect";
@@ -1019,6 +1020,11 @@
         if (before && before.connected && !cam.connected) log(cameraLabel(cam.name, cam.model) + " turned off or disconnected. Turn it on to reconnect.", "warn");
       });
       cameras = e.cameras;
+      // Câmera que só o USB mostra há mais de 1 minuto: o SDK não a encontrou. Não
+      // bloqueia o disparo; deixa de aparecer como "conectando" e pede para religá-la.
+      cameras.forEach((c) => {
+        if (c.starting && c.seconds >= SLOW_CONNECT_SECONDS) c.state = "stuck";
+      });
       renderCameras();
       readyStatus();
       refreshSessionTitles();
