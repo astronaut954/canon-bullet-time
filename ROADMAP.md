@@ -136,6 +136,8 @@ durante disparo/conexão, aviso "Updated to ..." ao reabrir).
 - Atualização simulada (STILLPOINT_TEST_VERSION) aprovada no Windows e no Mac pelo dono do
   projeto em 2026-10-14. Junto: sombra da contagem em verde escuro e correção da linha de
   status abaixo de "It's bullet time".
+- Primeira atualização real (2.3.0 → 2.4.0, publicada em 2026-10-14) funcionou no Mac e no
+  Windows, segundo o dono do projeto.
 
 ### Etapa 9: abertura (iniciada em 2026-10-14)
 

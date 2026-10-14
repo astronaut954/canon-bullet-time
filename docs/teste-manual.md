@@ -140,3 +140,4 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 | 2026-10-14 | Mac + Windows | etapa-7-instaladores | — | sim | `.dmg` (fundo, posições, Read Me) e instalador de Windows aprovados pelo dono do projeto |
 | 2026-10-14 | Mac + Windows | etapa-8-atualizacao | Canon T7 (Mac) | sim | Atualização simulada (2.1.0 → 2.2.0) aprovada pelo dono do projeto nos dois sistemas |
 | 2026-10-14 | Mac + Windows | etapa-9-abertura | — | sim | Abertura aprovada pelo dono do projeto nos dois sistemas |
+| 2026-10-14 | Mac + Windows | v2.4.0 | — | sim | Primeira atualização real pelo app (2.3.0 → 2.4.0) funcionou nos dois sistemas |
