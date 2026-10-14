@@ -160,8 +160,8 @@ durante disparo/conexão, aviso "Updated to ..." ao reabrir).
 | Detectar / listar câmeras | sim | sim |
 | Disparo sincronizado (BULLET TIME) | sim | sim |
 | Download e organização das fotos | sim | sim |
-| Reordenar câmeras / prefixos | sim | a testar |
-| Pasta de saída configurável | sim | a testar |
+| Reordenar câmeras / prefixos | sim | sim |
+| Pasta de saída configurável | sim | sim |
 | Áudio de contagem | sim | sim |
 | Pacote de distribuição (`.zip`) | sim | sim (sem assinatura Apple) |
 
