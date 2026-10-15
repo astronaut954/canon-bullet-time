@@ -33,6 +33,8 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 9 | Abertura | Tela de entrada com chuva de código verde aparecendo aos poucos e o logo com fade in; toda vez que o app abre; clique ou tecla pula. Testado no Mac e no Windows (2026-10-14). | feito |
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
+| 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. | em andamento |
+| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. | depois |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -223,11 +225,29 @@ lado para sempre, e o botão não limpava essa lista. Correção: o botão limpa
 Canon que aparece de novo no USB conta como esse aviso. Só o app de janela usa essa parte. Testado no Mac e no
 Windows pelo dono do projeto (2026-10-15).
 
+### Etapa 12: configurações das câmeras pelo app (iniciada em 2026-10-15)
+
+Decisões do dono do projeto (2026-10-15): começar pela Canon, preparado para outras marcas;
+o app precisa indicar quais câmeras não dá para ajustar. Dado verificado na documentação do
+EDSDK 13.20.10: ISO, Av, Tv, compensação de exposição, balanço de branco, temperatura de cor
+(2800–10000 K), ajuste fino do balanço, Picture Style e qualidade são de leitura e escrita, sem
+restrição por modelo; cada câmera informa os valores aceitos (EdsGetPropertyDesc). O modo (M,
+Av...) não muda pelo SDK em câmeras com disco de modos; nos modos automáticos as configurações
+de disparo não podem ser mudadas. EOS M, M2, M3, M5, M6, M10 e M100 não aceitam disparo remoto.
+
 ## Futuro (não planejado ainda)
 
 - **Outras marcas (Sony, Nikon).** Viável marca a marca, com câmera para testar.
-  Sony: SDK oficial gratuito, Windows 11 x64 e macOS 14.1+, ~33 modelos recentes.
-  Nikon: confirmar como o SDK atual é distribuído antes de decidir.
+  Sony (site oficial, conferido em 2026-10-15): SDK gratuito, Windows 11 x64 e macOS 14.1+,
+  cerca de 35 modelos recentes (α1, α9 II/III, α7 IV/V, α7R IV/V, α7S III, α7C/C II/CR,
+  α6700, FX3/FX30/FX2, ZV-E1, ZV-E10 II...); modelos antigos comuns (a6000 a a6600, α7 III)
+  ficam de fora; exige o firmware mais recente. A lista exata de configurações por modelo
+  está no manual do SDK (não lido).
+  Nikon (site oficial, conferido em 2026-10-15): um SDK por modelo (D300 a D850, Df, Z5,
+  Z6/6 II, Z7/7 II, Z8, Z9; Z6 III e Z50 II não aparecem). **O SDK de controle remoto só
+  controla uma câmera por vez** — bloqueia o bullet time com várias Nikon. No Mac com Apple
+  Silicon, os módulos rodam pelo Rosetta 2 (o Stillpoint é só Apple Silicon: precisaria de
+  um programa auxiliar).
 - **Pesquisar a libgphoto2** (biblioteca aberta, várias marcas via PTP/USB) como
   alternativa a um SDK por marca. Pontos a verificar: suporte no Windows e
   precisão do disparo sincronizado.
