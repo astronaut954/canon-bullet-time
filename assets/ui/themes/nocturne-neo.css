@@ -776,3 +776,8 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-key-diff { border-color: var(--noct-pending); }
 .cs-key-na { border-style: dashed; border-color: var(--noct-text-dim); }
 .cs-key-warn { border-color: var(--noct-pending); background: rgba(var(--noct-pending-rgb), .25); }
+
+/* Teste rápido dentro do Camera settings */
+.cs-test { flex: none; height: 44vh; min-height: 240px; display: flex; padding: 12px 22px; border-bottom: 1px solid var(--noct-border); }
+.cs-test .gallery-title { font-size: 18px; }
+.cs-sheet.capturing .cs-body { opacity: .5; pointer-events: none; }

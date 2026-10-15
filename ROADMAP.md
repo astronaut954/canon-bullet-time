@@ -244,6 +244,9 @@ com AF ligado); Drive saiu da tabela (decisão de 2026-10-15): o app põe toda c
 sozinho (único silencioso também vale) e, se a câmera não aceitar, avisa ("Not on single shot"); mudanças vão para a câmera na hora; legenda num ícone (?); "Copy from camera";
 avisos no painel ("Settings differ", "Settings on the camera only"). No painel Cameras: cabeçalho
 fixo, só a lista rola, e arrastar para reordenar.
+- Teste rápido (pedido em 2026-10-15): botão "Test shot" no Camera settings dispara todas as
+  câmeras uma vez e mostra as fotos lado a lado (← → para comparar). São fotos temporárias, as
+  mesmas do "Reorder by photo": apagadas ao fechar a janela ou no próximo teste.
 - Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
   `src/core/camera_settings_canon.cpp` (Canon). Aviso do SDK de configuração mudada
   (`TakeSettingsChanged`): a tela lê de novo sozinha quando algo muda na câmera.

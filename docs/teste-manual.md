@@ -215,6 +215,9 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Câmera com valor diferente: âmbar na tabela e "Settings differ" no painel.
 - [ ] Lente em AF: Focus em âmbar; em MF: "MF".
 - [ ] Mudar algo direto na câmera: a tabela atualiza sozinha (ou com "Read again").
+- [ ] Test shot: dispara todas as câmeras (sem contagem e sem som), mostra uma foto de cada uma
+      na ordem; ← → passam de uma câmera para outra; a tabela fica bloqueada enquanto fotografa.
+      As fotos do teste não viram sessão e somem ao fechar a janela.
 - [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 

@@ -113,6 +113,7 @@
   let shootCancelled = false;    // o bullet time atual foi cancelado
   let camSettings = [];          // configurações de cada câmera (evento cameraSettings)
   const csPending = new Set();   // "câmera|chave" enviados e ainda sem resposta ("*" = todas)
+  const csTest = { capturing: false, has: false };  // teste rápido do Camera settings
   let cameras = [];              // última lista recebida (inclui as que estão conectando)
   let sessions = [];
   let currentSession = null;
@@ -739,6 +740,7 @@
     ui.shootBtn.disabled = shooting ? shootCancelling : (busy || connected === 0 || sdkBusy);
     ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
     $("camSettingsBtn").disabled = busy || connected === 0;
+    $("csTest").disabled = busy || connected === 0;
     document.querySelectorAll("#cameraList li[data-placed='1']").forEach((li) => li.classList.toggle("can-drag", !busy));
     ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
     ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
@@ -1047,6 +1049,11 @@
   const order = { open: false, capturing: false, session: null };
   const orderGallery = Gallery(ui.orderGallery, {
     draggable: true,
+    load: (item, size) => orderPhoto(item.session, item.file, size),
+  });
+  // Teste rápido do Camera settings (fotos temporárias, as mesmas do "Reorder by photo")
+  const csGallery = Gallery($("csGallery"), {
+    draggable: false,
     load: (item, size) => orderPhoto(item.session, item.file, size),
   });
   orderGallery.setActions([
@@ -1684,7 +1691,8 @@
   // =================== Avisos do programa ===================
   // Enquanto as fotos do "Reorder by photo" são tiradas, os avisos de disparo
   // vão para essa janela, não para a atividade nem para a contagem.
-  const orderCapture = () => order.open && order.capturing;
+  const orderCapture = () => (order.open && order.capturing) || csTest.capturing;
+  const captureGallery = () => (csTest.capturing ? csGallery : orderGallery);
 
   const handlers = {
     busy(e) {
@@ -1698,7 +1706,13 @@
         setStatus(labels[e.action] || "Working", "busy");
         if (e.action === "restart") log("Camera connections restarted");
       } else {
-        if (orderCapture()) {
+        if (csTest.capturing) {
+          // Teste do Camera settings terminou sem fotos (ex.: uma câmera ainda conectando)
+          csTest.capturing = false;
+          $("camSettingsOverlay").querySelector(".cs-sheet").classList.remove("capturing");
+          csGallery.setHead("No photos", "");
+          csGallery.message("The photos could not be taken. Try again when all cameras are ready.");
+        } else if (orderCapture()) {
           // O pedido terminou sem fotos (ex.: uma câmera ainda conectando)
           order.capturing = false;
           orderGallery.setHead("No photos", "");
@@ -1788,13 +1802,13 @@
     },
     waitingDownloads() {
       activity.busyText = "Receiving photos";
-      if (orderCapture()) return orderGallery.message("Receiving photos");
+      if (orderCapture()) return captureGallery().message("Receiving photos");
       ui.progress.textContent = "Receiving photos";
     },
     downloadProgress(e) {
       const text = "Receiving photos, " + e.done + " of " + e.total;
       activity.busyText = text;
-      if (orderCapture()) return orderGallery.message(text);
+      if (orderCapture()) return captureGallery().message(text);
       ui.progress.textContent = text;
     },
     downloadTimeout(e) {
@@ -1832,7 +1846,10 @@
     },
 
     // Reordenar por foto
-    orderPhotos(e) { if (order.open) showOrderPhotos(e.sessions); },
+    orderPhotos(e) {
+      if (csTest.capturing) showCsTest(e.sessions);
+      else if (order.open) showOrderPhotos(e.sessions);
+    },
 
     // Atualização
     updateProgress(e) {
@@ -2445,12 +2462,57 @@
     toast("Copying the settings of " + name + " to the other cameras");
   }
 
+  // ----- Teste rápido: dispara todas as câmeras uma vez (fotos temporárias, como no
+  // "Reorder by photo"), para conferir as fotos lado a lado e ajustar de novo -----
+  function csTakeTest() {
+    if (busy || csTest.capturing || !cameras.some((c) => c.connected)) return;
+    csTest.capturing = true;
+    csTest.has = false;
+    $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
+    $("csTestBox").classList.remove("hidden");
+    csGallery.setItems([]);
+    csGallery.setHead("Test shot", "");
+    csGallery.message("Taking a photo with each camera");
+    window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
+  }
+  function showCsTest(list) {
+    csTest.capturing = false;
+    csTest.has = true;
+    $("camSettingsOverlay").querySelector(".cs-sheet").classList.remove("capturing");
+    const session = (list || [])[0];
+    // Uma foto por câmera, na ordem atual (JPEG quando houver RAW + JPEG)
+    const items = placedCameras().filter((c) => c.connected).map((cam) => {
+      const photos = session ? session.photos.filter((p) => p.camera === cam.name) : [];
+      const pick = photos.find((p) => /\.jpe?g$/i.test(p.file)) || photos.find((p) => p.previewable) || photos[0];
+      return { name: cam.name, session: session ? session.name : "", order: cam.order,
+               file: pick ? pick.file : "", previewable: pick ? pick.previewable : false,
+               title: shortModel(cam.model), subtitle: cam.name };
+    });
+    csGallery.setItems(items, 0);
+    const missing = items.filter((i) => !i.file).length;
+    csGallery.setHead("Test shot",
+      (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · ← → to compare");
+  }
+  function csDiscardTest() {
+    if (!csTest.has && !csTest.capturing) return;
+    csTest.has = false;
+    $("csTestBox").classList.add("hidden");
+    csGallery.setItems([]);
+    if (!csTest.capturing) window.discardOrderPhotos();
+    Object.keys(photoCache).filter((k) => k.startsWith("order/")).forEach((k) => delete photoCache[k]);
+  }
+  function closeCamSettings() {
+    $("camSettingsOverlay").classList.add("hidden");
+    csDiscardTest();
+  }
+
   $("camSettingsBtn").addEventListener("click", () => {
     renderCamSettings();
     $("camSettingsOverlay").classList.remove("hidden");
     window.readCameraSettings();
   });
-  $("csDone").addEventListener("click", () => $("camSettingsOverlay").classList.add("hidden"));
+  $("csTest").addEventListener("click", csTakeTest);
+  $("csDone").addEventListener("click", closeCamSettings);
   $("csRead").addEventListener("click", () => window.readCameraSettings());
   $("csCopy").addEventListener("change", (e) => { if (e.target.value) copyFromCamera(e.target.value); });
 
@@ -2463,8 +2525,14 @@
       return;
     }
     const open = ["aboutOverlay", "settingsOverlay", "camSettingsOverlay"].find((id) => !$(id).classList.contains("hidden"));
+    if (open === "camSettingsOverlay" && csTest.has && e.target.tagName !== "SELECT" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.key === "ArrowLeft") csGallery.prev(); else csGallery.next();
+      return;
+    }
     if (open) {
-      if (e.key === "Escape") $(open).classList.add("hidden");
+      if (e.key === "Escape") { if (open === "camSettingsOverlay") closeCamSettings(); else $(open).classList.add("hidden"); }
       e.stopImmediatePropagation();
       return;
     }
