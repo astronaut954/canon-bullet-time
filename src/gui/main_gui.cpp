@@ -415,6 +415,39 @@ namespace
 
     // Estado atual das câmeras para a página redesenhar: conectadas, desconectadas
     // e as que estão conectando agora (com os segundos de espera)
+    // Bullet time precisa de UMA foto por câmera: o modo de disparo ("drive") fica em
+    // disparo único. Câmera em contínuo ou timer é posta em único pelo app; se ela não
+    // aceitar, o aviso aparece no painel (a página lê "drive" nas configurações).
+    // Disparo único silencioso também vale (uma foto).
+    bool IsSingleShot(long long drive) { return drive == 0x00 || drive == 0x06 || drive == 0x13; }
+
+    void EnsureSingleShot(CanonController& controller, std::map<std::string, bool>& warned)
+    {
+        for (const auto& cam : controller.GetCameras())
+        {
+            if (!cam.sessionOpen || cam.camera == nullptr)
+                continue;
+            const CameraSettings s = CameraSettingsCanon::Read(cam);
+            const auto drive = std::find_if(s.settings.begin(), s.settings.end(), [](const CameraSetting& c) { return c.key == "drive"; });
+            if (drive == s.settings.end() || !drive->available || IsSingleShot(drive->value))
+            {
+                warned.erase(cam.shortName);
+                continue;
+            }
+            std::string error;
+            if (CameraSettingsCanon::Write(cam, "drive", 0x00, error))
+            {
+                Log(cam.shortName + " was set to single shooting (it was on " + drive->label + ")");
+                warned.erase(cam.shortName);
+            }
+            else if (!warned[cam.shortName])
+            {
+                warned[cam.shortName] = true;
+                Log(cam.shortName + " is on " + drive->label + " and could not be set to single shooting: " + error);
+            }
+        }
+    }
+
     // Configurações de todas as câmeras conectadas, na ordem do app (tela Camera settings)
     std::string CameraSettingsJson(CanonController& controller)
     {
@@ -792,6 +825,7 @@ namespace
         // Cada câmera conecta em paralelo; a página recebe a lista sempre que algo
         // muda e, enquanto alguma conecta, a cada volta (para mostrar os segundos).
         std::string settingsCameras;  // câmeras da última leitura das configurações
+        std::map<std::string, bool> singleShotWarned;  // câmeras que não aceitaram disparo único (já avisadas)
         CameraThread cameras([&]
         {
             if (!sdkReady || busy || shuttingDown)
@@ -816,6 +850,7 @@ namespace
             if (connected != settingsCameras || changed)
             {
                 settingsCameras = connected;
+                EnsureSingleShot(controller, singleShotWarned);
                 listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
             }
         });
@@ -1036,6 +1071,7 @@ namespace
             {
                 if (busy || controller.HasPendingConnections())
                     return;
+                EnsureSingleShot(controller, singleShotWarned);
                 listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
             });
             return "null";
@@ -1077,6 +1113,7 @@ namespace
                 listener.Emit(result.Add("ok", errors.empty()).Add("error", text));
                 EdsGetEvent();
                 controller.TakeSettingsChanged();
+                EnsureSingleShot(controller, singleShotWarned);
                 listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
             });
             return "null";

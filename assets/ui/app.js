@@ -2196,7 +2196,9 @@
   // hora. "All cameras" muda em todas as que dá para ajustar. Cada lista só tem os
   // valores que aquela câmera aceita agora.
   const CS_COLS = [["iso", "ISO"], ["tv", "Shutter"], ["av", "Aperture"], ["expcomp", "Exp. comp."], ["wb", "White balance"],
-    ["shift", "WB fine-tune"], ["style", "Picture Style"], ["quality", "Quality"], ["drive", "Drive"], ["focus", "Focus"]];
+    ["shift", "WB fine-tune"], ["style", "Picture Style"], ["quality", "Quality"], ["focus", "Focus"]];
+  // Disparo único (o app põe sozinho; não é escolha). Único silencioso também vale.
+  const isSingleShot = (v) => v === 0x00 || v === 0x06 || v === 0x13;
   const KELVINS = [];
   for (let k = 2800; k <= 10000; k += 100) KELVINS.push(k);
   const shiftLabel = (v, neg, pos) => (v === 0 ? "0" : (v < 0 ? neg : pos) + Math.abs(v));
@@ -2229,6 +2231,9 @@
   function cameraSettingsTag(name) {
     const c = camSettings.find((x) => x.camera === name);
     if (!c) return null;
+    const drive = c.settings && c.settings.drive;
+    if (drive && drive.available && !isSingleShot(drive.value))
+      return { cls: "diff", text: "Not on single shot", title: "The camera is on " + drive.label + " and did not accept single shooting. Set it to single shooting on the camera." };
     if (!c.adjustable) return { cls: "locked", text: "Settings on the camera only", title: c.reason };
     const ref = csReference();
     if (CS_COLS.some(([k]) => k !== "focus" && csDiffers(c, k, ref))) return { cls: "diff", text: "Settings differ", title: "Open Camera settings to match the cameras." };
@@ -2399,12 +2404,16 @@
       }
       CS_COLS.forEach(([k]) => tr.appendChild(csCell(c, k, ref)));
       table.appendChild(tr);
-      if (c.reason) {
+      const drive = c.settings.drive;
+      const driveNote = drive && drive.available && !isSingleShot(drive.value)
+        ? "The camera is on " + drive.label + " and did not accept single shooting. Set it to single shooting on the camera." : "";
+      const noteText = [c.reason, driveNote].filter(Boolean).join(" ");
+      if (noteText) {
         tr.classList.add("has-note");
         const note = document.createElement("tr");
         note.className = "note";
         note.appendChild(document.createElement("td"));
-        const td = el("td", "", "⚠  " + c.reason);
+        const td = el("td", "", "⚠  " + noteText);
         td.colSpan = CS_COLS.length;
         note.appendChild(td);
         table.appendChild(note);
@@ -2423,7 +2432,7 @@
   function copyFromCamera(name) {
     const c = camSettings.find((x) => x.camera === name);
     if (!c) return;
-    ["iso", "tv", "av", "expcomp", "style", "quality", "drive"].forEach((k) => {
+    ["iso", "tv", "av", "expcomp", "style", "quality"].forEach((k) => {
       const st = c.settings[k];
       if (st && st.available && st.choices.length) csSet("*", k, st.value);
     });

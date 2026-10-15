@@ -202,8 +202,11 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       cabeçalho fica fixo.
 - [ ] Arrastar uma câmera para outra posição muda a ordem (01, 02...), igual às setas.
 - [ ] "Camera settings" abre a tabela com os valores reais de cada câmera (confira na própria câmera).
-- [ ] Mudar ISO, velocidade, abertura, Picture Style, qualidade e Drive de uma câmera: a câmera muda
+- [ ] Mudar ISO, velocidade, abertura, Picture Style e qualidade de uma câmera: a câmera muda
       na hora (confira no visor/tela dela).
+- [ ] Ponha uma câmera em disparo contínuo (ou timer) na própria câmera: o app volta ela para
+      disparo único sozinho (Activity: "... was set to single shooting"). Se não conseguir, o
+      painel mostra "Not on single shot".
 - [ ] "All cameras": mudar um valor muda em todas; White balance em Kelvin põe todas em K.
 - [ ] WB fine-tune (B/A e M/G) muda na câmera.
 - [ ] Copy from camera: todas ficam iguais à escolhida.

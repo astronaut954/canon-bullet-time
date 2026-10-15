@@ -239,8 +239,9 @@ EOS R5). Compensação de exposição não vale no modo M (fica sem opções).
 
 Tela aprovada em 2026-10-15: botão "Camera settings" no painel Cameras; tabela com uma linha por
 câmera e a linha "All cameras" (balanço de branco nela só em Kelvin); colunas ISO, Shutter, Aperture,
-Exp. comp., White balance, WB fine-tune, Picture Style, Quality, Drive e Focus (só leitura, âmbar
-com AF ligado); mudanças vão para a câmera na hora; legenda num ícone (?); "Copy from camera";
+Exp. comp., White balance, WB fine-tune, Picture Style, Quality e Focus (só leitura, âmbar
+com AF ligado); Drive saiu da tabela (decisão de 2026-10-15): o app põe toda câmera em disparo único
+sozinho (único silencioso também vale) e, se a câmera não aceitar, avisa ("Not on single shot"); mudanças vão para a câmera na hora; legenda num ícone (?); "Copy from camera";
 avisos no painel ("Settings differ", "Settings on the camera only"). No painel Cameras: cabeçalho
 fixo, só a lista rola, e arrastar para reordenar.
 - Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
