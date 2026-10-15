@@ -3,7 +3,8 @@
 // "Test shot" do Camera settings com "Match automatically": deixa as câmeras que dá
 // para ajustar o mais parecidas possível, mudando as próprias câmeras.
 //  1. Sem foto: mesma velocidade, abertura, ISO e compensação (o valor mais perto da
-//     média que todas aceitam) e o mesmo Picture Style (o mais comum, nunca Auto).
+//     média que todas aceitam), o mesmo Picture Style (o mais comum, nunca Auto) e os
+//     mesmos Contrast, Saturation e Color tone (os mais comuns).
 //  2. Foto 1, como estão: a média da cor e do brilho de todas vira o alvo.
 //  3. Balanço de branco em Auto ou diferente entre elas: todas em Daylight sem ajuste
 //     fino, foto 2, e daí um balanço comum (Kelvin, se todas aceitarem; senão o

@@ -25,11 +25,6 @@ namespace
     constexpr double kGPerMired = 0.0014;
     // Verde/magenta por passo do ajuste fino (ponto de partida)
     constexpr double kStartGainGM = 0.05;
-    // Picture Style: quanto 1 passo de contraste muda a foto (stops entre escuros e claros) e
-    // 1 passo de saturação (ln da saturação média). Ponto de partida, conferido em cópias
-    // editadas de uma foto; o app corrige pelo que mede depois de mudar.
-    constexpr double kStartGainContrast = 0.12;
-    constexpr double kStartGainSat = 0.05;
     // Canon: 1 passo do ajuste fino azul/âmbar ≈ 5 mireds
     constexpr double kMiredsPerStep = 5.0;
     // Na conferência final, diferença que ainda vale avisar (menor que isso não se nota)
@@ -202,6 +197,7 @@ namespace
             auto signedText = [](int v) { return v > 0 ? "+" + std::to_string(v) : std::to_string(v); };
             out.push_back({ "Contrast", signedText(s.contrast) });
             out.push_back({ "Saturation", signedText(s.saturation) });
+            out.push_back({ "Color tone", signedText(s.colorTone) });
         }
         return out;
     }
@@ -332,6 +328,54 @@ namespace
                 Write(controller, it.name, "style", *chosen, notes);
     }
 
+    // Contrast, Saturation e Color tone do Picture Style: o mesmo valor em todas (o mais
+    // comum; empate: o da primeira na ordem). Não é medido pela foto: o contraste e a
+    // saturação medidos dependem do que cada câmera vê (testado com SL3 e T7: a medida andou
+    // ao contrário do ajuste), então o app só garante que todas usem a mesma curva.
+    void UnifyStyleDetails(CanonController& controller, const std::vector<std::string>& names, std::vector<std::string>& notes)
+    {
+        struct Item { std::string name; CameraSettings s; };
+        std::vector<Item> items;
+        for (const auto& n : names)
+            if (const CameraContext* ctx = Find(controller, n))
+            {
+                CameraSettings s = CameraSettingsCanon::Read(*ctx);
+                if (s.styleDetailAvailable)
+                    items.push_back({ n, std::move(s) });
+            }
+        if (items.size() < 2)
+            return;
+        auto mostCommon = [&](int CameraSettings::*field)
+        {
+            std::vector<std::pair<int, int>> counts;  // na ordem em que aparecem
+            for (const auto& it : items)
+            {
+                auto c = std::find_if(counts.begin(), counts.end(), [&](const auto& x) { return x.first == it.s.*field; });
+                if (c == counts.end())
+                    counts.push_back({ it.s.*field, 1 });
+                else
+                    ++c->second;
+            }
+            std::stable_sort(counts.begin(), counts.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+            return counts.front().first;
+        };
+        const struct { const char* key; int CameraSettings::*field; } details[] = {
+            { "contrast", &CameraSettings::contrast },
+            { "saturation", &CameraSettings::saturation },
+            { "colortone", &CameraSettings::colorTone },
+        };
+        for (const auto& d : details)
+        {
+            const int value = mostCommon(d.field);
+            for (const auto& it : items)
+                if (it.s.*d.field != value)
+                {
+                    Trace(it.name + ": " + d.key + " " + std::to_string(it.s.*d.field) + " -> " + std::to_string(value) + " (same as the others)");
+                    Write(controller, it.name, d.key, value, notes);
+                }
+        }
+    }
+
     // Uma câmera durante o ajuste: a última medida e como ela estava na hora da foto
     struct Cam
     {
@@ -350,9 +394,6 @@ namespace
         double rbPerMired = kRbPerMired;
         double gainGM = kStartGainGM;
         double evGain = 1.0;
-        int contrast = 0, saturation = 0;       // ajustes do Picture Style na hora da foto
-        std::string style;                      // Picture Style na hora da foto
-        double contrastGain = kStartGainContrast, satGain = kStartGainSat;
         // Sentido do ajuste fino nesta câmera (1 = o esperado: + âmbar, + verde). A
         // documentação do SDK errou o verde/magenta na T7; então o app confere pela foto e,
         // se a cor andou para o lado contrário, inverte (vale para qualquer modelo).
@@ -371,10 +412,6 @@ namespace
             c.baseMired = 0;
         c.ab = s.shiftAB;
         c.gm = s.shiftGM;
-        c.contrast = s.contrast;
-        c.saturation = s.saturation;
-        const CameraSetting* style = Get(s, "style");
-        c.style = style ? std::to_string(style->value) : "";
         c.lightKey = BrightnessKey(s);
         const CameraSetting* e = Get(s, c.lightKey);
         c.lightKnown = e && LightUnits(c.lightKey, e->value, c.lightUnits);
@@ -434,24 +471,7 @@ namespace
                 if (g > 0.01)
                     c.gainGM = std::clamp(g, 0.015, 0.12);
             }
-            // Contraste e saturação: quanto 1 passo mudou a medida
-            const CameraSetting* style = Get(s, "style");
             const bool exposureOk = now.exposureOk && c.last.exposureOk;
-            if (s.styleDetailAvailable && style && std::to_string(style->value) == c.style)
-            {
-                if (s.contrast != c.contrast && exposureOk)
-                {
-                    const double g = (now.contrast - c.last.contrast) / (s.contrast - c.contrast);
-                    if (g > 0.02)
-                        c.contrastGain = std::clamp(g, 0.03, 0.5);
-                }
-                if (s.saturation != c.saturation)
-                {
-                    const double g = (now.sat - c.last.sat) / (s.saturation - c.saturation);
-                    if (g > 0.01)
-                        c.satGain = std::clamp(g, 0.01, 0.25);
-                }
-            }
             const std::string key = BrightnessKey(s);
             const CameraSetting* e = Get(s, key);
             double u = 0;
@@ -532,37 +552,10 @@ namespace
             }
         }
 
-        // Contraste e saturação (Picture Style). Mudar o contraste também mexe na saturação
-        // medida: com o contraste longe do alvo, a saturação espera a próxima foto.
         const bool exposureOk = c.last.exposureOk;
         if (!exposureOk)
             notes.push_back(c.name + (c.last.dark >= c.last.clipped ? ": its photo is almost all dark" : ": its photo is mostly blown out")
-                            + ", so its brightness and contrast were not changed.");
-        if (s.styleDetailAvailable)
-        {
-            const double tolerance = apply ? ColorMatch::kStepTolerance : kFinalStepTolerance;
-            const double conWant = c.contrast + (target.contrast - c.last.contrast) / c.contrastGain;
-            const double satWant = c.saturation + (target.sat - c.last.sat) / c.satGain;
-            const bool conOff = std::abs(conWant - s.contrast) >= tolerance;
-            const bool satOff = std::abs(satWant - s.saturation) >= tolerance;
-            auto adjust = [&](const char* key, double want, int now, const char* what)
-            {
-                const int v = std::clamp(static_cast<int>(std::lround(want)), -4, 4);
-                if (std::abs(want) > 4.5)
-                    notes.push_back(c.name + ": its " + what + " is more different than the Picture Style can correct.");
-                if (v == now)
-                    return;
-                wanted = true;
-                why.push_back(std::string(what) + " " + std::to_string(now) + " -> " + std::to_string(v) + " (wanted " + Num(want, 1) + ")");
-                if (apply)
-                    changed = CameraSettingsCanon::Write(*ctx, key, v, error) || changed;
-            };
-            if (conOff && exposureOk)
-                adjust("contrast", conWant, s.contrast, "contrast");
-            // Saturação junto quando o contraste muda pouco (até 1 passo); senão espera
-            if (satOff && std::abs(conWant - s.contrast) < 1.5)
-                adjust("saturation", satWant, s.saturation, "saturation");
-        }
+                            + ", so its brightness was not changed.");
 
         // Brilho
         const double wantEv = target.ev - c.last.ev;
@@ -895,6 +888,8 @@ namespace AutoMatch
             UnifyLight(controller, names, key, notes);
         UnifyStyle(controller, names, notes);
         Settle();
+        UnifyStyleDetails(controller, names, notes);  // depois do estilo: cada estilo tem os seus
+        Settle();
 
         // Balanço de branco: já igual e fixo em todas? Senão, procura um comum.
         std::vector<std::string> wbCams;
@@ -1031,6 +1026,8 @@ namespace AutoMatch
                         CameraSettingsCanon::Write(*ctx, "contrast", was.contrast, error);
                     if (now.saturation != was.saturation)
                         CameraSettingsCanon::Write(*ctx, "saturation", was.saturation, error);
+                    if (now.colorTone != was.colorTone)
+                        CameraSettingsCanon::Write(*ctx, "colortone", was.colorTone, error);
                     if (now.colorTone != was.colorTone)
                         CameraSettingsCanon::Write(*ctx, "colortone", was.colorTone, error);
                 }

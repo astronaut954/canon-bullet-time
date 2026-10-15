@@ -315,11 +315,11 @@ computador e para outras marcas).
   modelo. Na SL3 e na T7: falta conferir.
 - Tabela: botão "±" ao lado do Picture Style abre contraste, saturação e tom de cor da câmera (ou
   de todas, na linha All cameras).
-- Match automatically: também iguala contraste (stops entre os 10% mais escuros e os 10% mais
-  claros do centro) e saturação (média da força das cores) à média das câmeras. Medidas conferidas
-  em cópias editadas de uma foto (contraste ×1,2: +0,33 stop; saturação ×1,2 e ×0,8: +0,13 e
-  −0,15). O tom de cor não é ajustado sozinho (a cor fica com o ajuste fino). Simulação: diferença
-  de contraste entre câmeras caiu de ~0,5 para ~0,1 stop; de saturação, de ~0,34 para ~0,11.
+- Match automatically: deixa Contrast, Saturation e Color tone iguais em todas (o valor mais comum),
+  sem medir pela foto. A primeira versão igualava contraste e saturação medidos na foto, mas no teste
+  real (SL3 + T7) a medida dependia do que cada câmera via e andou ao contrário do ajuste (SL3 em +4
+  mediu menos contraste; T7 em −4 mediu mais), o que também bagunçou o ISO. Decisão (2026-10-15):
+  mesma curva em todas; a diferença de cada modelo fica para a medição com alvo (cartão cinza).
 - O ajuste fino do balanço de branco deixou de contar como "configuração diferente" (âmbar e
   "Settings differ"): depois do ajuste automático ele é diferente de propósito em cada câmera.
 - ISO errado no teste de 2026-10-15 (Mac, SL3 + T7, mesmo ISO no início): terminou em ISO 800 na
@@ -335,7 +335,7 @@ computador e para outras marcas).
     dobro, no lugar da mediana do centro (que pulava entre o tom claro e o escuro em fotos meio a
     meio). Conferido em cópias: +1/3, +1 e −1 stop medidos como +0,33, +0,99 e −1,00; numa imagem
     meio clara, meio escura, −1 stop = −1,00 e +1 stop = +0,60 (a parte clara estoura), sem pulos.
-  - **Foto quase toda preta (≥ 70%) ou estourada (≥ 50%):** o app não usa para brilho e contraste
+  - **Foto quase toda preta (≥ 70%) ou estourada (≥ 50%):** o app não usa para brilho
     daquela câmera e avisa.
 
 ## Futuro (não planejado ainda)
