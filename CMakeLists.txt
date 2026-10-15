@@ -80,6 +80,7 @@ option(STILLPOINT_BUILD_GUI "Compilar também a interface gráfica" ON)
 set(STILLPOINT_CORE_SOURCES
     src/core/canon_controller.cpp
     src/core/bullet_time.cpp
+    src/core/camera_settings_canon.cpp
     src/core/sdk_diagnostics.cpp
     src/core/path_utils.cpp
 )

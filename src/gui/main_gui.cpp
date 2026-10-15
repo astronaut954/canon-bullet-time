@@ -32,6 +32,7 @@
 #include "native_window.h"
 #include "photo_store.h"
 #include "exporter.h"
+#include "camera_settings.h"
 #include "platform/media.h"
 
 #include "webview/webview.h"
@@ -414,6 +415,43 @@ namespace
 
     // Estado atual das câmeras para a página redesenhar: conectadas, desconectadas
     // e as que estão conectando agora (com os segundos de espera)
+    // Configurações de todas as câmeras conectadas, na ordem do app (tela Camera settings)
+    std::string CameraSettingsJson(CanonController& controller)
+    {
+        std::vector<const CameraContext*> ordered;
+        for (const auto& cam : controller.GetCameras())
+            if (cam.sessionOpen && cam.camera != nullptr)
+                ordered.push_back(&cam);
+        std::sort(ordered.begin(), ordered.end(),
+            [](const CameraContext* a, const CameraContext* b) { return a->orderPrefix < b->orderPrefix; });
+        std::string list = "[";
+        for (size_t i = 0; i < ordered.size(); ++i)
+        {
+            const CameraSettings s = CameraSettingsCanon::Read(*ordered[i]);
+            std::string settings = "{";
+            for (size_t k = 0; k < s.settings.size(); ++k)
+            {
+                const CameraSetting& c = s.settings[k];
+                std::string choices = "[";
+                for (size_t j = 0; j < c.choices.size(); ++j)
+                    choices += (j ? "," : "") + std::string("[") + std::to_string(c.choices[j].value) + ","
+                               + JsonString(c.choices[j].label) + "]";
+                choices += "]";
+                settings += (k ? "," : "") + JsonString(c.key) + ":"
+                            + Json("setting").Add("available", c.available).Raw("value", std::to_string(c.value))
+                                  .Add("label", c.label).Raw("choices", choices).Str();
+            }
+            settings += "}";
+            list += (i ? "," : "") + Json("camera").Add("camera", s.camera).Add("model", s.model)
+                .Add("order", ordered[i]->orderPrefix).Add("adjustable", s.adjustable).Add("reason", s.reason)
+                .Add("mode", s.mode).Add("manual", s.manualMode).Add("kelvin", s.kelvin)
+                .Add("kelvinAvailable", s.kelvinAvailable).Add("shiftAvailable", s.shiftAvailable)
+                .Add("shiftAB", s.shiftAB).Add("shiftGM", s.shiftGM).Add("focusManual", s.focusManual)
+                .Raw("settings", settings).Str();
+        }
+        return list + "]";
+    }
+
     Json CamerasSnapshot(CanonController& controller)
     {
         const auto pending = controller.GetPendingConnections();
@@ -753,6 +791,7 @@ namespace
         // Tempo real: sem pedidos pendentes, acompanha as câmeras a cada ~0,4 s.
         // Cada câmera conecta em paralelo; a página recebe a lista sempre que algo
         // muda e, enquanto alguma conecta, a cada volta (para mostrar os segundos).
+        std::string settingsCameras;  // câmeras da última leitura das configurações
         CameraThread cameras([&]
         {
             if (!sdkReady || busy || shuttingDown)
@@ -764,6 +803,21 @@ namespace
             if (controller.MonitorTick(&listener) || controller.HasPendingConnections()
                 || !controller.GetStartingCameras().empty())
                 listener.Emit(CamerasSnapshot(controller));
+
+            // Configurações (avisos no painel e tela Camera settings): lidas de novo quando
+            // as câmeras conectadas mudam ou quando uma câmera avisa que algo mudou
+            if (controller.HasPendingConnections())
+                return;
+            std::string connected;
+            for (const auto& cam : controller.GetCameras())
+                if (cam.sessionOpen)
+                    connected += cam.shortName + "@" + cam.portName + ";";
+            const bool changed = controller.TakeSettingsChanged();
+            if (connected != settingsCameras || changed)
+            {
+                settingsCameras = connected;
+                listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
+            }
         });
 
         // Mensagens de texto do núcleo vão para o log da página
@@ -972,6 +1026,59 @@ namespace
         window.bind("cancelShoot", [&](const std::string&) -> std::string
         {
             bulletTime.RequestCancel();
+            return "null";
+        });
+
+        // readCameraSettings(): lê de novo as configurações de todas as câmeras
+        window.bind("readCameraSettings", [&](const std::string&) -> std::string
+        {
+            cameras.Post([&]
+            {
+                if (busy || controller.HasPendingConnections())
+                    return;
+                listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
+            });
+            return "null";
+        });
+
+        // setCameraSetting(câmera ou "*", chave, valor): muda na hora; "*" = todas as
+        // câmeras que dá para ajustar. Responde com cameraSettingResult e a leitura nova.
+        window.bind("setCameraSetting", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 3)
+                return "null";
+            const std::string target = args[0], key = args[1];
+            long long value = 0;
+            try { value = std::stoll(args[2]); } catch (...) { return "null"; }
+            cameras.Post([&, target, key, value]
+            {
+                auto result = Json("cameraSettingResult").Add("camera", target).Add("key", key);
+                if (busy || controller.HasPendingConnections())
+                {
+                    listener.Emit(result.Add("ok", false).Add("error", busy ? "Stillpoint is busy. Try again when it finishes."
+                                                                             : "A camera is connecting. Try again when it is ready."));
+                    return;
+                }
+                std::vector<std::string> errors;
+                for (const auto& cam : controller.GetCameras())
+                {
+                    if (!cam.sessionOpen || (target != "*" && cam.shortName != target))
+                        continue;
+                    if (target == "*" && !CameraSettingsCanon::Read(cam).adjustable)
+                        continue;
+                    std::string error;
+                    if (!CameraSettingsCanon::Write(cam, key, value, error))
+                        errors.push_back(cam.shortName + ": " + error);
+                }
+                std::string text;
+                for (const auto& e : errors)
+                    text += (text.empty() ? "" : " ") + e;
+                listener.Emit(result.Add("ok", errors.empty()).Add("error", text));
+                EdsGetEvent();
+                controller.TakeSettingsChanged();
+                listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
+            });
             return "null";
         });
 

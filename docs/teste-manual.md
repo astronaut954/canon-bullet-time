@@ -197,6 +197,24 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       connections" e religue: ela volta.
 - [ ] Disparo normal depois de reconectar: fotos chegam das duas câmeras.
 
+## 16. Camera settings (etapa 12)
+- [ ] Painel Cameras: número de câmeras ao lado do título; com várias câmeras só a lista rola e o
+      cabeçalho fica fixo.
+- [ ] Arrastar uma câmera para outra posição muda a ordem (01, 02...), igual às setas.
+- [ ] "Camera settings" abre a tabela com os valores reais de cada câmera (confira na própria câmera).
+- [ ] Mudar ISO, velocidade, abertura, Picture Style, qualidade e Drive de uma câmera: a câmera muda
+      na hora (confira no visor/tela dela).
+- [ ] "All cameras": mudar um valor muda em todas; White balance em Kelvin põe todas em K.
+- [ ] WB fine-tune (B/A e M/G) muda na câmera.
+- [ ] Copy from camera: todas ficam iguais à escolhida.
+- [ ] Câmera com o disco fora do M (ex.: Auto): linha com o aviso para girar para M; no painel,
+      "Settings on the camera only". Girando para M, a linha volta a ter as opções sozinha.
+- [ ] Câmera com valor diferente: âmbar na tabela e "Settings differ" no painel.
+- [ ] Lente em AF: Focus em âmbar; em MF: "MF".
+- [ ] Mudar algo direto na câmera: a tabela atualiza sozinha (ou com "Read again").
+- [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
+- [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

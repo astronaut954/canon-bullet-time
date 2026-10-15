@@ -234,6 +234,20 @@ EDSDK 13.20.10: ISO, Av, Tv, compensação de exposição, balanço de branco, t
 restrição por modelo; cada câmera informa os valores aceitos (EdsGetPropertyDesc). O modo (M,
 Av...) não muda pelo SDK em câmeras com disco de modos; nos modos automáticos as configurações
 de disparo não podem ser mudadas. EOS M, M2, M3, M5, M6, M10 e M100 não aceitam disparo remoto.
+Modo de foco: só leitura (MF vem da chave da lente; mudar o modo AF só foi testado pela Canon na
+EOS R5). Compensação de exposição não vale no modo M (fica sem opções).
+
+Tela aprovada em 2026-10-15: botão "Camera settings" no painel Cameras; tabela com uma linha por
+câmera e a linha "All cameras" (balanço de branco nela só em Kelvin); colunas ISO, Shutter, Aperture,
+Exp. comp., White balance, WB fine-tune, Picture Style, Quality, Drive e Focus (só leitura, âmbar
+com AF ligado); mudanças vão para a câmera na hora; legenda num ícone (?); "Copy from camera";
+avisos no painel ("Settings differ", "Settings on the camera only"). No painel Cameras: cabeçalho
+fixo, só a lista rola, e arrastar para reordenar.
+- Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
+  `src/core/camera_settings_canon.cpp` (Canon). Aviso do SDK de configuração mudada
+  (`TakeSettingsChanged`): a tela lê de novo sozinha quando algo muda na câmera.
+- Verificado aqui: código compila (cabeçalhos simulados do SDK); telas testadas num navegador com
+  dados simulados (5 e 16 câmeras). Falta: testar com câmeras de verdade no Mac e no Windows.
 
 ## Futuro (não planejado ainda)
 
