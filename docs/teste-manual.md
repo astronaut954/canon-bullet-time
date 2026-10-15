@@ -219,8 +219,11 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Mudar algo direto na câmera com a janela aberta: a tabela atualiza sozinha em até ~3 s
       (ou com "Read again").
 - [ ] Test shot com "Match automatically" desligado: dispara todas as câmeras (sem contagem e sem
-      som), mostra uma foto de cada uma na ordem; ← → passam de uma câmera para outra; a tabela
-      fica bloqueada enquanto fotografa. As fotos do teste não viram sessão e somem ao fechar a janela.
+      som) e mostra uma fileira de miniaturas, uma por câmera, na ordem; a tabela fica bloqueada
+      enquanto fotografa. As fotos do teste não viram sessão e somem ao fechar a janela.
+- [ ] Clicar numa miniatura abre a foto grande por cima da janela; ← → passam de câmera; Esc (ou
+      Close, ou clicar fora da foto) fecha só a foto grande; Esc de novo fecha a janela.
+- [ ] "Hide photos" recolhe a fileira e vira "Show photos"; um novo Test shot mostra a fileira aberta.
 - [ ] Test shot com "Match automatically" ligado (padrão), câmeras com balanço de branco em Auto e
       valores diferentes (ex.: velocidade 1/200 numa e 1/250 na outra): tira até 5 fotos sozinho
       ("Photo 2 of up to 5 · Finding a common white balance"...), e no fim mostra as fotos e o

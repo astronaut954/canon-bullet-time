@@ -350,7 +350,16 @@
       li.title = item.title + (item.subtitle ? " · " + item.subtitle : "");
       const img = li.querySelector(".frame-img");
       if (item.file && item.previewable) {
-        opts.load(item, 320).then((url) => { if (url) img.style.backgroundImage = "url(" + url + ")"; });
+        opts.load(item, 320).then((url) => {
+          if (!url) return;
+          img.style.backgroundImage = "url(" + url + ")";
+          // Miniatura com a proporção da foto (foto inteira, em pé ou deitada)
+          if (opts.fitThumbs) {
+            const probe = new Image();
+            probe.onload = () => img.style.setProperty("--ar", probe.naturalWidth + " / " + probe.naturalHeight);
+            probe.src = url;
+          }
+        });
       } else {
         // Sem prévia: mostra o tipo do arquivo (ex.: "TIF"), ou nada se a câmera não mandou foto
         img.appendChild(document.createTextNode(item.file ? item.file.split(".").pop().toUpperCase() : ""));
@@ -1056,8 +1065,31 @@
   // Teste rápido do Camera settings (fotos temporárias, as mesmas do "Reorder by photo")
   const csGallery = Gallery($("csGallery"), {
     draggable: false,
+    fitThumbs: true,
     load: (item, size) => orderPhoto(item.session, item.file, size),
   });
+  // Só a fileira de miniaturas (maiores); clicar numa abre a foto grande por cima da
+  // janela, com ← → e Esc. "Hide photos" recolhe a fileira.
+  let csZoom = false, csCollapsed = false;
+  const csHideBtn = button("Hide photos", () => csSetCollapsed(!csCollapsed), { kind: "btn-link" });
+  csGallery.setActions([csHideBtn]);
+  csGallery.setStageTools([
+    button("", () => csGallery.prev(), { icon: "left", title: "Previous camera" }),
+    button("", () => csGallery.next(), { icon: "right", title: "Next camera" }),
+    button("Close", () => csSetZoom(false), { title: "Close (Esc)" }),
+  ]);
+  function csSetZoom(on) {
+    csZoom = !!on && csTest.has;
+    $("csTestBox").classList.toggle("zoom", csZoom);
+  }
+  function csSetCollapsed(on) {
+    csCollapsed = !!on;
+    $("csTestBox").classList.toggle("collapsed", csCollapsed);
+    csHideBtn.textContent = csCollapsed ? "Show photos" : "Hide photos";
+    if (csCollapsed) csSetZoom(false);
+  }
+  $("csGallery").querySelector(".carousel").addEventListener("click", (e) => { if (e.target.closest(".frame")) csSetZoom(true); });
+  $("csGallery").querySelector(".stage").addEventListener("click", (e) => { if (e.target === e.currentTarget) csSetZoom(false); });
   orderGallery.setActions([
     button("Move earlier", () => orderGallery.moveSelected(-1), { icon: "left" }),
     button("Move later", () => orderGallery.moveSelected(1), { icon: "right" }),
@@ -2527,7 +2559,9 @@
     csTest.has = false;
     csTest.mode = match ? "match" : "test";
     $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
-    $("csTestBox").classList.remove("hidden");
+    $("csTestBox").classList.remove("hidden", "has-photos");
+    csSetZoom(false);
+    csSetCollapsed(false);
     csGallery.setItems([]);
     csGallery.setHead(match ? "Test shot · matching" : "Test shot", "");
     csGallery.message("Taking a photo with each camera");
@@ -2548,14 +2582,17 @@
                title: shortModel(cam.model), subtitle: cam.name };
     });
     csGallery.setItems(items, 0);
+    $("csTestBox").classList.toggle("has-photos", items.length > 0);
     const missing = items.filter((i) => !i.file).length;
     csGallery.setHead(csTest.mode === "match" ? "Test shot · matched" : "Test shot",
-      (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · ← → to compare");
+      (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · click a photo to enlarge · ← → to compare");
   }
   function csDiscardTest() {
     if (!csTest.has && !csTest.capturing) return;
     csTest.has = false;
+    csSetZoom(false);
     $("csTestBox").classList.add("hidden");
+    $("csTestBox").classList.remove("has-photos");
     csGallery.setItems([]);
     if (!csTest.capturing) window.discardOrderPhotos();
     Object.keys(photoCache).filter((k) => k.startsWith("order/")).forEach((k) => delete photoCache[k]);
@@ -2602,7 +2639,11 @@
       return;
     }
     if (open) {
-      if (e.key === "Escape") { if (open === "camSettingsOverlay") closeCamSettings(); else $(open).classList.add("hidden"); }
+      if (e.key === "Escape") {
+        if (open === "camSettingsOverlay" && csZoom) csSetZoom(false);  // primeiro fecha a foto grande
+        else if (open === "camSettingsOverlay") closeCamSettings();
+        else $(open).classList.add("hidden");
+      }
       e.stopImmediatePropagation();
       return;
     }

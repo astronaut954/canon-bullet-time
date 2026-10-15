@@ -780,7 +780,22 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-key-warn { border-color: var(--noct-pending); background: rgba(var(--noct-pending-rgb), .25); }
 
 /* Teste rápido dentro do Camera settings */
-.cs-test { flex: none; height: 44vh; min-height: 240px; display: flex; padding: 12px 22px; border-bottom: 1px solid var(--noct-border); }
+/* Só a fileira de miniaturas (foto inteira); a foto grande abre por cima da janela */
+.cs-sheet { position: relative; }
+.cs-test { flex: none; display: flex; padding: 10px 22px; border-bottom: 1px solid var(--noct-border); }
+.cs-test .gallery { gap: 8px; }
+.cs-test .gallery-head { align-items: flex-end; }
 .cs-test .gallery-title { font-size: 18px; }
+.cs-test .frame { flex: 0 0 auto; width: auto; }
+.cs-test .frame-img { height: 150px; width: auto; aspect-ratio: var(--ar, 2 / 3); background-size: cover; }
+.cs-test.collapsed .carousel-wrap { display: none; }
+.cs-test:not(.has-photos) .gallery-actions { visibility: hidden; }
+.cs-test.has-photos .stage { display: none; }
+.cs-test:not(.has-photos) .stage { flex: none; height: 150px; }   /* enquanto fotografa: o aviso */
+.cs-test:not(.zoom) .stage-tools { display: none; }
+.cs-test.zoom .stage { display: flex; position: absolute; inset: 0; z-index: 6; border: 0; background: rgba(0, 0, 0, .94); }
+.cs-test.zoom .stage img { max-width: calc(100% - 48px); max-height: calc(100% - 120px); }
+.cs-test.zoom .stage-tools { top: 16px; right: 16px; }
+.cs-test.zoom .stage-caption { left: 24px; bottom: 20px; }
 .cs-sheet.capturing .cs-body { opacity: .5; pointer-events: none; }
 #dialogText { white-space: pre-line; max-height: 60vh; overflow: auto; }  /* avisos com várias linhas (ex.: resumo do Match automatically) */
