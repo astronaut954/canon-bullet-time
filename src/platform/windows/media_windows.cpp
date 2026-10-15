@@ -11,6 +11,7 @@
 #include <mfidl.h>
 #include <mftransform.h>
 #include <codecapi.h>
+#include <strmif.h>
 #include <wincodec.h>
 
 #include <algorithm>
@@ -121,6 +122,37 @@ namespace Platform
                 {
                     error = "The H.264 encoder does not accept " + std::to_string(w) + " x " + std::to_string(h) + ".";
                     return false;
+                }
+
+                // Sem quadros B nem descarte de quadros: um quadro de saída por foto, na ordem.
+                // (Por padrão o codificador pode reordenar quadros e, para segurar a taxa,
+                // pular alguns, o que o arquivo MP4/MOV mostrava como fotos sumindo e tempos
+                // diferentes.) Qualidade constante em vez de taxa fixa.
+                ICodecAPI* codec = nullptr;
+                if (SUCCEEDED(transform->QueryInterface(IID_PPV_ARGS(&codec))))
+                {
+                    auto set = [&](const GUID& key, ULONG value)
+                    {
+                        VARIANT v;
+                        VariantInit(&v);
+                        v.vt = VT_UI4;
+                        v.ulVal = value;
+                        codec->SetValue(&key, &v);
+                    };
+                    auto setBool = [&](const GUID& key, bool value)
+                    {
+                        VARIANT v;
+                        VariantInit(&v);
+                        v.vt = VT_BOOL;
+                        v.boolVal = value ? VARIANT_TRUE : VARIANT_FALSE;
+                        codec->SetValue(&key, &v);
+                    };
+                    setBool(CODECAPI_AVLowLatencyMode, true);
+                    set(CODECAPI_AVEncMPVDefaultBPictureCount, 0);
+                    set(CODECAPI_AVEncCommonRateControlMode, eAVEncCommonRateControlMode_Quality);
+                    set(CODECAPI_AVEncCommonQuality, 85);
+                    set(CODECAPI_AVEncMPVGOPSize, static_cast<ULONG>(fps * 2));
+                    codec->Release();
                 }
 
                 // Parâmetros do vídeo (SPS/PPS), caso o codificador não os coloque no fluxo
