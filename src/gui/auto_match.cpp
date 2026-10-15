@@ -561,7 +561,7 @@ namespace
             {
                 double nearest = 1e9;
                 for (double l : levels)
-                    nearest = std::min(nearest, std::abs(l - t));
+                    nearest = (std::min)(nearest, std::abs(l - t));
                 cost += nearest * nearest;
             }
             if (cost < bestCost - 1e-12)
