@@ -86,7 +86,7 @@ namespace
         { 0x13, "Silent single" }, { 0x14, "Silent cont." }, { 0x15, "Silent high-speed" }, { 0x16, "Silent low-speed" },
     };
 
-    const Table kFocus = { { 0, "One-Shot AF" }, { 1, "AI Servo AF" }, { 2, "AI Focus AF" }, { 3, "Manual (MF)" } };
+    const Table kFocus = { { 0, "One-Shot" }, { 1, "AI Servo" }, { 2, "AI Focus" }, { 3, "MF" } };
 
     const Table kMode = {
         { 0x00, "P" }, { 0x01, "Tv" }, { 0x02, "Av" }, { 0x03, "M" }, { 0x04, "Bulb" }, { 0x05, "A-DEP" },

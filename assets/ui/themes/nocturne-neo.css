@@ -731,23 +731,30 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 table.cs { width: 100%; border-collapse: separate; border-spacing: 0; font: 12px var(--noct-font-mono); }
 table.cs th { position: sticky; top: 0; z-index: 2; background: var(--noct-surface); text-align: left; padding: 12px 5px 8px; border-bottom: 1px solid var(--noct-border);
   font: 700 10px var(--noct-font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--noct-text-muted); white-space: nowrap; }
-table.cs td { padding: 6px 4px; border-bottom: 1px solid var(--noct-border); color: var(--noct-text); vertical-align: middle; white-space: nowrap; }
+table.cs td { height: 44px; box-sizing: border-box; padding: 0 4px; border-bottom: 1px solid var(--noct-border); color: var(--noct-text); vertical-align: middle; white-space: nowrap; }
 table.cs td.name { font: 600 15px var(--noct-font-sans); }
-table.cs td.name { max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+table.cs td.name { height: 52px; max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
 table.cs td.name small { display: block; overflow: hidden; text-overflow: ellipsis; font: 10px var(--noct-font-mono); color: var(--noct-text-dim); letter-spacing: .08em; text-transform: uppercase; }
 table.cs tr.all td { position: sticky; top: 37px; z-index: 1; background: var(--noct-surface-inner); }
 table.cs tr.all td.name { color: var(--noct-primary); }
 table.cs tr.locked td { color: var(--noct-text-dim); }
 table.cs td.msg { color: var(--noct-pending); font: 13px var(--noct-font-sans); white-space: normal; }
-table.cs tr.note td { padding-top: 0; color: var(--noct-pending); font: 12px var(--noct-font-sans); white-space: normal; border-top: 0; }
+table.cs tr.note td { height: auto; padding-top: 0; padding-bottom: 8px; color: var(--noct-pending); font: 12px var(--noct-font-sans); white-space: normal; border-top: 0; }
 table.cs tr.has-note td { border-bottom-color: transparent; }
-.cs-sel { height: 28px; max-width: 118px; padding: 0 4px; border: 1px solid var(--noct-border); border-radius: 0; background: var(--noct-surface); color: var(--noct-text);
-  font: 11px var(--noct-font-mono); cursor: pointer; }
+/* Lista própria (sem o visual do sistema): no Mac a lista nativa vinha com cantos
+   redondos, setas duplas e larguras diferentes */
+.cs-sel { -webkit-appearance: none; appearance: none; box-sizing: border-box; height: 28px; max-width: 118px; margin: 0;
+  padding: 0 20px 0 7px; border: 1px solid var(--noct-border); border-radius: 0; color: var(--noct-text); line-height: 26px;
+  background: var(--noct-surface) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5'><path d='M0 0l4 5 4-5z' fill='%2333cc66'/></svg>") no-repeat right 7px center;
+  font: 11px var(--noct-font-mono); cursor: pointer; text-overflow: ellipsis; }
+.cs-sel::-ms-expand { display: none; }
 .cs-sel:hover { border-color: var(--noct-border-strong); }
 .cs-sel:focus { outline: none; border-color: var(--noct-primary); box-shadow: var(--noct-focus-ring); }
-.cs-sel.diff { border-color: var(--noct-pending); color: var(--noct-pending); }
-.cs-sel.small { max-width: 64px; }
-.cs-val { display: inline-flex; align-items: center; height: 28px; padding: 0 6px; border: 1px solid transparent; }
+.cs-sel.diff { border-color: var(--noct-pending); color: var(--noct-pending);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5'><path d='M0 0l4 5 4-5z' fill='%23ffb000'/></svg>"); }
+.cs-sel option { background: var(--noct-surface); color: var(--noct-text); }
+.cs-sel.small { width: 52px; max-width: 52px; }
+.cs-val { display: inline-flex; align-items: center; box-sizing: border-box; height: 28px; padding: 0 7px; border: 1px solid transparent; }
 .cs-val.na { border: 1px dashed var(--noct-text-dim); color: var(--noct-text-dim); min-width: 40px; justify-content: center; }
 .cs-val.diff { color: var(--noct-pending); }
 .cs-val.warn { border-color: var(--noct-pending); color: var(--noct-pending); }
@@ -757,7 +764,7 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-pair { display: inline-flex; gap: 4px; }
 .cs-foot { display: flex; gap: 10px; align-items: center; padding: 12px 22px; border-top: 1px solid var(--noct-border); }
 .cs-copy { display: inline-flex; align-items: center; gap: 8px; font: 700 11px var(--noct-font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--noct-text-muted); }
-.cs-copy select { height: 36px; max-width: 170px; }
+.cs-copy select { height: 36px; line-height: 34px; max-width: 170px; }
 .info-tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid var(--noct-border-strong);
   border-radius: 50%; font: 700 11px var(--noct-font-mono); color: var(--noct-text-muted); cursor: help; letter-spacing: 0; }
 .info-tip:hover, .info-tip:focus { color: var(--noct-primary); border-color: var(--noct-primary); outline: none; }
