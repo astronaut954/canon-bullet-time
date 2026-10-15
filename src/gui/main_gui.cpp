@@ -483,8 +483,8 @@ namespace
     // Caminho como texto UTF-8 (para mandar à página)
     std::string PathToUtf8(const std::filesystem::path& path)
     {
-        const auto text = path.u8string();
-        return std::string(text.begin(), text.end());
+        const std::u8string text = path.u8string();
+        return std::string(reinterpret_cast<const char*>(text.data()), text.size());
     }
 
     // As fotos de uma sessão do Test shot, uma por câmera, com as configurações atuais

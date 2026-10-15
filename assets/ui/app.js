@@ -2275,6 +2275,8 @@
     // Modo debug: vale na hora
     $("settingsDebug").innerHTML = "";
     $("settingsDebug").appendChild(segmented([["off", "Off"], ["on", "On"]], prefs.debug ? "on" : "off", (v) => {
+      // App compilado antes do modo debug existir (página nova com o programa antigo)
+      if (typeof window.setDebugMode !== "function") { toast("This build has no debug mode yet. Build the app again.", 8000); return; }
       Promise.resolve(window.setDebugMode(v === "on")).then((r) => {
         if (!r || !r.ok) { toast("Could not save the settings"); return; }
         prefs.debug = !!r.debug;
