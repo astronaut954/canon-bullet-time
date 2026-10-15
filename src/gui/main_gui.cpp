@@ -542,8 +542,10 @@ namespace
     // linha). Valem ao abrir o app de novo.
     // ---------------------------------------------------------------------
 
-    // Temas: cada arquivo assets/ui/themes/<nome>.css. O padrão é o Nocturne com as
-    // cores do Neo Terminal. Para um tema novo, basta acrescentar o arquivo.
+    // Temas: arquivos assets/ui/themes/<nome>.css que começam com
+    //   /* stillpoint-theme: Nome do tema */
+    // O padrão é o Nocturne com as cores do Neo Terminal. Arquivos sem essa linha (ex.:
+    // temas de teste antigos que ficaram numa pasta de build) não aparecem nem carregam.
     const char* const kDefaultTheme = "nocturne-neo";
     // Idiomas da interface (código, nome). Por enquanto só inglês.
     const std::vector<std::pair<std::string, std::string>> kLanguages = { { "en", "English" } };
@@ -575,6 +577,17 @@ namespace
         return static_cast<bool>(out);
     }
 
+    // Nome declarado na primeira linha do tema ("" se o arquivo não for um tema do app)
+    std::string DeclaredThemeName(const std::filesystem::path& file)
+    {
+        std::ifstream in(file);
+        std::string first;
+        std::getline(in, first);
+        static const std::regex marker(R"(^\s*/\*\s*stillpoint-theme:\s*(.*?)\s*\*/)");
+        std::smatch m;
+        return std::regex_search(first, m, marker) ? m[1].str() : std::string();
+    }
+
     // Temas instalados (o padrão primeiro, depois em ordem alfabética)
     std::vector<std::string> AvailableThemes()
     {
@@ -582,7 +595,7 @@ namespace
         std::error_code ec;
         for (const auto& entry : std::filesystem::directory_iterator(
                  Platform::ResourcesDirectory() / "assets" / "ui" / "themes", ec))
-            if (entry.path().extension() == ".css")
+            if (entry.path().extension() == ".css" && !DeclaredThemeName(entry.path()).empty())
                 themes.push_back(entry.path().stem().string());
         std::sort(themes.begin(), themes.end(), [](const std::string& a, const std::string& b)
         {
@@ -595,9 +608,13 @@ namespace
         return themes;
     }
 
-    // "nocturne-neo" -> "Nocturne Neo"
+    // Nome para mostrar: o declarado no arquivo; se faltar, "nocturne-neo" -> "Nocturne Neo"
     std::string ThemeName(const std::string& id)
     {
+        const std::string declared =
+            DeclaredThemeName(Platform::ResourcesDirectory() / "assets" / "ui" / "themes" / (id + ".css"));
+        if (!declared.empty())
+            return declared;
         std::string name;
         bool upper = true;
         for (char c : id)

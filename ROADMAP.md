@@ -198,6 +198,11 @@ sozinha, na v2.5.1. Motivo extra: sem menu, o Mac não aceitava ⌘C, ⌘V e ⌘
 - Settings: tema (cada arquivo de `assets/ui/themes/`; hoje só o Nocturne Neo) e idioma (hoje só
   English). Gravados em `<dados do app>/settings.txt`; valem ao abrir o app de novo ("Restart
   now"). A tradução para português é uma etapa à parte.
+- Corrigido (2026-10-15): a lista de temas mostrava temas de teste antigos que ficaram na pasta
+  de build do Mac (Mix, Nocturne original...); escolher um deles deixava a tela toda errada. Agora
+  só aparece o arquivo que começa com `/* stillpoint-theme: ... */`, um tema inválido volta ao
+  padrão sozinho, e cada compilação recopia `assets/ui` do zero. Os pacotes publicados não tinham
+  esses arquivos (o `build_release.py` copia do projeto).
 - Verificado aqui: código de Mac e de Windows compila (Mac com cabeçalhos simulados, Windows com
   MinGW); telas testadas num navegador. Falta: compilar e testar no Mac e no Windows.
 

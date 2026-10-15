@@ -158,7 +158,9 @@ function(stillpoint_copy_runtime_files target)
     # assets/ (sons e a página da interface) é copiada em TODA compilação, não só
     # quando o programa é refeito: assim uma mudança só em assets/ui (HTML/CSS/JS)
     # também chega à pasta do app.
+    # A pasta assets/ui é apagada antes: um arquivo que saiu do projeto não fica para trás.
     add_custom_target(${target}_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:${target}>/assets/ui"
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${target}>/assets"
         COMMENT "Copying assets for ${target}"
         VERBATIM
