@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <optional>
 #include <sstream>
@@ -55,6 +56,28 @@ namespace
             if (cam.shortName == name && cam.sessionOpen && cam.camera != nullptr)
                 return &cam;
         return nullptr;
+    }
+
+    // Registro do que o ajuste mediu e decidiu (modo debug); quem chama Run define
+    std::function<void(const std::string&)> g_trace;
+    void Trace(const std::string& line)
+    {
+        if (g_trace)
+            g_trace(line);
+    }
+    std::string Num(double v, int decimals = 2)
+    {
+        char text[32];
+        std::snprintf(text, sizeof(text), "%+.*f", decimals, v);
+        return text;
+    }
+    std::string MeasureText(const Stats& m)
+    {
+        if (!m.ok)
+            return "not measured";
+        return "brightness " + Num(m.ev) + " · color R/B " + Num(m.rb, 3) + " G " + Num(m.g, 3) + " · contrast "
+               + Num(m.contrast) + " · saturation " + Num(m.sat, 3) + " · dark " + std::to_string(std::lround(m.dark * 100))
+               + "% · clipped " + std::to_string(std::lround(m.clipped * 100)) + "%" + (m.exposureOk ? "" : " (brightness not reliable)");
     }
 
     const CameraSetting* Get(const CameraSettings& s, const std::string& key)
@@ -413,9 +436,10 @@ namespace
             }
             // Contraste e saturação: quanto 1 passo mudou a medida
             const CameraSetting* style = Get(s, "style");
+            const bool exposureOk = now.exposureOk && c.last.exposureOk;
             if (s.styleDetailAvailable && style && std::to_string(style->value) == c.style)
             {
-                if (s.contrast != c.contrast)
+                if (s.contrast != c.contrast && exposureOk)
                 {
                     const double g = (now.contrast - c.last.contrast) / (s.contrast - c.contrast);
                     if (g > 0.02)
@@ -431,7 +455,7 @@ namespace
             const std::string key = BrightnessKey(s);
             const CameraSetting* e = Get(s, key);
             double u = 0;
-            if (key == c.lightKey && c.lightKnown && e && LightUnits(key, e->value, u) && std::abs(u - c.lightUnits) >= 2)
+            if (exposureOk && key == c.lightKey && c.lightKnown && e && LightUnits(key, e->value, u) && std::abs(u - c.lightUnits) >= 2)
             {
                 const double g = (now.ev - c.last.ev) / ((u - c.lightUnits) / 8.0);
                 if (g > 0.3)
@@ -457,6 +481,7 @@ namespace
         const CameraSettings s = CameraSettingsCanon::Read(*ctx);
         bool wanted = false, changed = false;
         std::string error;
+        std::vector<std::string> why;  // para o registro do modo debug
 
         // Cor: azul/âmbar pelo balanço (em mireds) e verde/magenta pelo ajuste fino
         double base = 0;
@@ -496,6 +521,8 @@ namespace
                     if (ab != s.shiftAB || gm != s.shiftGM)
                     {
                         wanted = true;
+                        why.push_back("fine-tune " + ShiftText(s.shiftAB, s.shiftGM) + " -> " + ShiftText(ab, gm)
+                                      + " (wanted " + Num(abWant, 1) + " / " + Num(gmWant, 1) + ")");
                         if (apply && ab != s.shiftAB)
                             changed = CameraSettingsCanon::Write(*ctx, "shiftab", ab, error) || changed;
                         if (apply && gm != s.shiftGM)
@@ -507,6 +534,10 @@ namespace
 
         // Contraste e saturação (Picture Style). Mudar o contraste também mexe na saturação
         // medida: com o contraste longe do alvo, a saturação espera a próxima foto.
+        const bool exposureOk = c.last.exposureOk;
+        if (!exposureOk)
+            notes.push_back(c.name + (c.last.dark >= c.last.clipped ? ": its photo is almost all dark" : ": its photo is mostly blown out")
+                            + ", so its brightness and contrast were not changed.");
         if (s.styleDetailAvailable)
         {
             const double tolerance = apply ? ColorMatch::kStepTolerance : kFinalStepTolerance;
@@ -522,10 +553,11 @@ namespace
                 if (v == now)
                     return;
                 wanted = true;
+                why.push_back(std::string(what) + " " + std::to_string(now) + " -> " + std::to_string(v) + " (wanted " + Num(want, 1) + ")");
                 if (apply)
                     changed = CameraSettingsCanon::Write(*ctx, key, v, error) || changed;
             };
-            if (conOff)
+            if (conOff && exposureOk)
                 adjust("contrast", conWant, s.contrast, "contrast");
             // Saturação junto quando o contraste muda pouco (até 1 passo); senão espera
             if (satOff && std::abs(conWant - s.contrast) < 1.5)
@@ -534,7 +566,7 @@ namespace
 
         // Brilho
         const double wantEv = target.ev - c.last.ev;
-        if (std::abs(wantEv) >= (apply ? ColorMatch::kEvTolerance : kFinalEvTolerance))
+        if (exposureOk && std::abs(wantEv) >= (apply ? ColorMatch::kEvTolerance : kFinalEvTolerance))
         {
             const std::string key = BrightnessKey(s);
             const CameraSetting* e = Get(s, key);
@@ -563,6 +595,14 @@ namespace
                 if (best != e->value)
                 {
                     wanted = true;
+                    auto label = [&](long long v)
+                    {
+                        for (const auto& ch : e->choices)
+                            if (ch.value == v)
+                                return ch.label;
+                        return std::to_string(v);
+                    };
+                    why.push_back(label(e->value) + " -> " + label(best) + " (brightness " + Num(wantEv) + " stop, gain " + Num(c.evGain) + ")");
                     if (apply)
                         changed = CameraSettingsCanon::Write(*ctx, key, best, error) || changed;
                 }
@@ -573,6 +613,13 @@ namespace
         }
         if (!error.empty())
             notes.push_back(c.name + ": " + error);
+        Trace("  " + c.name + ": " + MeasureText(c.last) + (why.empty() ? " -> no change" : " -> " + [&]
+        {
+            std::string all;
+            for (const auto& w : why)
+                all += (all.empty() ? "" : "; ") + w;
+            return all + (apply ? "" : " (not applied: last photo)");
+        }()));
         if (!apply && wanted)
             notes.push_back(c.name + ": still a little different. Take another test shot to refine it.");
         return apply ? changed : wanted;
@@ -613,6 +660,7 @@ namespace
             const int kelvin = std::clamp(static_cast<int>(std::lround(1e6 / mired / 100.0)) * 100, 2800, 10000);
             for (const auto& name : wbCams)
                 Write(controller, name, "kelvin", kelvin, notes);
+            Trace("Common white balance: " + std::to_string(kelvin) + " K (estimate " + std::to_string(std::lround(1e6 / mired)) + " K)");
             return;
         }
         long long best = kWbDaylight;
@@ -628,6 +676,7 @@ namespace
                 best = value;
             }
         }
+        Trace("Common white balance: preset " + std::to_string(best) + " (estimate " + std::to_string(std::lround(1e6 / mired)) + " K)");
         if (best != kWbDaylight)
             for (const auto& name : wbCams)
                 Write(controller, name, "wb", best, notes);
@@ -643,7 +692,7 @@ namespace
         std::vector<double> candidates{ average };
         for (const auto& c : cams)
         {
-            if (!c.last.ok)
+            if (!c.last.ok || !c.last.exposureOk)
                 continue;
             std::vector<double> levels{ c.last.ev };
             if (const CameraContext* ctx = Find(controller, c.name))
@@ -732,8 +781,11 @@ namespace
             }
         }
         if (best != currentValue)
+        {
+            Trace("Common white balance changed to preset " + std::to_string(best) + " (new estimate " + std::to_string(std::lround(1e6 / mired)) + " K)");
             for (const auto& name : wbCams)
                 Write(controller, name, "wb", best, notes);
+        }
     }
 
     // Usa uma calibração (guardada ou medida agora) numa câmera
@@ -793,9 +845,11 @@ namespace AutoMatch
     }
 
     Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile,
-               const std::function<bool()>& cancelled)
+               const std::function<bool()>& cancelled, const std::function<void(const std::string&)>& trace)
     {
         Result result;
+        struct TraceGuard { ~TraceGuard() { g_trace = nullptr; } } traceGuard;
+        g_trace = trace;
 
         // Câmeras que dá para ajustar, na ordem do app
         std::vector<std::pair<int, std::string>> ordered;
@@ -1001,6 +1055,7 @@ namespace AutoMatch
         if (all.size() < 2)
             return finish("The test photos could not be measured. Check that every camera sent a photo.");
         const Stats target = ColorMatch::Average(all);
+        Trace("Target (average of all cameras): " + MeasureText(target));
 
         // 3. Balanço de branco comum
         if (commonWb)
@@ -1076,6 +1131,8 @@ namespace AutoMatch
                 cal.rbPerStep = std::abs(perAb);
                 cal.gPerStep = std::abs(perGm);
                 ApplyCalibration(*c, cal);
+                Trace("Calibration " + c->model + ": blue/amber " + (cal.abSign > 0 ? "normal" : "inverted") + ", " + Num(cal.rbPerStep, 3)
+                      + " per step; green/magenta " + (cal.gmSign > 0 ? "normal" : "inverted") + ", " + Num(cal.gPerStep, 3) + " per step");
                 if (!calibrations.count(c->model))
                 {
                     calibrations[c->model] = cal;
@@ -1104,6 +1161,7 @@ namespace AutoMatch
             state.clear();
             Stats round = target;
             round.ev = BrightnessTarget(controller, cams, target.ev);
+            Trace("After photo " + std::to_string(shot) + " (brightness target " + Num(round.ev) + "):");
             bool any = false;
             for (auto& c : cams)
                 any = Correct(controller, c, round, !last, state) || any;

@@ -34,6 +34,7 @@
 #include "exporter.h"
 #include "camera_settings.h"
 #include "auto_match.h"
+#include "match_debug.h"
 #include "color_match.h"
 #include "platform/media.h"
 
@@ -474,6 +475,48 @@ namespace
     {
         auto all = ReadAllSettings(controller);
         EnsureSingleShot(controller, all, warned);
+    }
+
+    // Modo debug (Settings): pasta com as fotos e as medidas de cada Test shot
+    std::filesystem::path DebugRoot() { return Platform::AppDataFolder() / "Debug"; }
+
+    // Caminho como texto UTF-8 (para mandar à página)
+    std::string PathToUtf8(const std::filesystem::path& path)
+    {
+        const auto text = path.u8string();
+        return std::string(text.begin(), text.end());
+    }
+
+    // As fotos de uma sessão do Test shot, uma por câmera, com as configurações atuais
+    // (as que a câmera usou nessa foto) e a medida, para o MatchDebug
+    std::vector<MatchDebug::Photo> DebugPhotos(CanonController& controller, PhotoStore& store, const StoredSession& session,
+                                               const std::map<std::string, ColorMatch::Stats>* measured)
+    {
+        std::map<std::string, const StoredPhoto*> picks;
+        for (const auto& p : session.photos)
+            if (!picks.count(p.camera) || IsJpegPhoto(p.file))
+                picks[p.camera] = &p;
+        std::vector<MatchDebug::Photo> photos;
+        for (const auto& cam : controller.GetCameras())
+        {
+            if (!cam.sessionOpen || cam.camera == nullptr)
+                continue;
+            MatchDebug::Photo photo;
+            photo.camera = cam.shortName;
+            photo.settings = CameraSettingsCanon::Read(cam);
+            const auto pick = picks.find(cam.shortName);
+            if (pick != picks.end())
+            {
+                photo.file = store.Root() / session.name / pick->second->file;
+                const auto m = measured ? measured->find(cam.shortName) : std::map<std::string, ColorMatch::Stats>::const_iterator{};
+                if (measured && m != measured->end())
+                    photo.measured = m->second;
+                else if (pick->second->previewable)
+                    photo.measured = ColorMatch::Measure(photo.file);
+            }
+            photos.push_back(photo);
+        }
+        return photos;
     }
 
     // Calibração do ajuste fino por modelo (feita pelo "Match automatically")
@@ -1007,6 +1050,15 @@ namespace
         const auto settings = LoadSettings();
         const std::string theme = ChosenTheme(settings);
         const std::string language = ChosenLanguage(settings);
+        // Modo debug: vale na hora (não precisa reabrir)
+        std::atomic<bool> debugMode{ settings.count("debug") && settings.at("debug") == "on" };
+        std::mutex debugFolderMutex;
+        std::filesystem::path lastDebugFolder;
+        auto rememberDebugFolder = [&](const std::filesystem::path& folder)
+        {
+            std::lock_guard<std::mutex> lock(debugFolderMutex);
+            lastDebugFolder = folder;
+        };
 
         window.bind("uiReady", [&](const std::string&) -> std::string
         {
@@ -1042,7 +1094,38 @@ namespace
                 }())
                 .Add("theme", theme)
                 .Raw("languages", ChoicesJson(kLanguages))
-                .Add("language", language).Str();
+                .Add("language", language)
+                .Add("debug", debugMode.load()).Str();
+        });
+
+        // setDebugMode(true/false): liga ou desliga o modo debug (Settings)
+        window.bind("setDebugMode", [&](const std::string& request) -> std::string
+        {
+            const bool on = request.find("true") != std::string::npos;
+            auto current = LoadSettings();
+            current["debug"] = on ? "on" : "off";
+            const bool ok = SaveSettings(current);
+            if (ok)
+                debugMode = on;
+            return Json("settings").Add("ok", ok).Add("debug", debugMode.load()).Str();
+        });
+
+        // openDebugFolder(): abre a pasta do último Test shot com debug (ou a pasta Debug)
+        window.bind("openDebugFolder", [&](const std::string&) -> std::string
+        {
+            std::filesystem::path folder;
+            {
+                std::lock_guard<std::mutex> lock(debugFolderMutex);
+                folder = lastDebugFolder;
+            }
+            std::error_code ec;
+            if (folder.empty() || !std::filesystem::exists(folder, ec))
+            {
+                folder = DebugRoot();
+                std::filesystem::create_directories(folder, ec);
+            }
+            Platform::OpenInFileManager(folder);
+            return "null";
         });
 
         // saveSettings(tema, idioma): grava no settings.txt. restart: true quando o que
@@ -1244,6 +1327,17 @@ namespace
                 controller.SetOutputFolder(orderStore.Root().string());
                 bulletTime.RunSequence(settings);
                 controller.SetOutputFolder(previous);
+                if (debugMode)
+                {
+                    const auto sessions = orderStore.ListSessions();
+                    MatchDebug debug;
+                    if (!sessions.empty() && debug.Begin(DebugRoot(), "test"))
+                    {
+                        debug.Shot(1, "Test shot", DebugPhotos(controller, orderStore, sessions.back(), nullptr));
+                        rememberDebugFolder(debug.Folder());
+                        listener.Emit(Json("debugSaved").Add("folder", PathToUtf8(debug.Folder())));
+                    }
+                }
                 listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
             });
             return "null";
@@ -1277,6 +1371,9 @@ namespace
                 if (cameraConnecting())
                     return;
                 testCancel = false;
+                MatchDebug debug;
+                if (debugMode)
+                    debug.Begin(DebugRoot(), "match");
                 auto shoot = [&](int shot, int shots, const std::string& stage,
                                  std::map<std::string, ColorMatch::Stats>& measured) -> bool
                 {
@@ -1301,9 +1398,27 @@ namespace
                     for (const auto& [camera, photo] : picks)
                         if (photo->previewable)
                             measured[camera] = ColorMatch::Measure(orderStore.Root() / session.name / photo->file);
+                    if (debug.Active())
+                        debug.Shot(shot, stage, DebugPhotos(controller, orderStore, session, &measured));
                     return true;
                 };
-                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); });
+                auto trace = [&](const std::string& line)
+                {
+                    debug.Line(line);
+                    Log("[match] " + line);
+                };
+                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); },
+                                                                debug.Active() ? std::function<void(const std::string&)>(trace) : nullptr);
+                if (debug.Active())
+                {
+                    debug.Line(result.cancelled ? "Result: cancelled" : result.ok ? "Result: done" : "Result: " + result.error);
+                    for (const auto& change : result.changes)
+                        for (const auto& item : change.items)
+                            debug.Line("  " + change.camera + ": " + item[0] + " " + item[1] + " -> " + item[2]);
+                    for (const auto& note : result.notes)
+                        debug.Line("  note: " + note);
+                    rememberDebugFolder(debug.Folder());
+                }
 
                 std::string changes = "[";
                 for (size_t i = 0; i < result.changes.size(); ++i)
@@ -1326,6 +1441,7 @@ namespace
                 listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
                 listener.Emit(Json("autoMatchResult").Add("ok", result.ok).Add("matched", result.matched)
                                   .Add("cancelled", result.cancelled)
+                                  .Add("debugFolder", debug.Active() ? PathToUtf8(debug.Folder()) : std::string())
                                   .Add("error", result.error).Raw("changes", changes).Raw("notes", notes));
                 EmitCameraSettings(controller, listener, singleShotWarned);
             });

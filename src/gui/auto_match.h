@@ -64,6 +64,7 @@ namespace AutoMatch
     // as calibrações por modelo (lidas e atualizadas).
     // cancelled: a pessoa pediu para parar (conferido entre as fotos; Shoot também deve
     // devolver false). Ao parar, as câmeras voltam às configurações de antes.
+    // trace: recebe, linha a linha, o que foi medido e decidido (modo debug; pode ser vazio).
     Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile,
-               const std::function<bool()>& cancelled);
+               const std::function<bool()>& cancelled, const std::function<void(const std::string&)>& trace = nullptr);
 }

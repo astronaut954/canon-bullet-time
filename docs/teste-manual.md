@@ -256,6 +256,12 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Match automatically com uma câmera de contraste +3 e a outra 0: no resumo aparece Contrast
       mudando; as fotos finais ficam mais parecidas em contraste e cores.
 - [ ] Ajuste fino diferente entre câmeras não deixa mais a célula âmbar nem "Settings differ".
+- [ ] Settings → Debug → On. Test shot (com e sem Match automatically): no fim, "Open debug folder"
+      (no resumo ou no Settings) abre uma pasta com as fotos, report.csv e trace.txt.
+- [ ] Debug ligado, fechar e abrir o app: continua ligado. Desligar: Test shot não cria pasta.
+- [ ] Match automatically com cenas bem diferentes (uma câmera vendo parede clara, outra canto
+      escuro), mesmo ISO no início: o brilho das fotos finais fica mais parecido que antes, sem
+      um ISO ir para um extremo e o outro para o outro.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.

@@ -241,6 +241,7 @@ if(STILLPOINT_BUILD_GUI)
     set(STILLPOINT_GUI_SOURCES
         src/gui/main_gui.cpp
         src/gui/auto_match.cpp
+        src/gui/match_debug.cpp
     )
     if(WIN32)
         list(APPEND STILLPOINT_GUI_SOURCES src/gui/native_window_win.cpp "${CMAKE_BINARY_DIR}/app.rc")

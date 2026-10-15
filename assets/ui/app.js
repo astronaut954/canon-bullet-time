@@ -1886,6 +1886,11 @@
     },
 
     // Reordenar por foto
+    // Modo debug: Test shot simples guardado
+    debugSaved(e) {
+      log("Debug data saved", "ok", e.folder);
+      toast("Debug data saved");
+    },
     // Test shot com "Match automatically"
     autoMatchProgress(e) {
       csGallery.setHead("Test shot · matching", "Photo " + e.shot + " of up to " + e.shots + " · " + e.stage);
@@ -1911,7 +1916,10 @@
       if (notes.length) parts.push(notes.join("\n"));
       if (e.ok) parts.push("The photos show the result. Use ← → to compare.");
       const title = !e.ok ? "Matching did not finish" : blocks.length ? "Cameras matched" : "Nothing to change";
-      dialog(title, parts.join("\n\n"), [{ label: "OK", primary: true }]);
+      const actions = [{ label: "OK", primary: true }];
+      if (e.debugFolder) actions.unshift({ label: "Open debug folder", link: true, onClick: () => window.openDebugFolder() });
+      dialog(title, parts.join("\n\n"), actions);
+      if (e.debugFolder) log("Debug data saved", "tech", e.debugFolder);
       log("Match automatically: " + (blocks.length ? plural(blocks.length, "camera", "cameras") + " changed" : "no change"), e.ok ? "ok" : "warn");
     },
     orderPhotos(e) {
@@ -2248,10 +2256,10 @@
   $("aboutGithub").addEventListener("click", () => window.openUrl(REPO_PAGE));
 
   // Settings: tema e idioma. Gravados na hora; valem ao abrir o app de novo.
-  const prefs = { theme: "", language: "", restart: false };
+  const prefs = { theme: "", language: "", restart: false, debug: false };
   function openSettings() {
     if (!upd.info) return;
-    if (!prefs.theme) { prefs.theme = upd.info.theme; prefs.language = upd.info.language; }
+    if (!prefs.theme) { prefs.theme = upd.info.theme; prefs.language = upd.info.language; prefs.debug = !!upd.info.debug; }
     renderSettings();
     $("settingsOverlay").classList.remove("hidden");
   }
@@ -2264,7 +2272,18 @@
     $("settingsLanguages").innerHTML = "";
     $("settingsLanguages").appendChild(segmented(languages.map((l) => [l.id, l.name]), prefs.language, (v) => saveSettings(prefs.theme, v)));
     $("settingsRestart").classList.toggle("hidden", !prefs.restart);
+    // Modo debug: vale na hora
+    $("settingsDebug").innerHTML = "";
+    $("settingsDebug").appendChild(segmented([["off", "Off"], ["on", "On"]], prefs.debug ? "on" : "off", (v) => {
+      Promise.resolve(window.setDebugMode(v === "on")).then((r) => {
+        if (!r || !r.ok) { toast("Could not save the settings"); return; }
+        prefs.debug = !!r.debug;
+        log("Debug mode " + (prefs.debug ? "on" : "off"), "tech");
+        renderSettings();
+      });
+    }));
   }
+  $("settingsDebugFolder").addEventListener("click", () => window.openDebugFolder());
   function saveSettings(theme, language) {
     if (theme === prefs.theme && language === prefs.language) return;
     Promise.resolve(window.saveSettings(theme, language)).then((r) => {

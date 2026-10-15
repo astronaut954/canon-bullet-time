@@ -322,6 +322,19 @@ computador e para outras marcas).
   de contraste entre câmeras caiu de ~0,5 para ~0,1 stop; de saturação, de ~0,34 para ~0,11.
 - O ajuste fino do balanço de branco deixou de contar como "configuração diferente" (âmbar e
   "Settings differ"): depois do ajuste automático ele é diferente de propósito em cada câmera.
+- ISO errado no teste de 2026-10-15 (Mac, SL3 + T7, mesmo ISO no início): terminou em ISO 800 na
+  SL3 e 100 na T7, com as fotos mais diferentes que antes. Causa não confirmada (o app não guardava
+  as medidas). O dono do projeto quer o brilho igualado "de olho" mesmo com cenas diferentes, sem
+  limites fixos. Feito:
+  - **Modo debug** (Settings → Debug): cada Test shot guarda em `<dados do app>/Debug/<data-hora>`
+    as prévias medidas, `report.csv` (configurações e medidas por foto e câmera) e `trace.txt` (o
+    que o ajuste decidiu e por quê); o resumo ganha "Open debug folder". Guarda as 20 mais recentes.
+  - **Brilho medido como o olho vê:** claridade média (L*) da foto inteira, com o centro valendo o
+    dobro, no lugar da mediana do centro (que pulava entre o tom claro e o escuro em fotos meio a
+    meio). Conferido em cópias: +1/3, +1 e −1 stop medidos como +0,33, +0,99 e −1,00; numa imagem
+    meio clara, meio escura, −1 stop = −1,00 e +1 stop = +0,60 (a parte clara estoura), sem pulos.
+  - **Foto quase toda preta (≥ 70%) ou estourada (≥ 50%):** o app não usa para brilho e contraste
+    daquela câmera e avisa.
 
 ## Futuro (não planejado ainda)
 
