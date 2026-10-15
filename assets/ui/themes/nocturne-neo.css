@@ -781,3 +781,4 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-test { flex: none; height: 44vh; min-height: 240px; display: flex; padding: 12px 22px; border-bottom: 1px solid var(--noct-border); }
 .cs-test .gallery-title { font-size: 18px; }
 .cs-sheet.capturing .cs-body { opacity: .5; pointer-events: none; }
+#dialogText { white-space: pre-line; }  /* avisos com várias linhas (ex.: resultado do Auto match) */

@@ -218,6 +218,12 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Test shot: dispara todas as câmeras (sem contagem e sem som), mostra uma foto de cada uma
       na ordem; ← → passam de uma câmera para outra; a tabela fica bloqueada enquanto fotografa.
       As fotos do teste não viram sessão e somem ao fechar a janela.
+- [ ] Auto match (câmeras com o mesmo balanço de branco em Kelvin): tira até 3 fotos sozinho,
+      muda o WB fine-tune e/ou o ISO das câmeras e mostra o resumo ("T7_1: WB 0 0 · ISO 400 →
+      WB A1 0 · ISO 500"); as fotos finais ficam lado a lado para conferir com ← →.
+- [ ] Auto match com o balanço de branco em Auto ou diferente entre câmeras: aviso pedindo o mesmo
+      balanço de branco, sem mudar nada.
+- [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu.
 - [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 

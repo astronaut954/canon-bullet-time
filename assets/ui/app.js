@@ -741,6 +741,7 @@
     ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
     $("camSettingsBtn").disabled = busy || connected === 0;
     $("csTest").disabled = busy || connected === 0;
+    $("csMatch").disabled = busy || connected < 2;
     document.querySelectorAll("#cameraList li[data-placed='1']").forEach((li) => li.classList.toggle("can-drag", !busy));
     ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
     ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
@@ -1846,6 +1847,22 @@
     },
 
     // Reordenar por foto
+    autoMatchProgress(e) {
+      csGallery.setHead("Auto match", "Photo " + e.round + " of up to " + e.rounds + " · " + (e.step === "measuring" ? "measuring" : "taking photos"));
+      if (e.step === "measuring") csGallery.message("Measuring color and brightness");
+    },
+    autoMatchResult(e) {
+      if (!e.ok) {
+        dialog("Auto match did not finish", e.error || "Try again.", [{ label: "OK", primary: true }]);
+        return;
+      }
+      const lines = (e.changes || []).map((c) => c.camera + ":  " + c.from + "  →  " + c.to);
+      const text = (lines.length ? lines.join("\n") : "The cameras already match. Nothing was changed.") +
+        ((e.notes || []).length ? "\n\n" + e.notes.join("\n") : "") +
+        "\n\nThe photos show the result. Use ← → to compare.";
+      dialog(lines.length ? "Auto match done" : "Auto match: nothing to change", text, [{ label: "OK", primary: true }]);
+      log("Auto match: " + (lines.length ? plural(lines.length, "camera", "cameras") + " adjusted" : "no change"), "ok");
+    },
     orderPhotos(e) {
       if (csTest.capturing) showCsTest(e.sessions);
       else if (order.open) showOrderPhotos(e.sessions);
@@ -2292,8 +2309,8 @@
     for (let v = -9; v <= 9; v++) range.push(v);
     box.append(
       csSelect(range.map((v) => [String(v), shiftLabel(v, "B", "A")]), String(ab), (v) => onAB(+v), "small" + (diff ? " diff" : "")),
-      csSelect(range.map((v) => [String(v), shiftLabel(v, "M", "G")]), String(gm), (v) => onGM(+v), "small" + (diff ? " diff" : "")));
-    box.title = "Blue (B) ↔ amber (A) and magenta (M) ↔ green (G)";
+      csSelect(range.map((v) => [String(v), shiftLabel(v, "G", "M")]), String(gm), (v) => onGM(+v), "small" + (diff ? " diff" : "")));
+    box.title = "Blue (B) ↔ amber (A) and green (G) ↔ magenta (M)";
     return box;
   }
 
@@ -2468,12 +2485,27 @@
     if (busy || csTest.capturing || !cameras.some((c) => c.connected)) return;
     csTest.capturing = true;
     csTest.has = false;
+    csTest.mode = "test";
     $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
     $("csTestBox").classList.remove("hidden");
     csGallery.setItems([]);
     csGallery.setHead("Test shot", "");
     csGallery.message("Taking a photo with each camera");
     window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
+  }
+  // Auto match: fotos de teste, mede e iguala cor (ajuste fino) e brilho (ISO) à média
+  // de todas as câmeras; até 3 fotos (o app confere depois de mudar)
+  function csAutoMatch() {
+    if (busy || csTest.capturing || cameras.filter((c) => c.connected).length < 2) return;
+    csTest.capturing = true;
+    csTest.has = false;
+    $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
+    $("csTestBox").classList.remove("hidden");
+    csGallery.setItems([]);
+    csTest.mode = "match";
+    csGallery.setHead("Auto match", "Taking test photos");
+    csGallery.message("Taking a photo with each camera");
+    window.autoMatch(intValue(ui.downloadWait, 1, 10));
   }
   function showCsTest(list) {
     csTest.capturing = false;
@@ -2490,7 +2522,7 @@
     });
     csGallery.setItems(items, 0);
     const missing = items.filter((i) => !i.file).length;
-    csGallery.setHead("Test shot",
+    csGallery.setHead(csTest.mode === "match" ? "Auto match · result" : "Test shot",
       (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · ← → to compare");
   }
   function csDiscardTest() {
@@ -2512,6 +2544,7 @@
     window.readCameraSettings();
   });
   $("csTest").addEventListener("click", csTakeTest);
+  $("csMatch").addEventListener("click", csAutoMatch);
   $("csDone").addEventListener("click", closeCamSettings);
   $("csRead").addEventListener("click", () => window.readCameraSettings());
   $("csCopy").addEventListener("change", (e) => { if (e.target.value) copyFromCamera(e.target.value); });

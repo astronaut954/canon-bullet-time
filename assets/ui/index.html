@@ -182,13 +182,14 @@
             </span>
           </span>
         </h3>
-        <p>Settings of each camera, read from the camera. Change a value in <b>All cameras</b> to set it on every camera, or change one camera only. Use <b>Test shot</b> to see how the photos look.</p>
+        <p>Settings of each camera, read from the camera. Change a value in <b>All cameras</b> to set it on every camera, or change one camera only. Use <b>Test shot</b> to see how the photos look, or <b>Auto match</b> to match color and brightness automatically.</p>
       </div>
       <!-- Teste rápido: uma foto de cada câmera, só para conferir (não é salva) -->
       <div id="csTestBox" class="cs-test hidden"><div id="csGallery" class="gallery"></div></div>
       <div id="csBody" class="cs-body"></div>
       <div class="cs-foot">
         <button id="csTest" class="btn btn-secondary" title="Fires all cameras once to check the photos. The photos are not saved.">Test shot</button>
+        <button id="csMatch" class="btn btn-secondary" title="Takes test photos and matches the color (white balance fine-tune) and brightness (ISO) of all cameras to their average. The photos are not saved.">Auto match</button>
         <button id="csRead" class="btn btn-link btn-small">Read again</button>
         <span class="spacer"></span>
         <label class="cs-copy"><span>Copy from camera</span><select id="csCopy" class="cs-sel"></select></label>

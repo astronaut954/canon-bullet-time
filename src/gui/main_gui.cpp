@@ -33,6 +33,7 @@
 #include "photo_store.h"
 #include "exporter.h"
 #include "camera_settings.h"
+#include "color_match.h"
 #include "platform/media.h"
 
 #include "webview/webview.h"
@@ -41,6 +42,7 @@
 #include <optional>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdlib>
 #include <map>
@@ -1201,6 +1203,235 @@ namespace
                 bulletTime.RunSequence(settings);
                 controller.SetOutputFolder(previous);
                 listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
+            });
+            return "null";
+        });
+
+        // autoMatch(espera): "Auto match" do Camera settings. Tira fotos de teste (as mesmas
+        // temporárias do "Reorder by photo"), mede cor e brilho do centro de cada foto e
+        // iguala todas as câmeras à média: cor pelo ajuste fino do balanço de branco, brilho
+        // pelo ISO. Mede de novo depois de mudar (até 3 fotos) e corrige pelo que mediu.
+        window.bind("autoMatch", [&](const std::string& request) -> std::string
+        {
+            const auto values = ParseIntArgs(request);
+            SequenceSettings settings;
+            settings.countdownSeconds = 0;
+            settings.sessionCount = 1;
+            settings.downloadWaitSeconds = values.empty() ? 10 : std::max(1, values[0]);
+            settings.playSounds = false;
+            run("orderPhotos", [&, settings]
+            {
+                auto finish = [&](bool ok, const std::string& error, const std::string& changes, const std::string& notes)
+                {
+                    listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
+                    listener.Emit(Json("autoMatchResult").Add("ok", ok).Add("error", error)
+                                      .Raw("changes", changes).Raw("notes", notes));
+                    controller.TakeSettingsChanged();
+                    listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
+                };
+                if (controller.HasPendingConnections())
+                    return finish(false, "A camera is connecting. Try again when it is ready.", "[]", "[]");
+
+                // Câmeras que dá para ajustar, com o mesmo balanço de branco (o ajuste fino
+                // vale sobre ele; no Auto a cor muda a cada foto)
+                struct Cam { std::string name; CameraSettings s; ColorMatch::Stats last; int stepAB = 0, stepGM = 0;
+                             double gainAB = ColorMatch::kStartGainAB, gainGM = ColorMatch::kStartGainGM;
+                             std::string startText; };
+                std::vector<Cam> cams;
+                std::string wbLabel;
+                bool sameWb = true;
+                auto wbOf = [](const CameraSettings& s)
+                {
+                    for (const auto& c : s.settings)
+                        if (c.key == "wb" && c.available)
+                            return c.value == 9 ? std::to_string(s.kelvin) + " K" : c.label;
+                    return std::string();
+                };
+                auto isoOf = [](const CameraSettings& s) -> const CameraSetting*
+                {
+                    for (const auto& c : s.settings)
+                        if (c.key == "iso" && c.available)
+                            return &c;
+                    return nullptr;
+                };
+                auto shiftText = [](int ab, int gm)
+                {
+                    auto part = [](int v, const char* neg, const char* pos)
+                    { return v == 0 ? std::string("0") : std::string(v < 0 ? neg : pos) + std::to_string(std::abs(v)); };
+                    return part(ab, "B", "A") + " " + part(gm, "G", "M");
+                };
+                for (const auto& cam : controller.GetCameras())
+                {
+                    if (!cam.sessionOpen)
+                        continue;
+                    CameraSettings s = CameraSettingsCanon::Read(cam);
+                    if (!s.adjustable || !s.shiftAvailable)
+                        continue;
+                    const std::string wb = wbOf(s);
+                    if (wbLabel.empty())
+                        wbLabel = wb;
+                    sameWb = sameWb && wb == wbLabel;
+                    const CameraSetting* iso = isoOf(s);
+                    Cam c;
+                    c.name = cam.shortName;
+                    c.startText = "WB " + shiftText(s.shiftAB, s.shiftGM) + (iso ? " · " + iso->label : "");
+                    c.s = s;
+                    cams.push_back(c);
+                }
+                if (cams.size() < 2)
+                    return finish(false, "Auto match needs at least two cameras that can be adjusted.", "[]", "[]");
+                if (!sameWb || wbLabel == "Auto" || wbLabel == "Auto (white)" || wbLabel.empty())
+                    return finish(false, "Set the same white balance on all cameras first (for example a Kelvin value in All cameras), not Auto.", "[]", "[]");
+
+                std::vector<std::string> notes;
+                const int kRounds = 3;
+                bool converged = false;
+                for (int round = 1; round <= kRounds && !converged; ++round)
+                {
+                    listener.Emit(Json("autoMatchProgress").Add("round", round).Add("rounds", kRounds).Add("step", "photos"));
+                    orderStore.DeleteAll();
+                    const std::string previous = controller.GetOutputFolder();
+                    controller.SetOutputFolder(orderStore.Root().string());
+                    bulletTime.RunSequence(settings);
+                    controller.SetOutputFolder(previous);
+
+                    listener.Emit(Json("autoMatchProgress").Add("round", round).Add("rounds", kRounds).Add("step", "measuring"));
+                    const auto sessions = orderStore.ListSessions();
+                    if (sessions.empty())
+                        return finish(false, "The test photos did not arrive.", "[]", "[]");
+                    const StoredSession& session = sessions.back();
+                    std::vector<ColorMatch::Stats> measured;
+                    for (auto& c : cams)
+                    {
+                        // Uma foto por câmera (JPEG quando houver RAW + JPEG)
+                        const StoredPhoto* pick = nullptr;
+                        for (const auto& p : session.photos)
+                            if (p.camera == c.name && (!pick || IsJpegPhoto(p.file)))
+                                pick = &p;
+                        ColorMatch::Stats st;
+                        if (pick && pick->previewable)
+                            st = ColorMatch::Measure(orderStore.Root() / session.name / pick->file);
+                        // Depois de mudar: quanto a medida andou por passo (corrige o ponto de partida)
+                        if (st.ok && c.last.ok)
+                        {
+                            if (c.stepAB != 0)
+                            {
+                                const double g = (st.rb - c.last.rb) / c.stepAB;
+                                if (g > 0.004) c.gainAB = std::clamp(g, 0.006, 0.08);
+                            }
+                            if (c.stepGM != 0)
+                            {
+                                const double g = -(st.g - c.last.g) / c.stepGM;
+                                if (g > 0.004) c.gainGM = std::clamp(g, 0.006, 0.08);
+                            }
+                        }
+                        c.last = st;
+                        c.stepAB = c.stepGM = 0;
+                        measured.push_back(st);
+                    }
+                    const ColorMatch::Stats target = ColorMatch::Average(measured);
+                    if (!target.ok)
+                        return finish(false, "The test photos could not be measured.", "[]", "[]");
+
+                    // Última foto: só confere (não muda mais nada)
+                    const bool lastRound = round == kRounds;
+                    bool changedAny = false;
+                    for (auto& c : cams)
+                    {
+                        if (!c.last.ok)
+                            continue;
+                        const CameraContext* ctx = nullptr;
+                        for (const auto& cam : controller.GetCameras())
+                            if (cam.shortName == c.name && cam.sessionOpen)
+                                ctx = &cam;
+                        if (!ctx)
+                            continue;
+                        c.s = CameraSettingsCanon::Read(*ctx);
+                        // Cor: âmbar (+) sobe ln(R/B); magenta (+) desce ln(G/√RB)
+                        const double wantAB = (target.rb - c.last.rb) / c.gainAB;
+                        const double wantGM = (c.last.g - target.g) / c.gainGM;
+                        const double wantEv = target.ev - c.last.ev;
+                        const bool colorOk = std::abs(wantAB) < ColorMatch::kStepTolerance && std::abs(wantGM) < ColorMatch::kStepTolerance;
+                        const bool evOk = std::abs(wantEv) < ColorMatch::kEvTolerance;
+                        if (colorOk && evOk)
+                            continue;
+                        if (lastRound)
+                            continue;
+                        std::string error;
+                        if (!colorOk)
+                        {
+                            const int ab = std::clamp(c.s.shiftAB + static_cast<int>(std::lround(wantAB)), -9, 9);
+                            const int gm = std::clamp(c.s.shiftGM + static_cast<int>(std::lround(wantGM)), -9, 9);
+                            if (ab != c.s.shiftAB && CameraSettingsCanon::Write(*ctx, "shiftab", ab, error))
+                            { c.stepAB = ab - c.s.shiftAB; changedAny = true; }
+                            if (gm != c.s.shiftGM && CameraSettingsCanon::Write(*ctx, "shiftgm", gm, error))
+                            { c.stepGM = gm - c.s.shiftGM; changedAny = true; }
+                            if (std::abs(c.s.shiftAB + static_cast<int>(std::lround(wantAB))) > 9
+                                || std::abs(c.s.shiftGM + static_cast<int>(std::lround(wantGM))) > 9)
+                                notes.push_back(c.name + ": the color difference is bigger than the fine-tune range. Adjust its white balance (Kelvin).");
+                        }
+                        if (!evOk)
+                        {
+                            // Brilho pelo ISO: o valor aceito mais perto do que falta
+                            const CameraSetting* iso = isoOf(c.s);
+                            auto isoNumber = [](const std::string& label) -> double
+                            {
+                                try { return std::stod(label.substr(label.find(' ') + 1)); } catch (...) { return 0; }
+                            };
+                            const double current = iso ? isoNumber(iso->label) : 0;
+                            if (!iso || current <= 0 || iso->choices.empty())
+                                notes.push_back(c.name + ": brightness differs, but its ISO cannot be changed (ISO Auto?).");
+                            else
+                            {
+                                long long best = iso->value;
+                                double bestError = std::abs(wantEv);
+                                for (const auto& choice : iso->choices)
+                                {
+                                    const double n = isoNumber(choice.label);
+                                    if (n <= 0)
+                                        continue;
+                                    const double err = std::abs(std::log2(n / current) - wantEv);
+                                    if (err < bestError - 1e-6) { bestError = err; best = choice.value; }
+                                }
+                                if (best != iso->value && CameraSettingsCanon::Write(*ctx, "iso", best, error))
+                                    changedAny = true;
+                            }
+                        }
+                        if (!error.empty())
+                            notes.push_back(c.name + ": " + error);
+                    }
+                    EdsGetEvent();
+                    converged = !changedAny;
+                }
+
+                // Resumo: o que mudou em cada câmera
+                std::string changes = "[";
+                bool first = true;
+                for (const auto& c : cams)
+                {
+                    for (const auto& cam : controller.GetCameras())
+                    {
+                        if (cam.shortName != c.name || !cam.sessionOpen)
+                            continue;
+                        const CameraSettings now = CameraSettingsCanon::Read(cam);
+                        const CameraSetting* iso = isoOf(now);
+                        const std::string endText = "WB " + shiftText(now.shiftAB, now.shiftGM) + (iso ? " · " + iso->label : "");
+                        if (endText == c.startText)
+                            continue;
+                        changes += (first ? "" : ",") + Json("change").Add("camera", c.name).Add("from", c.startText)
+                                                            .Add("to", endText).Str();
+                        first = false;
+                    }
+                }
+                changes += "]";
+                // Avisos sem repetir
+                std::sort(notes.begin(), notes.end());
+                notes.erase(std::unique(notes.begin(), notes.end()), notes.end());
+                std::string notesJson = "[";
+                for (size_t i = 0; i < notes.size(); ++i)
+                    notesJson += (i ? "," : "") + JsonString(notes[i]);
+                notesJson += "]";
+                finish(true, "", changes, notesJson);
             });
             return "null";
         });

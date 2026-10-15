@@ -247,6 +247,13 @@ fixo, só a lista rola, e arrastar para reordenar.
 - Teste rápido (pedido em 2026-10-15): botão "Test shot" no Camera settings dispara todas as
   câmeras uma vez e mostra as fotos lado a lado (← → para comparar). São fotos temporárias, as
   mesmas do "Reorder by photo": apagadas ao fechar a janela ou no próximo teste.
+- Auto match (decidido em 2026-10-15: igualar à média de todas, cor e brilho): tira fotos de
+  teste, mede o centro de cada foto (`src/gui/color_match.cpp`) e iguala cada câmera à média: cor
+  pelo ajuste fino do balanço de branco (Canon: 1 passo azul/âmbar ≈ 5 mireds; no SDK, AB −
+  azul/+ âmbar e GM − verde/+ magenta) e brilho pelo ISO. Até 3 fotos: depois de mudar, mede de
+  novo e corrige pelo quanto a câmera respondeu. Exige o mesmo balanço de branco em todas (não Auto).
+  Medida conferida aqui com cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido;
+  +1/3 de stop esperado, +0,35 medido).
 - Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
   `src/core/camera_settings_canon.cpp` (Canon). Aviso do SDK de configuração mudada
   (`TakeSettingsChanged`): a tela lê de novo sozinha quando algo muda na câmera.

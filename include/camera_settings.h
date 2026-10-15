@@ -40,7 +40,7 @@ struct CameraSettings
     bool kelvinAvailable = false;
     bool shiftAvailable = false;  // ajuste fino do balanço de branco
     int shiftAB = 0;          // azul (−) ↔ âmbar (+), −9 a +9
-    int shiftGM = 0;          // magenta (−) ↔ verde (+), −9 a +9
+    int shiftGM = 0;          // verde (−) ↔ magenta (+), −9 a +9 (documentação do EDSDK)
     bool focusManual = false; // lente em MF
     std::vector<CameraSetting> settings;
 };
