@@ -2346,13 +2346,17 @@
   }
   const COL_KEYS = { wb: ["wb", "kelvin"], shift: ["shiftab", "shiftgm"] };
 
+  // ab ou gm null: câmeras com valores diferentes ("—" na lista; qualquer valor, até 0, aplica)
   function shiftPair(ab, gm, onAB, onGM, diff) {
     const box = el("span", "cs-pair");
     const range = [];
     for (let v = -9; v <= 9; v++) range.push(v);
-    box.append(
-      csSelect(range.map((v) => [String(v), shiftLabel(v, "B", "A")]), String(ab), (v) => onAB(+v), "small" + (diff ? " diff" : "")),
-      csSelect(range.map((v) => [String(v), shiftLabel(v, "G", "M")]), String(gm), (v) => onGM(+v), "small" + (diff ? " diff" : "")));
+    const list = (current, neg, pos, onPick, differs) => {
+      const options = range.map((v) => [String(v), shiftLabel(v, neg, pos)]);
+      if (current === null) options.unshift(["", "—", true]);
+      return csSelect(options, current === null ? "" : String(current), (v) => onPick(+v), "small" + (differs ? " diff" : ""));
+    };
+    box.append(list(ab, "B", "A", onAB, diff || ab === null), list(gm, "G", "M", onGM, diff || gm === null));
     box.title = "Blue (B) ↔ amber (A) and green (G) ↔ magenta (M)";
     return box;
   }
@@ -2410,8 +2414,8 @@
     if (!cams.length) { td.appendChild(csText("—", "na")); return td; }
     if (k === "shift") {
       if (!cams.every((c) => c.shiftAvailable)) { td.appendChild(csText("—", "na", "Not available on every camera")); return td; }
-      const ab = same ? cams[0].shiftAB : 0, gm = same ? cams[0].shiftGM : 0;
-      td.appendChild(shiftPair(ab, gm, (v) => csSet("*", "shiftab", v), (v) => csSet("*", "shiftgm", v), !same));
+      const one = (key) => (new Set(cams.map((c) => c[key])).size === 1 ? cams[0][key] : null);
+      td.appendChild(shiftPair(one("shiftAB"), one("shiftGM"), (v) => csSet("*", "shiftab", v), (v) => csSet("*", "shiftgm", v), false));
       return td;
     }
     if (k === "wb") {
