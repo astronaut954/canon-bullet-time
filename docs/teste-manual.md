@@ -91,6 +91,7 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       mostra "😎 STILLPOINT"; pacote `stillpoint-vX.Y.Z-<sistema>.zip`.
 - [ ] Sessões não salvas da versão antiga aparecem ao abrir o Stillpoint (a pasta
       "Canon Bullet Time" vira "Stillpoint").
+- [ ] A versão (ex.: `v2.5.1`) aparece pequena ao lado de STILLPOINT, no topo.
 
 ## 8. Instaladores
 - [ ] Mac: abrir o `.dmg`: janela com o fundo de chuva, Stillpoint à esquerda, Aplicativos
