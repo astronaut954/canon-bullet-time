@@ -234,8 +234,10 @@
           <span class="export-label">Debug</span>
           <div>
             <div id="settingsDebug"></div>
-            <div class="export-note">Saves the photos of every Test shot and what Match automatically measured and changed, in a folder you can send for analysis.</div>
+            <div class="export-note">Saves the photos of every Test shot and what Match automatically measured and changed, in a folder you can send for analysis. Turns off when Stillpoint closes. Keeps up to 300 MB (the oldest are deleted).</div>
+            <div class="export-note" id="settingsDebugSize"></div>
             <button id="settingsDebugFolder" class="btn btn-link btn-small settings-link">Open debug folder</button>
+            <button id="settingsDebugDelete" class="btn btn-link btn-small settings-link">Delete debug data</button>
           </div>
         </div>
         <div id="settingsRestart" class="settings-restart hidden">

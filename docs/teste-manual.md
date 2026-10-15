@@ -258,7 +258,10 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Ajuste fino diferente entre câmeras não deixa mais a célula âmbar nem "Settings differ".
 - [ ] Settings → Debug → On. Test shot (com e sem Match automatically): no fim, "Open debug folder"
       (no resumo ou no Settings) abre uma pasta com as fotos, report.csv e trace.txt.
-- [ ] Debug ligado, fechar e abrir o app: continua ligado. Desligar: Test shot não cria pasta.
+- [ ] Debug ligado, fechar e abrir o app: volta desligado. Desligado: Test shot não cria pasta.
+- [ ] Settings mostra "Debug data: N MB" (ou "No debug data saved."). "Delete debug data" → confirmar:
+  a pasta Debug fica vazia, aparece "No debug data saved." e o botão some. Pastas de sessão intactas.
+- [ ] (Opcional) Com mais de 300 MB ou mais de 20 pastas em Debug, um novo Test shot apaga as mais antigas.
 - [ ] Match automatically com cenas bem diferentes (uma câmera vendo parede clara, outra canto
       escuro), mesmo ISO no início: o brilho das fotos finais fica mais parecido que antes, sem
       um ISO ir para um extremo e o outro para o outro.

@@ -5,11 +5,13 @@
 //  - as prévias que o app mediu (photo-<n>_<câmera>.jpg; em RAW, a prévia JPEG embutida);
 //  - report.csv: por foto e câmera, as configurações usadas e o que foi medido;
 //  - trace.txt: o que o "Match automatically" mediu e decidiu, passo a passo.
-// Serve para mandar a pasta e analisar com os números reais. Guarda as 20 mais recentes.
+// Serve para mandar a pasta e analisar com os números reais. Guarda no máximo as 20 mais
+// recentes e 300 MB no total (apaga as mais antigas).
 
 #include "camera_settings.h"
 #include "color_match.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -31,6 +33,8 @@ public:
     void Line(const std::string& text);
 
     bool Active() const { return !folder.empty(); }
+    // Tamanho de uma pasta com tudo dentro (bytes)
+    static std::uintmax_t FolderSize(const std::filesystem::path& folder);
     const std::filesystem::path& Folder() const { return folder; }
 
 private:

@@ -182,7 +182,7 @@ button { font: inherit; }
 .settings-row { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: start; }
 .settings-row .export-label { padding-top: 7px; }
 .settings-row .export-note { margin-top: 6px; }
-.settings-row .btn.settings-link { padding-left: 0; padding-right: 0; margin-top: 4px; }
+.settings-row .btn.settings-link { padding-left: 0; padding-right: 0; margin-top: 4px; margin-right: 16px; }
 .settings-restart {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 10px 12px; border-left: 3px solid var(--noct-pending); background: var(--noct-surface-inner);

@@ -51,18 +51,29 @@ namespace
         return "";
     }
 
-    void Prune(const std::filesystem::path& root, size_t keep)
+    // Apaga as pastas mais antigas até sobrarem no máximo "keep" e "maxBytes" no total
+    void Prune(const std::filesystem::path& root, size_t keep, std::uintmax_t maxBytes)
     {
         std::error_code ec;
         std::vector<std::filesystem::path> runs;
         for (const auto& entry : std::filesystem::directory_iterator(root, ec))
             if (entry.is_directory(ec))
                 runs.push_back(entry.path());
-        if (runs.size() <= keep)
-            return;
         std::sort(runs.begin(), runs.end());  // nomes começam pela data: os mais velhos primeiro
-        for (size_t i = 0; i + keep < runs.size(); ++i)
+        std::uintmax_t total = 0;
+        std::vector<std::uintmax_t> sizes;
+        for (const auto& run : runs)
+        {
+            sizes.push_back(MatchDebug::FolderSize(run));
+            total += sizes.back();
+        }
+        for (size_t i = 0; i < runs.size(); ++i)
+        {
+            if (runs.size() - i <= keep && total <= maxBytes)
+                break;
             std::filesystem::remove_all(runs[i], ec);
+            total -= sizes[i];
+        }
     }
 }
 
@@ -70,7 +81,7 @@ bool MatchDebug::Begin(const std::filesystem::path& root, const std::string& kin
 {
     std::error_code ec;
     std::filesystem::create_directories(root, ec);
-    Prune(root, 19);
+    Prune(root, 19, 250ull * 1024 * 1024);  // deixa espaço para esta (até ~300 MB no total)
     std::filesystem::path dir = root / (Now("%Y-%m-%d_%H-%M-%S") + "_" + kind);
     for (int n = 2; std::filesystem::exists(dir, ec); ++n)
         dir = root / (Now("%Y-%m-%d_%H-%M-%S") + "_" + kind + "_" + std::to_string(n));
@@ -125,6 +136,16 @@ void MatchDebug::Shot(int shot, const std::string& stage, const std::vector<Phot
             << (m.ok ? std::to_string(std::lround(m.clipped * 100)) : "") << ','
             << (m.ok ? (m.exposureOk ? "yes" : "no") : "") << ',' << Csv(saved) << '\n';
     }
+}
+
+std::uintmax_t MatchDebug::FolderSize(const std::filesystem::path& folder)
+{
+    std::error_code ec;
+    std::uintmax_t total = 0;
+    for (auto it = std::filesystem::recursive_directory_iterator(folder, ec); !ec && it != std::filesystem::recursive_directory_iterator(); it.increment(ec))
+        if (it->is_regular_file(ec))
+            total += it->file_size(ec);
+    return total;
 }
 
 void MatchDebug::Line(const std::string& text)

@@ -1050,8 +1050,8 @@ namespace
         const auto settings = LoadSettings();
         const std::string theme = ChosenTheme(settings);
         const std::string language = ChosenLanguage(settings);
-        // Modo debug: vale na hora (não precisa reabrir)
-        std::atomic<bool> debugMode{ settings.count("debug") && settings.at("debug") == "on" };
+        // Modo debug: vale na hora e desliga sozinho ao fechar o app (não fica esquecido ligado)
+        std::atomic<bool> debugMode{ false };
         std::mutex debugFolderMutex;
         std::filesystem::path lastDebugFolder;
         auto rememberDebugFolder = [&](const std::filesystem::path& folder)
@@ -1098,16 +1098,32 @@ namespace
                 .Add("debug", debugMode.load()).Str();
         });
 
-        // setDebugMode(true/false): liga ou desliga o modo debug (Settings)
+        // setDebugMode(true/false): liga ou desliga o modo debug (Settings). Não é gravado:
+        // ao abrir o app, começa desligado.
         window.bind("setDebugMode", [&](const std::string& request) -> std::string
         {
-            const bool on = request.find("true") != std::string::npos;
-            auto current = LoadSettings();
-            current["debug"] = on ? "on" : "off";
-            const bool ok = SaveSettings(current);
-            if (ok)
-                debugMode = on;
-            return Json("settings").Add("ok", ok).Add("debug", debugMode.load()).Str();
+            debugMode = request.find("true") != std::string::npos;
+            return Json("settings").Add("ok", true).Add("debug", debugMode.load())
+                .Add("bytes", static_cast<double>(MatchDebug::FolderSize(DebugRoot()))).Str();
+        });
+
+        // debugInfo(): espaço ocupado pelos dados de debug (Settings)
+        window.bind("debugInfo", [&](const std::string&) -> std::string
+        {
+            return Json("debugInfo").Add("bytes", static_cast<double>(MatchDebug::FolderSize(DebugRoot()))).Str();
+        });
+
+        // deleteDebugData(): apaga todas as pastas de debug
+        window.bind("deleteDebugData", [&](const std::string&) -> std::string
+        {
+            std::error_code ec;
+            for (const auto& entry : std::filesystem::directory_iterator(DebugRoot(), ec))
+                std::filesystem::remove_all(entry.path(), ec);
+            {
+                std::lock_guard<std::mutex> lock(debugFolderMutex);
+                lastDebugFolder.clear();
+            }
+            return Json("debugInfo").Add("bytes", static_cast<double>(MatchDebug::FolderSize(DebugRoot()))).Str();
         });
 
         // openDebugFolder(): abre a pasta do último Test shot com debug (ou a pasta Debug)

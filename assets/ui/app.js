@@ -2261,6 +2261,7 @@
     if (!upd.info) return;
     if (!prefs.theme) { prefs.theme = upd.info.theme; prefs.language = upd.info.language; prefs.debug = !!upd.info.debug; }
     renderSettings();
+    refreshDebugSize();
     $("settingsOverlay").classList.remove("hidden");
   }
   function renderSettings() {
@@ -2282,10 +2283,39 @@
         prefs.debug = !!r.debug;
         log("Debug mode " + (prefs.debug ? "on" : "off"), "tech");
         renderSettings();
+        showDebugSize(r);
       });
     }));
   }
   $("settingsDebugFolder").addEventListener("click", () => window.openDebugFolder());
+  // Espaço ocupado pelos dados de debug
+  function sizeText(bytes) {
+    if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
+    if (bytes >= 1024 * 1024) return Math.round(bytes / (1024 * 1024)) + " MB";
+    if (bytes >= 1024) return Math.round(bytes / 1024) + " KB";
+    return bytes + " bytes";
+  }
+  function showDebugSize(r) {
+    const bytes = r && typeof r.bytes === "number" ? r.bytes : null;
+    $("settingsDebugSize").textContent = bytes === null ? "" : bytes > 0 ? "Debug data: " + sizeText(bytes) : "No debug data saved.";
+    $("settingsDebugDelete").classList.toggle("hidden", !bytes);
+  }
+  function refreshDebugSize() {
+    if (typeof window.debugInfo !== "function") { showDebugSize(null); return; }
+    Promise.resolve(window.debugInfo()).then(showDebugSize);
+  }
+  $("settingsDebugDelete").addEventListener("click", () => {
+    dialog("Delete debug data?", "Deletes the photos and reports saved by debug mode. Your sessions are not touched.", [
+      { label: "Cancel" },
+      { label: "Delete", danger: true, onClick: () => {
+        Promise.resolve(window.deleteDebugData()).then((r) => {
+          showDebugSize(r);
+          if (r && r.bytes > 0) toast("Some debug files could not be deleted");
+          else { toast("Debug data deleted"); log("Debug data deleted", "tech"); }
+        });
+      } },
+    ]);
+  });
   function saveSettings(theme, language) {
     if (theme === prefs.theme && language === prefs.language) return;
     Promise.resolve(window.saveSettings(theme, language)).then((r) => {

@@ -328,7 +328,9 @@ computador e para outras marcas).
   limites fixos. Feito:
   - **Modo debug** (Settings → Debug): cada Test shot guarda em `<dados do app>/Debug/<data-hora>`
     as prévias medidas, `report.csv` (configurações e medidas por foto e câmera) e `trace.txt` (o
-    que o ajuste decidiu e por quê); o resumo ganha "Open debug folder". Guarda as 20 mais recentes.
+    que o ajuste decidiu e por quê); o resumo ganha "Open debug folder". Para não ocupar disco sem a pessoa perceber: desliga
+    sozinho ao fechar o app, guarda no máximo as 20 mais recentes e 300 MB no total (apaga as mais
+    antigas), e Settings mostra o espaço ocupado com o botão "Delete debug data".
   - **Brilho medido como o olho vê:** claridade média (L*) da foto inteira, com o centro valendo o
     dobro, no lugar da mediana do centro (que pulava entre o tom claro e o escuro em fotos meio a
     meio). Conferido em cópias: +1/3, +1 e −1 stop medidos como +0,33, +0,99 e −1,00; numa imagem
