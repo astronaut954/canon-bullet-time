@@ -594,7 +594,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .export-summary { display: block; margin-top: 3px; font: 10px var(--noct-font-mono); color: var(--noct-primary-dim); text-transform: uppercase; letter-spacing: .06em; }
 
 .export-settings { min-height: 0; overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 14px; }
-.export-preview { position: relative; height: 240px; flex: 0 0 auto; background: #000; border: 1px solid var(--noct-border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.export-preview { position: relative; height: 200px; flex: 0 0 auto; background: #000; border: 1px solid var(--noct-border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .export-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .export-preview .stage-caption b { margin-right: 6px; }
 .preview-play { position: absolute; right: 10px; bottom: 10px; }
@@ -639,3 +639,12 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .export-progress-body .export-note { color: var(--noct-text-muted); font-size: 12px; }
 .export-preview .stage-message { position: static; }
 .export-check { display: contents; }
+
+/* Nome da pasta na exportação */
+.export-name {
+  width: 240px; height: 30px; padding: 0 10px; border: 1px solid var(--noct-border); border-radius: 0;
+  background: var(--noct-surface); color: var(--noct-text); font: 13px var(--noct-font-mono); outline: none;
+}
+.export-name:focus { border-color: var(--noct-primary); background: var(--noct-elevated); }
+.export-name::placeholder { color: var(--noct-text-dim); }
+#dialogOverlay { z-index: 12; }  /* avisos ficam por cima das janelas de salvar */

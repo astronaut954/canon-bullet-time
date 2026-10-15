@@ -164,6 +164,11 @@ sai junto com o Reverse loop, a velocidade e o "abrir a pasta" (v2.5.0).
 - Por sistema (`include/platform/media.h`): H.264 pelo VideoToolbox (Mac) e Media Foundation
   (Windows); HEIC pelo ImageIO (Mac) e WIC (Windows, só com as extensões HEIF e HEVC).
 - Tamanhos: 720p, 1080p, 4K (cabem em 1280×720, 1920×1080, 3840×2160); GIF/WEBP/AVIF até 1080p.
+- Nomes (decididos em 2026-10-14): pasta e arquivos com Date + time ("2026-10-14 16.31.00",
+  padrão), Number (01, 02... continuando os da pasta) ou Custom (data opcional, depois do nome por
+  padrão; nome repetido sem data ganha numeração). Fotos salvas sem o número do cartão
+  ("01_SL3_1.JPG"). Subpastas só com mais de um tipo de arquivo. Aviso de pasta já existente e
+  ao fechar o app com a janela de salvar aberta ou durante o salvamento.
 - Teste no Linux sem câmeras: `tests/export` (gera todos os formatos da sessão de teste).
 - Verificado aqui: todos os formatos comuns gerados e conferidos (ffprobe/Pillow); telas testadas
   num navegador; código de Windows compila (MinGW). Falta: compilar e testar no Mac e no Windows.

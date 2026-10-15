@@ -1038,7 +1038,8 @@
                 timer: null, frame: 0, photo: 0 };
 
   function defaultSettings() {
-    return { photos: { format: "original" },
+    return { naming: { kind: "date", text: "", date: true, position: "after" },
+             photos: { format: "original" },
              seq: { formats: ["mp4"], fps: 6, loops: 3, reverse: true, height: 1080, alsoPhotos: true } };
   }
   function settingsFor(name) {
@@ -1052,12 +1053,34 @@
     if (reverse) for (let i = n - 2; i >= 1; i--) order.push(i);
     return order;
   }
+  // Data e hora da sessão como fica no nome da pasta: "2026-10-14 16.31.00"
+  function dateName(session) {
+    const m = /^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})/.exec(session);
+    return m ? m[1] + " " + m[2] + "." + m[3] + "." + m[4] : session;
+  }
+  function cleanName(text) { return text.replace(/[\/\\:*?"<>|\x00-\x1f]/g, "-").trim().replace(/[ .]+$/, ""); }
+  // Nome previsto da pasta (os números finais dependem da pasta escolhida)
+  function folderName(session) {
+    const n = settingsFor(session.name).naming;
+    const text = cleanName(n.text || "");
+    if (n.kind === "number") return "01, 02…";
+    if (n.kind === "custom" && text) {
+      if (n.date) return n.position === "before" ? dateName(session.name) + " " + text : text + " " + dateName(session.name);
+      const same = sessions.filter((o) => exp.selected.has(o.name) && settingsFor(o.name).naming.kind === "custom" &&
+        !settingsFor(o.name).naming.date && cleanName(settingsFor(o.name).naming.text || "") === text).length;
+      return same > 1 ? text + " 01, 02…" : text;
+    }
+    return dateName(session.name);
+  }
   function seconds(v) { return (Math.round(v * 10) / 10).toFixed(1) + " s"; }
   function seqTotal(session, s) {
     const cycle = cycleOrder(sessionItems(session).length, s.reverse).length;
     return { cycle: cycle, frames: cycle * s.loops, seconds: cycle * s.loops / s.fps };
   }
   function summaryText(session) {
+    return folderName(session) + " · " + settingsText(session);
+  }
+  function settingsText(session) {
     const st = settingsFor(session.name);
     if (exp.mode === "photos") return "→ " + PHOTO_FORMATS.find((f) => f[0] === st.photos.format)[1];
     const s = st.seq;
@@ -1326,18 +1349,50 @@
       box.appendChild(checkOption("Also save the photos (original format)", s.alsoPhotos, (v) => { s.alsoPhotos = v; }));
     }
 
+    // Nome da pasta e dos arquivos
+    const n = st.naming;
+    const nameRow = row("Name");
+    nameRow.appendChild(segmented([["date", "Date + time"], ["number", "Number"], ["custom", "Custom"]], n.kind,
+      (v) => { n.kind = v; rerender(); }));
+    box.appendChild(nameRow);
+    if (n.kind === "custom") {
+      const custom = row("");
+      custom.style.paddingLeft = "84px";
+      const input = document.createElement("input");
+      input.className = "export-name";
+      input.placeholder = "Name, e.g. Studio test";
+      input.maxLength = 80;
+      input.value = n.text;
+      input.addEventListener("input", () => { n.text = input.value.replace(/\|/g, ""); folderLine.textContent = "Folder: " + folderName(session); refreshSummaries(); });
+      custom.appendChild(input);
+      custom.appendChild(checkOption("Add date + time", n.date, (v) => { n.date = v; rerender(); }));
+      if (n.date) custom.appendChild(segmented([["before", "Before"], ["after", "After"]], n.position, (v) => { n.position = v; rerender(); }));
+      box.appendChild(custom);
+    }
+    const folderLine = el("div", "export-note", "Folder: " + folderName(session));
+    box.appendChild(folderLine);
+    if (n.kind === "number" || (n.kind === "custom" && !n.date))
+      box.appendChild(el("div", "export-note", n.kind === "number"
+        ? "Numbers continue from the ones already in the folder you choose."
+        : "Sessions with the same name get numbers (01, 02…), continuing from the folder you choose."));
+
     const apply = el("div", "export-apply");
     const key = exp.mode === "photos" ? "photos" : "seq";
-    const same = sessions.length > 1 && sessions.every((o) => JSON.stringify(settingsFor(o.name)[key]) === JSON.stringify(st[key]));
+    const same = sessions.length > 1 && sessions.every((o) => JSON.stringify(settingsFor(o.name)[key]) === JSON.stringify(st[key]) &&
+      JSON.stringify(settingsFor(o.name).naming) === JSON.stringify(st.naming));
     const note = el("span", "export-note", sessions.length === 1 ? "" : same
       ? (exp.mode === "photos" ? "All sessions use this format." : "All sessions use these settings.")
       : (exp.mode === "photos" ? "This format is" : "These settings are") + " only for " + label + ".");
     apply.appendChild(note);
     apply.appendChild(button("Apply to all sessions", () => {
       const source = JSON.stringify(st[key]);
-      sessions.forEach((other) => { if (other.name !== session.name) settingsFor(other.name)[key] = JSON.parse(source); });
-      refreshSummaries();
-      note.textContent = exp.mode === "photos" ? "All sessions use this format." : "All sessions use these settings.";
+      const naming = JSON.stringify(st.naming);
+      sessions.forEach((other) => {
+        if (other.name === session.name) return;
+        settingsFor(other.name)[key] = JSON.parse(source);
+        settingsFor(other.name).naming = JSON.parse(naming);
+      });
+      rerender();
       toast("Applied to all " + plural(sessions.length, "session", "sessions"));
     }));
     box.appendChild(apply);
@@ -1345,9 +1400,11 @@
 
   function exportSpec(name) {
     const st = settingsFor(name);
-    if (exp.mode === "photos") return [name, "photos", st.photos.format].join("|");
+    const n = st.naming;
+    const head = [name, n.kind, (n.text || "").replace(/\|/g, ""), n.date ? 1 : 0, n.position];
+    if (exp.mode === "photos") return [...head, "photos", st.photos.format].join("|");
     const s = st.seq;
-    return [name, "sequence", s.formats.join(","), s.fps, s.loops, s.reverse ? 1 : 0, s.height, s.alsoPhotos ? 1 : 0].join("|");
+    return [...head, "sequence", s.formats.join(","), s.fps, s.loops, s.reverse ? 1 : 0, s.height, s.alsoPhotos ? 1 : 0].join("|");
   }
 
   function runExport(deleteRest) {
@@ -1397,7 +1454,7 @@
     }
     const total = e.total || 1;
     $("progressTitle").textContent = "Saving " + plural(total, "session", "sessions");
-    const stepNames = { photos: "reading the photos", done: "done" };
+    const stepNames = { photos: "reading the photos", "photos-save": "saving the photos", done: "done" };
     const step = stepNames[e.step] || (/^(MP4|MOV|GIF|WEBP|AVIF)$/.test(e.step) ? "making the " + e.step : "converting to " + String(e.step).toUpperCase());
     $("progressStep").textContent = sessionLabel(e.session).date + " · " + step;
     const pct = Math.round(((e.index + Math.min(1, e.fraction || 0)) / total) * 100);
@@ -1407,6 +1464,33 @@
   }
 
   function confirmExit(count) {
+    // Salvando: continuar e fechar no fim, ou parar e fechar
+    if (!$("progressOverlay").classList.contains("hidden")) {
+      dialog("Saving in progress",
+        "Stillpoint is saving your sessions. You can close when it finishes, or stop now: the sessions that were not saved yet stay in the app for next time.", [
+        { label: "Stop and close", danger: true, onClick: () => { exp.closeWhenDone = "stop"; window.cancelExport(); } },
+        { label: "Close when done", primary: true, onClick: () => { exp.closeWhenDone = "wait"; toast("Stillpoint will close when saving finishes"); } },
+      ]);
+      return;
+    }
+    // Janela de salvar aberta: voltar para ela ou apagar e fechar
+    const exportOpen = !$("exportOverlay").classList.contains("hidden");
+    const modeOpen = !$("modeOverlay").classList.contains("hidden");
+    if (exportOpen || modeOpen) {
+      $("exportOverlay").classList.add("hidden");
+      $("modeOverlay").classList.add("hidden");
+      stopPreview();
+      const back = () => {
+        if (exportOpen) { $("exportOverlay").classList.remove("hidden"); renderExportSettings(); }
+        else $("modeOverlay").classList.remove("hidden");
+      };
+      dialog("Save your sessions before closing?",
+        plural(count, "session is", "sessions are") + " not saved yet. If you close without saving, the photos are deleted.", [
+        { label: "Delete and close", danger: true, onClick: () => window.exitApp(true) },
+        { label: "Continue saving", primary: true, onClick: back },
+      ]);
+      return;
+    }
     dialog(
       "Save your sessions before closing?",
       plural(count, "session is", "sessions are") + " not saved yet. If you close without saving, the photos are deleted.",
@@ -1628,6 +1712,12 @@
     saved(e) {
       activity.saving = false;
       $("progressOverlay").classList.add("hidden");
+      if (exp.closeWhenDone) {
+        const how = exp.closeWhenDone;
+        exp.closeWhenDone = "";
+        if (how === "stop" || !e.error)
+          setTimeout(() => { if (how === "stop" || !sessions.length) window.exitApp(false); else confirmExit(sessions.length); }, 500);
+      }
       if (e.error) {
         toast(e.error, 8000);
         log(e.error, "error");

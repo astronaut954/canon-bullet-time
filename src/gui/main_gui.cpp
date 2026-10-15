@@ -970,138 +970,138 @@ namespace
             return "null";
         });
 
+        // Uma sessão a salvar: nome final da pasta + o que salvar
+        struct ExportJob
+        {
+            std::string session;              // pasta da sessão dentro do app
+            std::string folderName;           // nome final (data, número ou nome dado)
+            bool sequence = false;
+            std::string photoFormat;          // "original", "jpg"... ("" = não salvar fotos)
+            Export::SequenceOptions options;
+        };
+
         // Salvamento de fato (na fila de prévias). replace: grava dentro da pasta que já
-        // existe com o nome da sessão, por cima dos arquivos de mesmo nome.
+        // existe com o mesmo nome, por cima dos arquivos de mesmo nome.
         std::function<void(bool)> pendingExport;
-        std::function<void(const std::string&, bool, bool, const std::vector<std::vector<std::string>>&, bool)> startExport =
-            [&](const std::string& folder, bool exitAfter, bool deleteRest, const std::vector<std::vector<std::string>>& specs, bool replace)
+        auto startExport = [&](const std::string& folder, bool exitAfter, bool deleteRest, std::vector<ExportJob> jobs, bool replace)
         {
             exportCancel = false;
             listener.Emit(Json("saving").Add("folder", folder));
-            previews.Post([&, folder, exitAfter, deleteRest, specs, replace]
+            previews.Post([&, folder, exitAfter, deleteRest, jobs, replace]
             {
+                namespace fs = std::filesystem;
                 std::string error;
-                std::vector<std::filesystem::path> savedTo;
+                std::vector<fs::path> savedTo;
                 std::vector<std::string> names;
                 const auto stored = store.ListSessions();
                 int done = 0;
-                for (size_t index = 0; index < specs.size() && error.empty(); ++index)
+                static const std::regex shortName(R"(^(\d+_[^_]+_\d+)_.+$)");
+                for (size_t index = 0; index < jobs.size() && error.empty(); ++index)
                 {
-                    const auto& spec = specs[index];
-                    const std::string& name = spec[0];
-                    names.push_back(name);
-                    auto session = std::find_if(stored.begin(), stored.end(), [&](const StoredSession& s) { return s.name == name; });
+                    const ExportJob& job = jobs[index];
+                    names.push_back(job.session);
+                    auto session = std::find_if(stored.begin(), stored.end(), [&](const StoredSession& s) { return s.name == job.session; });
                     if (session == stored.end())
                         continue;
                     auto report = [&](double fraction, const std::string& step)
                     {
-                        listener.Emit(Json("exportProgress").Add("session", name).Add("index", static_cast<int>(index))
-                                          .Add("total", static_cast<int>(specs.size())).Add("step", step)
-                                          .Add("fraction", fraction));
+                        listener.Emit(Json("exportProgress").Add("session", job.session).Add("index", static_cast<int>(index))
+                                          .Add("total", static_cast<int>(jobs.size())).Add("step", step).Add("fraction", fraction));
                     };
-                    // Uma foto por câmera, na ordem (com RAW + JPG, o JPG)
-                    std::vector<std::string> files;
+                    const fs::path source = store.Root() / job.session;
+                    std::error_code ec;
+                    fs::path target = fs::path(folder) / job.folderName;
+                    for (int n = 2; !replace && fs::exists(target, ec); ++n)
+                        target = fs::path(folder) / (job.folderName + " (" + std::to_string(n) + ")");
+                    fs::create_directories(target, ec);
+
+                    // Uma foto por câmera para converter e para a sequência (RAW + JPG: o JPG)
                     std::map<std::string, std::string> byCamera;
-                    std::vector<std::string> groups;
                     for (const auto& photo : session->photos)
                     {
-                        const std::string group = photo.camera.empty() ? photo.file : std::to_string(1000 + photo.order) + photo.camera;
-                        if (!byCamera.count(group))
-                            groups.push_back(group);
                         if (!photo.previewable)
                             continue;
-                        if (!byCamera.count(group) || byCamera[group].empty() || IsJpegPhoto(photo.file))
+                        const std::string group = std::to_string(1000 + photo.order) + photo.camera;
+                        if (!byCamera.count(group) || IsJpegPhoto(photo.file))
                             byCamera[group] = photo.file;
                     }
-                    std::sort(groups.begin(), groups.end());
-                    for (const auto& g : groups)
-                        if (!byCamera[g].empty())
-                            files.push_back(byCamera[g]);
+                    std::vector<std::string> perCamera;
+                    for (const auto& [group, file] : byCamera)
+                        perCamera.push_back(file);
 
-                    const std::filesystem::path source = store.Root() / name;
-                    std::filesystem::path target;
-                    std::error_code ec;
-                    const bool sequence = spec[1] == "sequence";
-                    const bool keepOriginals = sequence ? (spec.size() > 7 && spec[7] == "1") : spec[2] == "original";
-                    if (keepOriginals && !replace)
-                    {
-                        // As fotos vão como a câmera salvou (move a pasta da sessão)
-                        std::vector<std::filesystem::path> moved;
-                        if (store.SaveSessions(folder, { name }, error, &moved) != 1 || moved.empty())
-                            break;
-                        target = moved.front();
-                    }
-                    else
-                    {
-                        target = std::filesystem::path(folder) / name;
-                        for (int n = 2; !replace && std::filesystem::exists(target, ec); ++n)
-                            target = std::filesystem::path(folder) / (name + " (" + std::to_string(n) + ")");
-                        std::filesystem::create_directories(target, ec);
-                        if (keepOriginals)
-                        {
-                            // Substituir: as fotos entram na pasta que já existe, por cima das de mesmo nome
-                            for (const auto& entry : std::filesystem::directory_iterator(source, ec))
-                            {
-                                if (!entry.is_regular_file())
-                                    continue;
-                                const auto to = target / entry.path().filename();
-                                std::error_code moveError;
-                                std::filesystem::remove(to, moveError);
-                                std::filesystem::rename(entry.path(), to, moveError);
-                                if (moveError)
-                                {
-                                    moveError.clear();
-                                    std::filesystem::copy_file(entry.path(), to, std::filesystem::copy_options::overwrite_existing, moveError);
-                                }
-                                if (moveError)
-                                {
-                                    error = "Could not save " + to.filename().string() + ": " + moveError.message();
-                                    break;
-                                }
-                            }
-                            if (!error.empty())
-                                break;
-                            store.DeleteSession(name);
-                        }
-                    }
-                    const std::filesystem::path from = keepOriginals ? target : source;
+                    // Subpastas só quando há mais de um tipo de arquivo (fotos + vídeo, ou dois formatos)
+                    const bool savePhotos = !job.photoFormat.empty();
+                    const size_t kinds = (savePhotos ? 1 : 0) + (job.sequence ? job.options.formats.size() : 0);
+                    const fs::path photosDir = kinds > 1 ? target / "Photos" : target;
 
-                    if (sequence)
+                    if (job.sequence)
                     {
-                        Export::SequenceOptions options;
-                        std::stringstream formats(spec[2]);
-                        for (std::string f; std::getline(formats, f, ',');)
-                            if (!f.empty()) options.formats.push_back(f);
-                        try
+                        std::vector<fs::path> photos;
+                        for (const auto& f : perCamera)
+                            photos.push_back(source / f);
+                        for (const auto& format : job.options.formats)
                         {
-                            options.fps = spec.size() > 3 ? std::stod(spec[3]) : 6;
-                            options.loops = spec.size() > 4 ? std::stoi(spec[4]) : 3;
-                            options.height = spec.size() > 6 ? std::stoi(spec[6]) : 1080;
-                        }
-                        catch (...) {}
-                        options.reverse = spec.size() <= 5 || spec[5] == "1";
-                        std::vector<std::filesystem::path> photos;
-                        for (const auto& f : files)
-                            photos.push_back(from / f);
-                        if (!Export::WriteSequence(photos, target / name, options, report, &exportCancel, error))
-                            break;
-                    }
-                    else if (!keepOriginals)
-                    {
-                        for (size_t i = 0; i < files.size(); ++i)
-                        {
-                            if (exportCancel) { error = "cancelled"; break; }
-                            report(static_cast<double>(i) / files.size(), spec[2]);
-                            const std::filesystem::path photo = from / files[i];
-                            if (!Export::ConvertPhoto(photo, target / photo.stem(), spec[2], error))
+                            Export::SequenceOptions one = job.options;
+                            one.formats = { format };
+                            std::string upper = format;
+                            for (char& c : upper) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                            const fs::path dir = kinds > 1 ? target / upper : target;
+                            fs::create_directories(dir, ec);
+                            if (!Export::WriteSequence(photos, dir / job.folderName, one, report, &exportCancel, error))
                                 break;
                         }
                         if (!error.empty())
                             break;
                     }
-                    // Salvo: sai do app (quando as fotos não foram junto, apaga a cópia guardada)
-                    if (!keepOriginals || replace)
-                        store.DeleteSession(name);
+
+                    if (savePhotos)
+                    {
+                        fs::create_directories(photosDir, ec);
+                        // Nome curto: "01_SL3_1_IMG_4821.JPG" -> "01_SL3_1.JPG" (repetido: "-2")
+                        std::map<std::string, int> used;
+                        auto shortStem = [&](const std::string& file, const std::string& ext)
+                        {
+                            std::smatch m;
+                            const std::string stem = fs::path(file).stem().string();
+                            std::string base = std::regex_match(file, m, shortName) ? m[1].str() : stem;
+                            std::string key = base + ext;
+                            for (char& c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                            const int n = ++used[key];
+                            return n == 1 ? base : base + "-" + std::to_string(n);
+                        };
+                        const bool original = job.photoFormat == "original";
+                        std::vector<std::string> files;
+                        if (original)
+                        {
+                            for (const auto& photo : session->photos)
+                                files.push_back(photo.file);
+                        }
+                        else
+                            files = perCamera;
+                        for (size_t i = 0; i < files.size() && error.empty(); ++i)
+                        {
+                            if (exportCancel) { error = "cancelled"; break; }
+                            report(static_cast<double>(i) / files.size(), original ? "photos-save" : job.photoFormat);
+                            const fs::path from = source / files[i];
+                            if (original)
+                            {
+                                const std::string ext = from.extension().string();
+                                const fs::path to = photosDir / (shortStem(files[i], ext) + ext);
+                                std::error_code moveError;
+                                fs::remove(to, moveError);
+                                moveError.clear();
+                                fs::copy_file(from, to, fs::copy_options::overwrite_existing, moveError);
+                                if (moveError)
+                                    error = "Could not save " + to.filename().string() + ": " + moveError.message();
+                            }
+                            else
+                                Export::ConvertPhoto(from, photosDir / shortStem(files[i], "." + job.photoFormat), job.photoFormat, error);
+                        }
+                        if (!error.empty())
+                            break;
+                    }
+                    // Tudo salvo: a sessão sai do app
+                    store.DeleteSession(job.session);
                     savedTo.push_back(target);
                     ++done;
                     report(1.0, "done");
@@ -1137,24 +1137,51 @@ namespace
         });
 
         // exportSessions("exit" ou "", "delete" ou "", especificação, ...). Cada sessão:
-        //   "nome|photos|original|jpg|png|webp|tiff|heic" (só um formato) ou
-        //   "nome|sequence|mp4,gif|fps|loops|reverse 0/1|altura|fotos junto 0/1"
+        //   "sessão|nome|texto|data 0/1|before ou after|photos|formato"
+        //   "sessão|nome|texto|data 0/1|before ou after|sequence|mp4,gif|fps|loops|reverse 0/1|altura|fotos 0/1"
+        // nome: "date" (data e hora), "number" (01, 02... continuando os da pasta) ou "custom"
         window.bind("exportSessions", [&](const std::string& request) -> std::string
         {
+            namespace fs = std::filesystem;
             auto args = ParseStringArgs(request);
             const bool exitAfter = !args.empty() && args[0] == "exit";
             const bool deleteRest = args.size() > 1 && args[1] == "delete";
-            std::vector<std::vector<std::string>> specs;
+            struct Naming { std::string kind, text; bool date = true; bool before = false; };
+            std::vector<ExportJob> jobs;
+            std::vector<Naming> namings;
             for (size_t i = 2; i < args.size(); ++i)
             {
-                std::vector<std::string> fields;
+                std::vector<std::string> f;
                 std::stringstream text(args[i]);
                 for (std::string field; std::getline(text, field, '|');)
-                    fields.push_back(field);
-                if (fields.size() >= 3)
-                    specs.push_back(fields);
+                    f.push_back(field);
+                if (f.size() < 7)
+                    continue;
+                ExportJob job;
+                job.session = f[0];
+                Naming naming{ f[1], f[2], f[3] == "1", f[4] == "before" };
+                job.sequence = f[5] == "sequence";
+                if (job.sequence)
+                {
+                    std::stringstream formats(f[6]);
+                    for (std::string x; std::getline(formats, x, ',');)
+                        if (!x.empty()) job.options.formats.push_back(x);
+                    try
+                    {
+                        job.options.fps = f.size() > 7 ? std::stod(f[7]) : 6;
+                        job.options.loops = f.size() > 8 ? std::stoi(f[8]) : 3;
+                        job.options.height = f.size() > 10 ? std::stoi(f[10]) : 1080;
+                    }
+                    catch (...) {}
+                    job.options.reverse = f.size() <= 9 || f[9] == "1";
+                    job.photoFormat = (f.size() > 11 && f[11] == "1") ? "original" : "";
+                }
+                else
+                    job.photoFormat = f[6];
+                jobs.push_back(job);
+                namings.push_back(naming);
             }
-            if (specs.empty())
+            if (jobs.empty())
                 return "null";
             const std::string folder = NativeWindow::ChooseFolder("Choose where to save your bullet time sessions");
             if (folder.empty())
@@ -1162,16 +1189,77 @@ namespace
                 listener.Emit(Json("saveCancelled"));
                 return "null";
             }
-            const std::filesystem::path chosen(folder);
+
+            // Nomes finais. Data: "2026-10-14 16.31.00". Sem caracteres que o sistema não aceita.
+            auto clean = [](std::string s)
+            {
+                for (char& c : s)
+                    if (std::string("/\\:*?\"<>|").find(c) != std::string::npos || static_cast<unsigned char>(c) < 32)
+                        c = '-';
+                while (!s.empty() && (s.back() == ' ' || s.back() == '.')) s.pop_back();
+                while (!s.empty() && s.front() == ' ') s.erase(s.begin());
+                return s;
+            };
+            auto dateOf = [](const std::string& session)
+            {
+                static const std::regex pattern(R"(^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2}))");
+                std::smatch m;
+                return std::regex_search(session, m, pattern) ? m[1].str() + " " + m[2].str() + "." + m[3].str() + "." + m[4].str() : session;
+            };
+            // Próximo número livre para "base NN" (ou só "NN") na pasta escolhida
+            std::map<std::string, int> nextNumber;
+            auto numberFor = [&](const std::string& base)
+            {
+                if (!nextNumber.count(base))
+                {
+                    int highest = 0;
+                    const std::regex pattern("^" + std::regex_replace(base, std::regex(R"([.^$|()\[\]{}*+?\\])"), R"(\$&)")
+                                             + (base.empty() ? "" : " ") + R"((\d+)$)");
+                    std::error_code ec;
+                    for (const auto& entry : fs::directory_iterator(folder, ec))
+                    {
+                        std::smatch m;
+                        const std::string existingName = entry.path().filename().string();
+                        if (std::regex_match(existingName, m, pattern))
+                            highest = std::max(highest, std::atoi(m[1].str().c_str()));
+                    }
+                    nextNumber[base] = highest + 1;
+                }
+                char digits[16];
+                std::snprintf(digits, sizeof(digits), "%02d", nextNumber[base]++);
+                return base.empty() ? std::string(digits) : base + " " + digits;
+            };
+            std::map<std::string, int> sameText;
+            for (const auto& n : namings)
+                if (n.kind == "custom" && !n.date)
+                    ++sameText[clean(n.text)];
+            for (size_t i = 0; i < jobs.size(); ++i)
+            {
+                const Naming& n = namings[i];
+                const std::string text = clean(n.text);
+                const std::string date = dateOf(jobs[i].session);
+                if (n.kind == "number")
+                    jobs[i].folderName = numberFor("");
+                else if (n.kind == "custom" && !text.empty())
+                {
+                    if (n.date)
+                        jobs[i].folderName = n.before ? date + " " + text : text + " " + date;
+                    else
+                        jobs[i].folderName = sameText[text] > 1 ? numberFor(text) : text;
+                }
+                else
+                    jobs[i].folderName = date;
+            }
+
             std::vector<std::string> existing;
             std::error_code existsError;
-            for (const auto& spec : specs)
-                if (std::filesystem::exists(chosen / spec[0], existsError))
-                    existing.push_back(spec[0]);
-            pendingExport = [&, folder, exitAfter, deleteRest, specs](bool replace) { startExport(folder, exitAfter, deleteRest, specs, replace); };
+            for (const auto& job : jobs)
+                if (fs::exists(fs::path(folder) / job.folderName, existsError))
+                    existing.push_back(job.folderName);
+            pendingExport = [&, folder, exitAfter, deleteRest, jobs](bool replace) { startExport(folder, exitAfter, deleteRest, jobs, replace); };
             if (!existing.empty())
             {
-                // Já existe pasta com o nome da sessão: a página pergunta o que fazer
+                // Já existe pasta com esse nome: a página pergunta o que fazer
                 listener.Emit(Json("exportConflict").Add("folder", folder).Add("names", existing));
                 return "null";
             }

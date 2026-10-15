@@ -144,6 +144,13 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       uma do seu jeito.
 - [ ] Andamento aparece; "Cancel" para e as sessões não salvas continuam no app.
 - [ ] No fim abre a pasta (uma sessão: a dela; várias: a escolhida).
+- [ ] Name: Date + time ("2026-10-14 16.31.00"), Number (01, 02… continuando os que já existem na
+      pasta) e Custom (com ou sem data, antes ou depois; nome repetido sem data ganha 01, 02…).
+- [ ] Fotos salvas com nome curto ("01_SL3_1.JPG"); subpastas Photos/ e MP4/, GIF/... só quando há
+      mais de um tipo de arquivo.
+- [ ] Pasta com o mesmo nome já existe: aviso com Keep both / Replace / Cancel.
+- [ ] Fechar o app com a janela de salvar aberta: aviso com Delete and close / Continue saving.
+- [ ] Fechar o app durante o salvamento: Stop and close / Close when done.
 
 ## Resultado
 
