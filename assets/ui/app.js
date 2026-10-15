@@ -129,6 +129,7 @@
     expand: '<path d="M2 5V2h3M9 2h3v3M12 9v3H9M5 12H2V9"/>',
     shrink: '<path d="M5 2v3H2M12 5H9V2M9 12V9h3M2 9h3v3"/>',
     trash: '<path d="M2.5 4h9M5.5 4V2.5h3V4M3.5 4l.6 7.5h5.8l.6-7.5"/>',
+    menu: '<path d="M2.5 4h9M2.5 7h9M2.5 10h9"/>',
   };
   function icon(name, size) {
     const s = size || 14;
@@ -1796,6 +1797,8 @@
       const text = plainText(e.text);
       if (text) log(text, "tech");
     },
+    // Item escolhido no menu do Mac (barra de cima)
+    menu(e) { menuAction(e.item); },
   };
 
   window.onCoreEvent = function (event) {
@@ -1945,15 +1948,25 @@
     });
   }
 
-  function checkForUpdate() {
-    if (!upd.info || !upd.info.checkUpdates) return;
+  // manual: pedido pelo menu ("Check for updates"); responde mesmo sem versão nova
+  function checkForUpdate(manual) {
+    if (!upd.info || (!manual && !upd.info.checkUpdates)) return;
+    if (manual && upd.release) { openUpdate(); return; }
+    if (manual) toast("Checking for updates…");
+    const answer = (title, text) => {
+      if (!manual) return;
+      ui.toast.classList.add("hidden");
+      dialog(title, text, [{ label: "OK", primary: true }]);
+    };
+    const failed = () => answer("Could not check for updates", "Stillpoint could not reach GitHub. Check the internet connection and try again.");
     Promise.resolve(window.checkForUpdate()).then((text) => {
-      if (!text) return;  // sem internet ou GitHub fora: segue sem avisar
+      if (!text) return failed();  // sem internet ou GitHub fora: na abertura, segue sem avisar
       let rel;
-      try { rel = JSON.parse(text); } catch (e) { return; }
-      if (!rel || rel.draft || rel.prerelease || !rel.tag_name) return;
+      try { rel = JSON.parse(text); } catch (e) { return failed(); }
+      if (!rel || rel.draft || rel.prerelease || !rel.tag_name) return failed();
       const version = rel.tag_name.replace(/^v/i, "");
-      if (!isNewer(version, upd.info.version)) return;
+      if (!isNewer(version, upd.info.version))
+        return answer("Stillpoint is up to date", "You have the latest version, " + upd.info.version + ".");
       const suffix = upd.info.os === "windows" ? "-windows-x64-setup.exe" : "-macos-arm64.dmg";
       const asset = (rel.assets || []).find((x) => x.name && x.name.endsWith(suffix));
       upd.release = {
@@ -1966,9 +1979,108 @@
       updEl.chipText.textContent = "Update " + version;
       updEl.chip.classList.remove("hidden");
       log("Stillpoint " + version + " is available", "ok");
+      if (manual) { ui.toast.classList.add("hidden"); openUpdate(); }
     });
   }
   updEl.chip.addEventListener("click", openUpdate);
+
+  // =================== Menu do app, About e Settings ===================
+  // Mac: os itens vêm do menu do sistema, na barra de cima (evento "menu").
+  // Windows: botão no canto da barra do app, com os mesmos itens.
+  const REPO_PAGE = "https://github.com/astronaut954/stillpoint-bullet-time-photography";
+  const menuEl = { btn: $("menuBtn"), list: $("appMenu") };
+  menuEl.btn.innerHTML = icon("menu");
+
+  function setMenuOpen(open) {
+    menuEl.list.classList.toggle("hidden", !open);
+    menuEl.btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function menuAction(item) {
+    setMenuOpen(false);
+    const version = (upd.info && upd.info.version) || "";
+    if (item === "about") openAbout();
+    else if (item === "updates") checkForUpdate(true);
+    else if (item === "settings") openSettings();
+    else if (item === "help") window.openUrl(REPO_PAGE + "#how-to-use");
+    else if (item === "cameras") window.openUrl(REPO_PAGE + "#compatibility");
+    else if (item === "whatsnew") window.openUrl(REPO_PAGE + (version ? "/releases/tag/v" + version : "/releases"));
+    else if (item === "report") window.openUrl(REPO_PAGE + "/issues/new");
+  }
+
+  menuEl.btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setMenuOpen(menuEl.list.classList.contains("hidden"));
+  });
+  menuEl.list.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-item]");
+    if (b) menuAction(b.dataset.item);
+  });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".app-menu-wrap")) setMenuOpen(false); });
+
+  // About
+  function openAbout() {
+    $("aboutVersion").textContent = upd.info && upd.info.version ? "Version " + upd.info.version : "";
+    $("aboutOverlay").classList.remove("hidden");
+  }
+  $("aboutClose").addEventListener("click", () => $("aboutOverlay").classList.add("hidden"));
+  $("aboutLicenses").addEventListener("click", () => window.openUrl(REPO_PAGE + "/blob/main/THIRD_PARTY_NOTICES.md"));
+  $("aboutGithub").addEventListener("click", () => window.openUrl(REPO_PAGE));
+
+  // Settings: tema e idioma. Gravados na hora; valem ao abrir o app de novo.
+  const prefs = { theme: "", language: "", restart: false };
+  function openSettings() {
+    if (!upd.info) return;
+    if (!prefs.theme) { prefs.theme = upd.info.theme; prefs.language = upd.info.language; }
+    renderSettings();
+    $("settingsOverlay").classList.remove("hidden");
+  }
+  function renderSettings() {
+    const info = upd.info;
+    const themes = (info.themes && info.themes.length) ? info.themes : [{ id: info.theme, name: info.theme }];
+    const languages = (info.languages && info.languages.length) ? info.languages : [{ id: info.language, name: info.language }];
+    $("settingsThemes").innerHTML = "";
+    $("settingsThemes").appendChild(segmented(themes.map((t) => [t.id, t.name]), prefs.theme, (v) => saveSettings(v, prefs.language)));
+    $("settingsLanguages").innerHTML = "";
+    $("settingsLanguages").appendChild(segmented(languages.map((l) => [l.id, l.name]), prefs.language, (v) => saveSettings(prefs.theme, v)));
+    $("settingsRestart").classList.toggle("hidden", !prefs.restart);
+  }
+  function saveSettings(theme, language) {
+    if (theme === prefs.theme && language === prefs.language) return;
+    Promise.resolve(window.saveSettings(theme, language)).then((r) => {
+      if (!r || !r.ok) { toast("Could not save the settings"); return; }
+      prefs.theme = theme;
+      prefs.language = language;
+      prefs.restart = !!r.restart;
+      renderSettings();
+    });
+  }
+  $("settingsDone").addEventListener("click", () => $("settingsOverlay").classList.add("hidden"));
+  $("settingsRestartBtn").addEventListener("click", () => {
+    const reason = updateBlockedReason();
+    if (reason) { toast(reason.replace("Update", "Restart")); return; }
+    restartApp();
+  });
+
+  // Esc fecha o menu, o About e o Settings; com eles abertos, as teclas não
+  // chegam à tela de trás. Windows: Ctrl+, abre o Settings.
+  document.addEventListener("keydown", (e) => {
+    if (!menuEl.list.classList.contains("hidden") && e.key === "Escape") {
+      setMenuOpen(false);
+      e.stopImmediatePropagation();
+      return;
+    }
+    const open = ["aboutOverlay", "settingsOverlay"].find((id) => !$(id).classList.contains("hidden"));
+    if (open) {
+      if (e.key === "Escape") $(open).classList.add("hidden");
+      e.stopImmediatePropagation();
+      return;
+    }
+    if (e.key === "," && e.ctrlKey && upd.info && upd.info.os === "windows") {
+      e.preventDefault();
+      openSettings();
+    }
+  }, true);
 
   // =================== Ações ===================
   ui.restartBtn.addEventListener("click", () => {
@@ -2019,6 +2131,7 @@
     if (info && info.unsavedSessions > 0) offerRecovery(info.unsavedSessions);
     if (info && info.testRestart) { testRestart = true; ui.restartAppBtn.classList.remove("hidden"); }
     upd.info = info || null;
+    if (info && info.os === "windows") menuEl.btn.classList.remove("hidden");
     if (info && info.version) {
       $("brandVersion").textContent = "v" + info.version;
       $("brandVersion").title = "Stillpoint " + info.version;

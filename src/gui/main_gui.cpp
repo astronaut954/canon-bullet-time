@@ -537,13 +537,109 @@ namespace
         return list + "]";
     }
 
-    // Visual da janela: assets/ui/themes/<nome>.css (estrutura do Nocturne com as
-    // cores do Neo Terminal).
-    const char* const kTheme = "nocturne-neo";
+    // ---------------------------------------------------------------------
+    // Settings: tema e idioma, em <dados do app>/settings.txt ("chave=valor" por
+    // linha). Valem ao abrir o app de novo.
+    // ---------------------------------------------------------------------
+
+    // Temas: cada arquivo assets/ui/themes/<nome>.css. O padrão é o Nocturne com as
+    // cores do Neo Terminal. Para um tema novo, basta acrescentar o arquivo.
+    const char* const kDefaultTheme = "nocturne-neo";
+    // Idiomas da interface (código, nome). Por enquanto só inglês.
+    const std::vector<std::pair<std::string, std::string>> kLanguages = { { "en", "English" } };
+
+    std::filesystem::path SettingsFile() { return Platform::AppDataFolder() / "settings.txt"; }
+
+    std::map<std::string, std::string> LoadSettings()
+    {
+        std::map<std::string, std::string> settings;
+        std::ifstream in(SettingsFile());
+        for (std::string line; std::getline(in, line);)
+        {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            const auto eq = line.find('=');
+            if (eq != std::string::npos)
+                settings[line.substr(0, eq)] = line.substr(eq + 1);
+        }
+        return settings;
+    }
+
+    bool SaveSettings(const std::map<std::string, std::string>& settings)
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(SettingsFile().parent_path(), ec);
+        std::ofstream out(SettingsFile(), std::ios::trunc);
+        for (const auto& [key, value] : settings)
+            out << key << "=" << value << "\n";
+        return static_cast<bool>(out);
+    }
+
+    // Temas instalados (o padrão primeiro, depois em ordem alfabética)
+    std::vector<std::string> AvailableThemes()
+    {
+        std::vector<std::string> themes;
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::directory_iterator(
+                 Platform::ResourcesDirectory() / "assets" / "ui" / "themes", ec))
+            if (entry.path().extension() == ".css")
+                themes.push_back(entry.path().stem().string());
+        std::sort(themes.begin(), themes.end(), [](const std::string& a, const std::string& b)
+        {
+            if ((a == kDefaultTheme) != (b == kDefaultTheme))
+                return a == kDefaultTheme;
+            return a < b;
+        });
+        if (themes.empty())
+            themes.push_back(kDefaultTheme);
+        return themes;
+    }
+
+    // "nocturne-neo" -> "Nocturne Neo"
+    std::string ThemeName(const std::string& id)
+    {
+        std::string name;
+        bool upper = true;
+        for (char c : id)
+        {
+            if (c == '-' || c == '_') { name += ' '; upper = true; continue; }
+            name += upper ? static_cast<char>(std::toupper(static_cast<unsigned char>(c))) : c;
+            upper = false;
+        }
+        return name;
+    }
+
+    std::string ChosenTheme(const std::map<std::string, std::string>& settings)
+    {
+        const auto it = settings.find("theme");
+        const auto themes = AvailableThemes();
+        if (it != settings.end() && std::find(themes.begin(), themes.end(), it->second) != themes.end())
+            return it->second;
+        return kDefaultTheme;
+    }
+
+    std::string ChosenLanguage(const std::map<std::string, std::string>& settings)
+    {
+        const auto it = settings.find("language");
+        for (const auto& [code, name] : kLanguages)
+            if (it != settings.end() && it->second == code)
+                return code;
+        return kLanguages.front().first;
+    }
+
+    // Lista para a página: [{"id":"nocturne-neo","name":"Nocturne Neo"}, ...]
+    std::string ChoicesJson(const std::vector<std::pair<std::string, std::string>>& choices)
+    {
+        std::string list = "[";
+        for (size_t i = 0; i < choices.size(); ++i)
+            list += (i ? "," : "") + std::string("{\"id\":") + JsonString(choices[i].first) + ",\"name\":"
+                    + JsonString(choices[i].second) + "}";
+        return list + "]";
+    }
 
     // Lê assets/ui/index.html e embute o tema (CSS), as fontes e app.js (o WebKit
     // do Mac não carrega arquivos locais separados de uma página montada em memória).
-    std::string LoadUi()
+    std::string LoadUi(const std::string& theme)
     {
         const auto dir = Platform::ResourcesDirectory() / "assets" / "ui";
         auto read = [](const std::filesystem::path& path)
@@ -604,7 +700,10 @@ namespace
         };
         html = embedImages(html);
 
-        replace("/*__THEME__*/", embedFonts(read(dir / "themes" / (std::string(kTheme) + ".css"))));
+        std::string css = read(dir / "themes" / (theme + ".css"));
+        if (css.empty())
+            css = read(dir / "themes" / (std::string(kDefaultTheme) + ".css"));
+        replace("/*__THEME__*/", embedFonts(css));
         replace("/*__SCRIPT__*/", read(dir / "app.js"));
         return html;
     }
@@ -752,6 +851,11 @@ namespace
         const std::string previousVersion = SwapLastVersion(STILLPOINT_VERSION);
         UpdateState update;
 
+        // Tema e idioma escolhidos no Settings (valem a partir desta abertura)
+        const auto settings = LoadSettings();
+        const std::string theme = ChosenTheme(settings);
+        const std::string language = ChosenLanguage(settings);
+
         window.bind("uiReady", [&](const std::string&) -> std::string
         {
             // Só liga o SDK: a procura e a conexão das câmeras são automáticas
@@ -776,7 +880,37 @@ namespace
 #endif
                 .Add("canSelfUpdate", canSelfUpdate)
                 .Add("selfUpdateReason", selfUpdateReason)
-                .Add("checkUpdates", std::getenv("STILLPOINT_NO_UPDATE_CHECK") == nullptr).Str();
+                .Add("checkUpdates", std::getenv("STILLPOINT_NO_UPDATE_CHECK") == nullptr)
+                .Raw("themes", [&]
+                {
+                    std::vector<std::pair<std::string, std::string>> themes;
+                    for (const auto& id : AvailableThemes())
+                        themes.emplace_back(id, ThemeName(id));
+                    return ChoicesJson(themes);
+                }())
+                .Add("theme", theme)
+                .Raw("languages", ChoicesJson(kLanguages))
+                .Add("language", language).Str();
+        });
+
+        // saveSettings(tema, idioma): grava no settings.txt. restart: true quando o que
+        // foi escolhido é diferente do que está em uso (vale ao abrir de novo).
+        window.bind("saveSettings", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 2)
+                return Json("settings").Add("ok", false).Str();
+            const auto themes = AvailableThemes();
+            const bool themeOk = std::find(themes.begin(), themes.end(), args[0]) != themes.end();
+            const bool languageOk = std::any_of(kLanguages.begin(), kLanguages.end(),
+                                                [&](const auto& l) { return l.first == args[1]; });
+            if (!themeOk || !languageOk)
+                return Json("settings").Add("ok", false).Str();
+            auto current = LoadSettings();
+            current["theme"] = args[0];
+            current["language"] = args[1];
+            const bool ok = SaveSettings(current);
+            return Json("settings").Add("ok", ok).Add("restart", ok && (args[0] != theme || args[1] != language)).Str();
         });
 
         // Solução de problemas: fecha a conexão com todas as câmeras e deixa a
@@ -1522,9 +1656,14 @@ namespace
                     listener.Emit(Json("confirmExit").Add("unsavedSessions", unsaved));
                 return false;
             });
+            // Mac: menu na barra de cima; os itens do app viram eventos para a página
+            NativeWindow::InstallAppMenu(native.value(), [&](const std::string& item)
+            {
+                listener.Emit(Json("menu").Add("item", item));
+            });
         }
 
-        window.set_html(LoadUi());
+        window.set_html(LoadUi(theme));
         window.run();
 
         // Janela fechada. Se as câmeras não foram encerradas pelo caminho normal

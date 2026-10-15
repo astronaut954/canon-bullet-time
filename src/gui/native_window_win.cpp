@@ -74,4 +74,7 @@ namespace NativeWindow
         g_canClose = std::move(canClose);
         SetWindowSubclass(static_cast<HWND>(nativeWindow), CloseGuardProc, 1, 0);
     }
+
+    // No Windows o menu fica num botão dentro da página (assets/ui)
+    void InstallAppMenu(void*, std::function<void(const std::string&)>) {}
 }

@@ -144,6 +144,49 @@ button { font: inherit; }
 }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 
+/* Menu do app (Windows): botão no canto e lista que abre embaixo */
+.app-menu-wrap { position: relative; }
+.app-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 230px;
+  display: flex; flex-direction: column; padding: 6px 0;
+  background: var(--noct-surface); border: 1px solid var(--noct-border-strong);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .55);
+  animation: noct-in 150ms cubic-bezier(0, 0, 0.2, 1);
+}
+.app-menu button {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  height: 32px; padding: 0 16px; border: 0; background: transparent; text-align: left; cursor: pointer;
+  font: 600 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: var(--noct-tracking-wider);
+  color: var(--noct-text);
+}
+.app-menu button:hover, .app-menu button:focus-visible { background: var(--noct-elevated); color: var(--noct-primary); outline: none; }
+.app-menu hr { border: 0; border-top: 1px solid var(--noct-border); margin: 6px 0; }
+.app-menu-key { color: var(--noct-text-dim); font-weight: 500; text-transform: none; letter-spacing: normal; }
+
+/* About */
+.about-dialog { width: min(440px, 90%); }
+.about-body { padding: 28px 24px 22px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.about-name {
+  display: flex; align-items: center; gap: 12px;
+  font-weight: 700; font-size: 24px; text-transform: uppercase; letter-spacing: var(--noct-tracking-logo); color: var(--noct-primary);
+}
+.about-tagline { font: 600 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: var(--noct-tracking-widest); color: var(--noct-text-muted); }
+.about-version { margin-top: 8px; font: 500 12px var(--noct-font-mono); color: var(--noct-text-dim); }
+.dialog p.about-text { padding: 10px 0 4px; max-width: 340px; }
+.about-legal { font: 11px var(--noct-font-mono); color: var(--noct-text-dim); }
+
+/* Settings */
+.settings-dialog { width: min(520px, 90%); }
+.settings-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+.settings-row { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: start; }
+.settings-row .export-label { padding-top: 7px; }
+.settings-row .export-note { margin-top: 6px; }
+.settings-restart {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border-left: 3px solid var(--noct-pending); background: var(--noct-surface-inner);
+  color: var(--noct-text-muted); font-size: 14px;
+}
+
 /* Badge */
 .status, .count {
   display: inline-flex; align-items: center;

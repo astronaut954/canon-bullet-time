@@ -30,4 +30,6 @@ namespace NativeWindow
         (void)allowClose;
 #endif
     }
+
+    void InstallAppMenu(void*, std::function<void(const std::string&)>) {}
 }

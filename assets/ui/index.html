@@ -29,6 +29,22 @@
       <div id="status" class="status">Starting</div>
       <button id="updateChip" class="update-chip hidden" title="A new version of Stillpoint is available"><span class="pulse" aria-hidden="true"></span><span id="updateChipText">Update</span></button>
       <button id="saveBtn" class="btn btn-primary btn-small" disabled>Save sessions</button>
+      <!-- Menu do app no Windows (no Mac ele fica na barra de cima do sistema) -->
+      <div class="app-menu-wrap">
+        <button id="menuBtn" class="btn btn-small btn-secondary btn-icon hidden" title="Menu" aria-label="Menu" aria-haspopup="menu" aria-expanded="false"></button>
+        <div id="appMenu" class="app-menu hidden" role="menu">
+          <button role="menuitem" data-item="about">About Stillpoint</button>
+          <button role="menuitem" data-item="updates">Check for updates</button>
+          <hr>
+          <button role="menuitem" data-item="settings">Settings<span class="app-menu-key">Ctrl+,</span></button>
+          <hr>
+          <button role="menuitem" data-item="help">Help</button>
+          <button role="menuitem" data-item="cameras">Compatible cameras</button>
+          <button role="menuitem" data-item="whatsnew">What's new</button>
+          <hr>
+          <button role="menuitem" data-item="report">Report a problem</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -143,6 +159,49 @@
       <h3 id="dialogTitle"></h3>
       <p id="dialogText"></p>
       <div id="dialogActions" class="dialog-actions"></div>
+    </div>
+  </div>
+
+  <!-- About Stillpoint -->
+  <div id="aboutOverlay" class="overlay hidden">
+    <div class="dialog about-dialog">
+      <div class="about-body">
+        <div class="about-name"><span class="brand-mark" aria-hidden="true"></span>Stillpoint</div>
+        <div class="about-tagline">Bullet Time Photography</div>
+        <div id="aboutVersion" class="about-version"></div>
+        <p class="about-text">Fires many Canon cameras at the same time and turns each moment into a bullet time session.</p>
+        <div class="about-legal">© 2026 astronaut954 · MIT License</div>
+      </div>
+      <div class="dialog-actions">
+        <button id="aboutLicenses" class="btn btn-link btn-small">Licenses</button>
+        <button id="aboutGithub" class="btn btn-link btn-small">GitHub</button>
+        <span class="spacer"></span>
+        <button id="aboutClose" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings: tema e idioma (valem ao abrir o app de novo) -->
+  <div id="settingsOverlay" class="overlay hidden">
+    <div class="dialog settings-dialog">
+      <h3>Settings</h3>
+      <div class="settings-body">
+        <div class="settings-row">
+          <span class="export-label">Theme</span>
+          <div><div id="settingsThemes"></div><div class="export-note">More themes will appear here.</div></div>
+        </div>
+        <div class="settings-row">
+          <span class="export-label">Language</span>
+          <div><div id="settingsLanguages"></div><div class="export-note">More languages will appear here.</div></div>
+        </div>
+        <div id="settingsRestart" class="settings-restart hidden">
+          <span>The change applies the next time Stillpoint opens.</span>
+          <button id="settingsRestartBtn" class="btn btn-small btn-secondary">Restart now</button>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button id="settingsDone" class="btn btn-primary">Done</button>
+      </div>
     </div>
   </div>
 

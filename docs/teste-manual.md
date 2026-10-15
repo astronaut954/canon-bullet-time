@@ -167,6 +167,18 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Fechar o app com a janela de salvar aberta: aviso com Delete and close / Continue saving.
 - [ ] Fechar o app durante o salvamento: Stop and close / Close when done.
 
+## 14. Menu do app e Settings
+- [ ] Mac: barra de cima com Stillpoint, Edit, View, Window e Help.
+- [ ] Mac: ⌘C, ⌘V e ⌘A funcionam no campo de nome *Custom* da janela de salvar.
+- [ ] Mac: ⌘Q fecha o app; com sessões não salvas, aparece o mesmo aviso do botão de fechar.
+- [ ] Mac: ⌘H esconde; ⌘M minimiza; ⌃⌘F tela cheia da janela.
+- [ ] Windows: botão de menu (≡) no canto direito da barra; no Mac ele não aparece.
+- [ ] About: nome, versão, licença; Licenses e GitHub abrem as páginas.
+- [ ] Check for updates: sem versão nova, "Stillpoint is up to date"; sem internet, aviso de erro.
+- [ ] Settings (⌘, no Mac, Ctrl+, no Windows): tema Nocturne Neo e idioma English marcados; Done fecha.
+- [ ] Help, Compatible cameras, What's new e Report a problem abrem as páginas do GitHub.
+- [ ] Esc fecha o menu, o About e o Settings.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |
