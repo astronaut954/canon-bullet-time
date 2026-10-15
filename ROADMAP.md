@@ -32,7 +32,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 8 | Atualização pelo app | Ao abrir, o app consulta a última versão no GitHub; botão "Update" no topo, janela com as novidades, download com andamento, conferência (tamanho e SHA-256) e instalação com reabertura. Não atualiza durante disparo ou conexão. Testado no Mac e no Windows (2026-10-14). | feito |
 | 9 | Abertura | Tela de entrada com chuva de código verde aparecendo aos poucos e o logo com fade in; toda vez que o app abre; clique ou tecla pula. Testado no Mac e no Windows (2026-10-14). | feito |
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
-| 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Versão 2.6.0. | em andamento |
+| 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -186,7 +186,7 @@ sai junto com o Reverse loop, a velocidade e o "abrir a pasta" (v2.5.0).
 - Pendente (decidido em 2026-10-14): conferir a qualidade com uma sequência real em RAW de várias
   câmeras (Standard / High / Maximum), quando houver uma sessão assim. Não bloqueia a v2.5.0.
 
-### Etapa 11: menu do app e Settings (iniciada em 2026-10-15)
+### Etapa 11: menu do app e Settings (iniciada e fechada em 2026-10-15)
 
 Decisões do dono do projeto (2026-10-15): itens do menu do Mac aprovados, com Settings; no
 Windows, botão de menu só no Windows (no Mac fica a barra de cima); a versão no título saiu antes,
@@ -211,7 +211,8 @@ sozinha, na v2.5.1. Motivo extra: sem menu, o Mac não aceitava ⌘C, ⌘V e ⌘
   aviso `OnSequenceCancelled`; a contagem passou a esperar em passos de 0,1 s. O terminal não
   chama o cancelamento, então a saída dele não muda.
 - Verificado aqui: código de Mac e de Windows compila (Mac com cabeçalhos simulados, Windows com
-  MinGW); telas testadas num navegador. Falta: compilar e testar no Mac e no Windows.
+  MinGW); telas testadas num navegador. Testado pelo dono do projeto no Mac e no Windows
+  (2026-10-15), com câmeras, incluindo o cancelamento.
 
 ## Futuro (não planejado ainda)
 
