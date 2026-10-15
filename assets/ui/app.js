@@ -2019,6 +2019,10 @@
     if (info && info.unsavedSessions > 0) offerRecovery(info.unsavedSessions);
     if (info && info.testRestart) { testRestart = true; ui.restartAppBtn.classList.remove("hidden"); }
     upd.info = info || null;
+    if (info && info.version) {
+      $("brandVersion").textContent = "v" + info.version;
+      $("brandVersion").title = "Stillpoint " + info.version;
+    }
     if (info && info.previousVersion && isNewer(info.version, info.previousVersion))
       toast("Updated to Stillpoint " + info.version, 5000);
     checkForUpdate();

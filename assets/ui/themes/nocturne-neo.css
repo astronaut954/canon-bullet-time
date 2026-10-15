@@ -136,6 +136,12 @@ button { font: inherit; }
 }
 /* Marca: quadrado de destaque com brilho, antes do nome */
 .brand-mark { width: 10px; height: 10px; background: var(--noct-primary); box-shadow: 0 0 8px var(--noct-primary); }
+/* Versão ao lado do nome: pequena e apagada */
+.brand-version {
+  align-self: flex-end; margin-bottom: 3px; margin-left: 2px;
+  font: 500 10px var(--noct-font-mono); letter-spacing: var(--noct-tracking-wider); text-transform: none;
+  color: var(--noct-text-dim);
+}
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 
 /* Badge */
