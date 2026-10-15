@@ -263,7 +263,10 @@ fixo, só a lista rola, e arrastar para reordenar.
      que outro fica mais perto);
   4. cor pelo ajuste fino do balanço (Canon: 1 passo azul/âmbar ≈ 5 mireds; no SDK, AB −
      azul/+ âmbar; GM: a documentação diz − verde/+ magenta, mas na T7 +5 aparece como G5 no
-     menu da câmera — conferido em 2026-10-15, então o app usa − magenta/+ verde) e brilho pelo ISO (em M) ou pela compensação (outros
+     menu da câmera — conferido em 2026-10-15, então o app usa − magenta/+ verde). O ajuste
+     automático não depende disso: confere pela foto o sentido de cada câmera e, se a cor andou
+     para o lado contrário, inverte (enquanto não confere, anda no máximo 3 passos; uma foto a
+     mais quando inverte). Simulação com 30% das câmeras invertidas: resultado igual ao normal. e brilho pelo ISO (em M) ou pela compensação (outros
      modos); foto de novo e corrige pelo quanto a câmera respondeu. No máximo 5 fotos.
   Mostra as últimas fotos e um resumo do que mudou em cada câmera. Medida conferida aqui com
   cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido; +1/3 de stop esperado, +0,35

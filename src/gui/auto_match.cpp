@@ -312,6 +312,14 @@ namespace
         double rbPerMired = kRbPerMired;
         double gainGM = kStartGainGM;
         double evGain = 1.0;
+        // Sentido do ajuste fino nesta câmera (1 = o esperado: + âmbar, + verde). A
+        // documentação do SDK errou o verde/magenta na T7; então o app confere pela foto e,
+        // se a cor andou para o lado contrário, inverte (vale para qualquer modelo).
+        int abSign = 1, gmSign = 1;
+        bool abKnown = false, gmKnown = false;  // sentido já conferido numa foto
+        bool flipped = false;                   // inverteu nesta foto (o app tira uma foto a mais)
+        // Mireds "efetivos" na hora da foto: o balanço de base menos o ajuste fino
+        double Effective(double base, int ab) const { return base - kMiredsPerStep * abSign * ab; }
     };
 
     void Remember(Cam& c, const CameraSettings& s)
@@ -337,10 +345,37 @@ namespace
             if (!known)
                 base = 0;
             const bool sameBase = WbId(s) == c.wbId;
+            // Sentido: só com o mesmo balanço de base e uma mudança clara na foto
+            if (sameBase && s.shiftAB != c.ab)
+            {
+                const double moved = now.rb - c.last.rb;  // + âmbar sobe ln(R/B)
+                if (std::abs(moved) > 0.02)
+                {
+                    if (moved * (s.shiftAB - c.ab) * c.abSign < 0)
+                    {
+                        c.abSign = -c.abSign;
+                        c.flipped = true;
+                    }
+                    c.abKnown = true;
+                }
+            }
+            if (sameBase && s.shiftGM != c.gm)
+            {
+                const double moved = now.g - c.last.g;  // + verde sobe ln(G/√RB)
+                if (std::abs(moved) > 0.02)
+                {
+                    if (moved * (s.shiftGM - c.gm) * c.gmSign < 0)
+                    {
+                        c.gmSign = -c.gmSign;
+                        c.flipped = true;
+                    }
+                    c.gmKnown = true;
+                }
+            }
             if (sameBase || (known && c.baseKnown))
             {
-                const double eNow = base - kMiredsPerStep * s.shiftAB;
-                const double eLast = c.baseMired - kMiredsPerStep * c.ab;
+                const double eNow = c.Effective(base, s.shiftAB);
+                const double eLast = c.Effective(c.baseMired, c.ab);
                 if (std::abs(eNow - eLast) >= kMiredsPerStep - 0.1)
                 {
                     const double k = -(now.rb - c.last.rb) / (eNow - eLast);
@@ -350,7 +385,7 @@ namespace
             }
             if (sameBase && s.shiftGM != c.gm)
             {
-                const double g = (now.g - c.last.g) / (s.shiftGM - c.gm);  // + = mais verde
+                const double g = c.gmSign * (now.g - c.last.g) / (s.shiftGM - c.gm);
                 if (g > 0.01)
                     c.gainGM = std::clamp(g, 0.015, 0.12);
             }
@@ -392,11 +427,11 @@ namespace
         const bool sameBase = WbId(s) == c.wbId;
         if (sameBase || (known && c.baseKnown))
         {
-            const double eLast = c.baseMired - kMiredsPerStep * c.ab;
+            const double eLast = c.Effective(c.baseMired, c.ab);
             const double eWant = eLast - (target.rb - c.last.rb) / c.rbPerMired;
-            const double abWant = (base - eWant) / kMiredsPerStep;
+            const double abWant = (base - eWant) / (kMiredsPerStep * c.abSign);
             const double gNow = c.last.g - (sameBase ? 0.0 : kGPerMired * (base - c.baseMired));
-            const double gmWant = c.gm + (target.g - gNow) / c.gainGM;  // + = mais verde
+            const double gmWant = c.gm + c.gmSign * (target.g - gNow) / c.gainGM;
             const double tolerance = apply ? ColorMatch::kStepTolerance : kFinalStepTolerance;
             const bool abOff = std::abs(abWant - s.shiftAB) >= tolerance;
             const bool gmOff = std::abs(gmWant - s.shiftGM) >= tolerance;
@@ -406,8 +441,17 @@ namespace
                     notes.push_back(c.name + ": its color is different, and it has no white balance fine-tune.");
                 else
                 {
-                    const int ab = std::clamp(static_cast<int>(std::lround(abWant)), -9, 9);
-                    const int gm = std::clamp(static_cast<int>(std::lround(gmWant)), -9, 9);
+                    // Sentido ainda não conferido: no máximo 3 passos (se for o contrário,
+                    // a próxima foto mostra e o estrago é pequeno)
+                    auto limit = [](double want, int now, bool known)
+                    {
+                        int v = static_cast<int>(std::lround(want));
+                        if (!known)
+                            v = std::clamp(v, now - 3, now + 3);
+                        return std::clamp(v, -9, 9);
+                    };
+                    const int ab = limit(abWant, s.shiftAB, c.abKnown);
+                    const int gm = limit(gmWant, s.shiftGM, c.gmKnown);
                     if (std::abs(abWant) > 9.5 || std::abs(gmWant) > 9.5)
                         notes.push_back(c.name + ": its color is more different than the fine-tune can correct.");
                     if (ab != s.shiftAB || gm != s.shiftGM)
@@ -492,7 +536,7 @@ namespace
             if (!c.last.ok || !c.baseKnown)
                 continue;
             // Mireds que levariam esta câmera ao alvo (mais quente que o alvo: mireds maiores)
-            sum += c.baseMired - kMiredsPerStep * c.ab + (c.last.rb - target.rb) / c.rbPerMired;
+            sum += c.Effective(c.baseMired, c.ab) + (c.last.rb - target.rb) / c.rbPerMired;
             ++count;
         }
         if (count == 0 || lists.empty())
@@ -601,7 +645,7 @@ namespace
                 return;
             if (!c.last.ok || !c.baseKnown)
                 continue;
-            sum += c.baseMired - kMiredsPerStep * c.ab + (c.last.rb - target.rb) / c.rbPerMired;
+            sum += c.Effective(c.baseMired, c.ab) + (c.last.rb - target.rb) / c.rbPerMired;
             ++count;
         }
         if (count == 0 || currentValue == -1)
@@ -702,7 +746,8 @@ namespace AutoMatch
         if (!sameFixed && wbCams.empty())
             notes.push_back("The white balance cannot be changed from the app on these cameras. Set the same white balance on each camera.");
 
-        const int shots = (commonWb ? 2 : 1) + 3;
+        int shots = (commonWb ? 2 : 1) + 3;
+        bool extraShot = false;  // uma foto a mais quando uma câmera mostrou o sentido contrário
         int shot = 0;
         std::vector<Cam> cams;
         for (const auto& name : names)
@@ -727,7 +772,13 @@ namespace AutoMatch
                     continue;
                 }
                 const auto it = measured.find(c.name);
+                c.flipped = false;
                 Learn(c, it != measured.end() ? it->second : Stats{}, CameraSettingsCanon::Read(*ctx));
+                if (c.flipped && !extraShot)
+                {
+                    extraShot = true;
+                    ++shots;
+                }
             }
             return true;
         };
