@@ -272,6 +272,9 @@ fixo, só a lista rola, e arrastar para reordenar.
   Limite: ISO anda de 1/3 de stop, então sobra até ~1/6 de stop de diferença.
   **Pendente (2026-10-15):** no primeiro teste com câmeras de verdade (Mac, SL3 + T7) o resultado
   "deixou muito a desejar" (dono do projeto). Corrigir depois, com fotos do teste para analisar.
+- **Pendente (2026-10-15): layout do Test shot.** O atual ocupa espaço demais na janela Camera
+  settings. Ideia do dono do projeto: tirar a prévia grande e deixar só a fileira de miniaturas,
+  com o dobro do tamanho. Explorar outras opções junto com ele antes de decidir.
 - Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
   `src/core/camera_settings_canon.cpp` (Canon). Com a janela aberta, a página lê as câmeras de
   novo a cada 3 s (mudanças feitas na própria câmera aparecem sozinhas). O aviso do SDK de
