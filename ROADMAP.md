@@ -270,6 +270,8 @@ fixo, só a lista rola, e arrastar para reordenar.
   7000 K, balanço em Auto ou Daylight): diferença típica entre câmeras caiu de ~6 para ~0,8
   passo em azul/âmbar e de ~1 para ~0,2 stop no brilho. Isso é a conta, não câmera de verdade.
   Limite: ISO anda de 1/3 de stop, então sobra até ~1/6 de stop de diferença.
+  **Pendente (2026-10-15):** no primeiro teste com câmeras de verdade (Mac, SL3 + T7) o resultado
+  "deixou muito a desejar" (dono do projeto). Corrigir depois, com fotos do teste para analisar.
 - Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
   `src/core/camera_settings_canon.cpp` (Canon). Com a janela aberta, a página lê as câmeras de
   novo a cada 3 s (mudanças feitas na própria câmera aparecem sozinhas). O aviso do SDK de
