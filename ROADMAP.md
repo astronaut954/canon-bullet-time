@@ -34,7 +34,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
-| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. Candidatos anotados em 2026-10-15: igualar contraste e saturação pelo Picture Style (conferir antes se a SL3 e a T7 aceitam pelo computador) e medir um cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | depois |
+| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. Candidatos anotados em 2026-10-15: igualar contraste e saturação pelo Picture Style (conferir antes se a SL3 e a T7 aceitam pelo computador) e medir um cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -299,7 +299,8 @@ fixo, só a lista rola, e arrastar para reordenar.
   único antes de cada bullet time e de cada Test shot.
 - Verificado aqui: código compila (cabeçalhos simulados do SDK); telas testadas num navegador com
   dados simulados (5 e 16 câmeras). Testado com câmeras de verdade no Mac (SL3 + T7). Falta:
-  teste com câmeras no Windows e confirmar que o app não fecha ao desligar as câmeras.
+  teste com câmeras no Windows. Desligar as câmeras com o app aberto: testado pelo dono do
+  projeto em 2026-10-15, o app não fecha mais.
 
 ## Futuro (não planejado ainda)
 
