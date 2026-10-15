@@ -232,7 +232,11 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       parecer mais iguais entre si do que antes (cor e brilho).
 - [ ] Rodar o Test shot de novo logo depois: muda pouco ou nada ("Nothing to change").
 - [ ] Câmera com o disco fora do M durante o ajuste: ela aparece no resumo como não ajustada.
-- [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu (SL3 e T7).
+- [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu.
+      Conferido (2026-10-15): T7 e SL3 (G5 no app = G5 no menu WB Shift/BKT).
+- [ ] Câmera de modelo ainda não conferido: pôr só G5 pelo app (lista da direita do WB
+      fine-tune) e ver no menu WB Shift/BKT da câmera se aparece G5. Anotar o modelo e o
+      resultado em "Observações" abaixo; se aparecer M5, o modelo é invertido.
 - [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
