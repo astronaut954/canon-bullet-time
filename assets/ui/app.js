@@ -2420,7 +2420,7 @@
       const wbs = cams.map((c) => c.settings.wb).filter((w) => w && w.available);
       const wbText = (c) => (c.settings.wb.value === 9 ? c.kelvin + " K" : c.settings.wb.label);
       if (!wbs.length || wbs.some((w) => !w.choices.length)) {
-        td.appendChild(csText(same && wbs.length ? wbText(cams.find((c) => c.settings.wb && c.settings.wb.available)) : "—", same ? "" : "na", "Not changeable on every camera"));
+        td.appendChild(csText("—", "na", "Not changeable on every camera"));
         return td;
       }
       const accepted = (v) => wbs.every((w) => w.choices.some(([x]) => x === v));
@@ -2441,7 +2441,12 @@
       return td;
     }
     const lists = cams.filter((c) => c.settings[k] && c.settings[k].available).map((c) => c.settings[k].choices);
-    if (!lists.length || lists.some((l) => !l.length)) { td.appendChild(csText(same ? [...labels][0] : "—", same ? "" : "na", "Not changeable on every camera")); return td; }
+    // Alguma câmera não deixa mudar agora: "—" tracejado (não dá para aplicar em todas)
+    if (!lists.length || lists.some((l) => !l.length)) {
+      const fixed = cams.filter((c) => !(c.settings[k] && c.settings[k].available && c.settings[k].choices.length)).map((c) => c.camera);
+      td.appendChild(csText("—", "na", "Not changeable on every camera" + (fixed.length ? " (" + fixed.join(", ") + " does not allow it now)" : "")));
+      return td;
+    }
     const common = lists[0].filter(([v]) => lists.every((l) => l.some(([x]) => x === v)));
     if (!common.length) { td.appendChild(csText("—", "na", "The cameras have no value in common")); return td; }
     const options = common.map(([v, l]) => [String(v), l]);
