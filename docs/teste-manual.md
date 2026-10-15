@@ -218,3 +218,4 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 | 2026-10-14 | Mac + Windows | v2.4.0 | — | sim | Primeira atualização real pelo app (2.3.0 → 2.4.0) funcionou nos dois sistemas |
 | 2026-10-15 | Mac + Windows | etapa-10-exportacao | — (sessão de teste) | sim | Exportação (fotos e sequência), Replace e qualidade aprovados pelo dono do projeto; qualidade com RAW real fica pendente |
 | 2026-10-15 | Mac + Windows | etapa-11-menu | Canon SL3 + Canon T7 | sim | Menu do Mac, botão de menu do Windows, About, Settings, campos numéricos e cancelamento do bullet time aprovados pelo dono do projeto |
+| 2026-10-15 | Mac + Windows | fix-reconexao (2.6.1) | Canon SL3 + Canon T7 | sim | Câmeras religadas voltam sozinhas; Restart camera connections reconecta todas; resto sem mudança (aprovado pelo dono do projeto) |

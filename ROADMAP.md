@@ -220,7 +220,8 @@ Dado do dono do projeto (Mac): câmeras desligadas e religadas não voltavam, ne
 camera connections"; só reiniciando o app. No código: uma câmera que cai (ou falha 3 vezes) fica
 "posta de lado" até o SDK avisar que uma câmera foi conectada; se o aviso não chega, ela fica de
 lado para sempre, e o botão não limpava essa lista. Correção: o botão limpa a lista, e uma câmera
-Canon que aparece de novo no USB conta como esse aviso. Só o app de janela usa essa parte.
+Canon que aparece de novo no USB conta como esse aviso. Só o app de janela usa essa parte. Testado no Mac e no
+Windows pelo dono do projeto (2026-10-15).
 
 ## Futuro (não planejado ainda)
 
