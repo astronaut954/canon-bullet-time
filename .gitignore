@@ -35,3 +35,6 @@ __pycache__/
 # Canon EDSDK (licença não permite publicar; ver README)
 third_party/edsdk/
 third_party/edsdk_backup/
+
+# macOS (o Finder cria em toda pasta aberta)
+.DS_Store

@@ -402,6 +402,20 @@ def main():
     print(f"\n[OK] Release package ready: {zip_path}")
     print(f"[OK] Installer ready: {installer}")
 
+    if IS_MAC:
+        remove_unpacked_mac_apps()
+
+
+def remove_unpacked_mac_apps():
+    """No Mac, cada versão deixava cópias soltas do Stillpoint.app (dist/ e release/<versão>/),
+    e a busca do Mac (Spotlight) mostrava todas. Depois de prontos o .zip e o .dmg, essas
+    cópias não servem para mais nada: ficam só os arquivos publicados."""
+    folders = [DIST_DIR] + [p for p in OUTPUT_DIR.glob(f"{PROJECT_NAME}-v*") if p.is_dir()]
+    for folder in folders:
+        if folder.exists():
+            shutil.rmtree(folder)
+            print(f"[CLEAN] {folder}")
+
 
 if __name__ == "__main__":
     main()
