@@ -350,9 +350,30 @@ namespace Platform
                     MFSetAttributeSize(in, MF_MT_FRAME_SIZE, w, h);
                     MFSetAttributeRatio(in, MF_MT_FRAME_RATE, fps, 1);
                     MFSetAttributeRatio(in, MF_MT_PIXEL_ASPECT_RATIO, 1, 1);
-                    hr = writer->SetInputMediaType(stream, in, nullptr);
+                    // Sem quadros B: o MP4 do Windows não grava a ordem de exibição deles, e os
+                    // players mostravam fotos fora de ordem ("engasgos"). Um quadro por foto.
+                    IMFAttributes* encoding = nullptr;
+                    MFCreateAttributes(&encoding, 3);
+                    encoding->SetUINT32(CODECAPI_AVEncMPVDefaultBPictureCount, 0);
+                    encoding->SetUINT32(CODECAPI_AVLowLatencyMode, TRUE);
+                    encoding->SetUINT32(CODECAPI_AVEncMPVGOPSize, static_cast<UINT32>(fps * 2));
+                    hr = writer->SetInputMediaType(stream, in, encoding);
+                    Release(encoding);
                 }
                 Release(in);
+                if (SUCCEEDED(hr))
+                {
+                    ICodecAPI* codec = nullptr;
+                    if (SUCCEEDED(writer->GetServiceForStream(stream, GUID_NULL, IID_PPV_ARGS(&codec))))
+                    {
+                        VARIANT v;
+                        VariantInit(&v);
+                        v.vt = VT_UI4;
+                        v.ulVal = 0;
+                        codec->SetValue(&CODECAPI_AVEncMPVDefaultBPictureCount, &v);
+                        codec->Release();
+                    }
+                }
                 if (SUCCEEDED(hr)) hr = writer->BeginWriting();
                 if (FAILED(hr))
                 {
