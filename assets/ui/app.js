@@ -2169,7 +2169,9 @@
   // manual: pedido pelo menu ("Check for updates"); responde mesmo sem versão nova
   function checkForUpdate(manual) {
     if (!upd.info || (!manual && !upd.info.checkUpdates)) return;
-    if (manual && upd.release) { openUpdate(); return; }
+    // Já achou uma versão nova: mostra de novo. Se ela ainda não tinha o arquivo deste
+    // sistema (publicado num segundo momento), procura outra vez.
+    if (manual && upd.release && upd.release.asset) { openUpdate(); return; }
     if (manual) toast("Checking for updates…");
     const answer = (title, text) => {
       if (!manual) return;

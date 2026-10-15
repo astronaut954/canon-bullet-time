@@ -284,8 +284,9 @@ fixo, só a lista rola, e arrastar para reordenar.
   7000 K, balanço em Auto ou Daylight): diferença típica entre câmeras caiu de ~6 para ~0,8
   passo em azul/âmbar e de ~1 para ~0,2 stop no brilho. Isso é a conta, não câmera de verdade.
   Limite: ISO anda de 1/3 de stop, então sobra até ~1/6 de stop de diferença.
-  **Pendente (2026-10-15):** no primeiro teste com câmeras de verdade (Mac, SL3 + T7) o resultado
-  "deixou muito a desejar" (dono do projeto). Corrigir depois, com fotos do teste para analisar.
+  No primeiro teste com câmeras de verdade (Mac, SL3 + T7) o resultado piorou: o sentido
+  verde/magenta estava invertido (corrigido) e as câmeras viam cenas diferentes. Depois da
+  calibração por modelo, o dono do projeto achou que funciona (2026-10-15).
 - Layout do Test shot (decidido em 2026-10-15, opção A entre três comparadas): sem a prévia
   grande; só a fileira de miniaturas, maiores e com a foto inteira. Clicar numa miniatura abre a
   foto grande por cima da janela (← → passam de câmera, Esc ou Close fecham). "Hide photos"
@@ -297,7 +298,8 @@ fixo, só a lista rola, e arrastar para reordenar.
   (falha dentro do EdsGetEvent; a causa é suspeita, não confirmada). O app confere o disparo
   único antes de cada bullet time e de cada Test shot.
 - Verificado aqui: código compila (cabeçalhos simulados do SDK); telas testadas num navegador com
-  dados simulados (5 e 16 câmeras). Falta: testar com câmeras de verdade no Mac e no Windows.
+  dados simulados (5 e 16 câmeras). Testado com câmeras de verdade no Mac (SL3 + T7). Falta:
+  teste com câmeras no Windows e confirmar que o app não fecha ao desligar as câmeras.
 
 ## Futuro (não planejado ainda)
 
