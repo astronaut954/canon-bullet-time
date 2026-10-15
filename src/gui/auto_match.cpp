@@ -730,7 +730,8 @@ namespace AutoMatch
         return all;
     }
 
-    Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile)
+    Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile,
+               const std::function<bool()>& cancelled)
     {
         Result result;
 
@@ -880,9 +881,48 @@ namespace AutoMatch
             return result;
         };
 
+        // Cancelado: tudo volta como estava antes do Test shot
+        auto stopped = [&]() -> Result
+        {
+            if (!cancelled())
+                return finish("The test photos did not arrive.");
+            for (const auto& name : names)
+            {
+                const CameraContext* ctx = Find(controller, name);
+                if (!ctx)
+                    continue;
+                const CameraSettings& was = before[name];
+                const CameraSettings now = CameraSettingsCanon::Read(*ctx);
+                std::string error;
+                for (const char* key : { "tv", "av", "iso", "expcomp", "style" })
+                {
+                    const CameraSetting* a = Get(was, key);
+                    const CameraSetting* b = Get(now, key);
+                    if (a && b && a->value != b->value && !b->choices.empty())
+                        CameraSettingsCanon::Write(*ctx, key, a->value, error);
+                }
+                const CameraSetting* wbWas = Get(was, "wb");
+                if (wbWas && WbId(was) != WbId(now))
+                {
+                    if (wbWas->value == kWbKelvin)
+                        CameraSettingsCanon::Write(*ctx, "kelvin", was.kelvin, error);
+                    else
+                        CameraSettingsCanon::Write(*ctx, "wb", wbWas->value, error);
+                }
+                if (was.shiftAvailable && now.shiftAB != was.shiftAB)
+                    CameraSettingsCanon::Write(*ctx, "shiftab", was.shiftAB, error);
+                if (was.shiftAvailable && now.shiftGM != was.shiftGM)
+                    CameraSettingsCanon::Write(*ctx, "shiftgm", was.shiftGM, error);
+            }
+            Settle();
+            result.cancelled = true;
+            notes.clear();
+            return finish("Cancelled.");
+        };
+
         // 2. Foto como estão: a média de todas é o alvo
         if (!take("Reading how the cameras look"))
-            return finish("The test photos did not arrive.");
+            return stopped();
         std::vector<Stats> all;
         for (const auto& c : cams)
             if (c.last.ok)
@@ -906,7 +946,7 @@ namespace AutoMatch
             }
             Settle();
             if (!take("Finding a common white balance"))
-                return finish("The test photos did not arrive.");
+                return stopped();
         }
 
         // 3b. Calibração dos modelos novos: ajuste fino no extremo de um eixo de cada vez
@@ -942,7 +982,7 @@ namespace AutoMatch
             std::map<std::string, Stats> amber, green;
             if (!probeShot("shiftab", true, "Calibrating the cameras (blue/amber)", amber)
                 || !probeShot("shiftgm", false, "Calibrating the cameras (green/magenta)", green))
-                return finish("The test photos did not arrive.");
+                return stopped();
             bool saved = false;
             for (const auto& p : probes)
             {
@@ -985,6 +1025,8 @@ namespace AutoMatch
         const int baseShot = shot;
         for (;;)
         {
+            if (cancelled())
+                return stopped();
             const bool last = shot >= shots;
             if (commonWb && !last && shot == baseShot + 1)
                 RefineCommonWb(controller, cams, wbCams, target, notes);
@@ -998,7 +1040,7 @@ namespace AutoMatch
                 break;
             Settle();
             if (!take("Matching color and brightness"))
-                return finish("The test photos did not arrive.");
+                return stopped();
         }
         notes.insert(notes.end(), state.begin(), state.end());
         return finish("");

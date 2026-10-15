@@ -1247,6 +1247,16 @@ namespace
             return "null";
         });
 
+        // cancelTest(): para o Test shot (com ou sem ajuste) entre uma foto e outra ou
+        // esperando as fotos; com ajuste, as câmeras voltam como estavam.
+        std::atomic<bool> testCancel{ false };
+        window.bind("cancelTest", [&](const std::string&) -> std::string
+        {
+            testCancel = true;
+            bulletTime.RequestCancel();
+            return "null";
+        });
+
         // autoMatch(espera): "Test shot" do Camera settings com "Match automatically".
         // Tira as fotos de teste (as mesmas temporárias do "Reorder by photo") e deixa as
         // câmeras o mais parecidas possível (auto_match.h). Avisa o andamento
@@ -1264,9 +1274,12 @@ namespace
             {
                 if (cameraConnecting())
                     return;
+                testCancel = false;
                 auto shoot = [&](int shot, int shots, const std::string& stage,
                                  std::map<std::string, ColorMatch::Stats>& measured) -> bool
                 {
+                    if (testCancel)
+                        return false;
                     listener.Emit(Json("autoMatchProgress").Add("shot", shot).Add("shots", shots).Add("stage", stage));
                     orderStore.DeleteAll();
                     EnsureSingleShot(controller, singleShotWarned);
@@ -1275,7 +1288,7 @@ namespace
                     bulletTime.RunSequence(settings);
                     controller.SetOutputFolder(previous);
                     const auto sessions = orderStore.ListSessions();
-                    if (sessions.empty())
+                    if (sessions.empty() || testCancel)
                         return false;
                     // Uma foto por câmera (JPEG quando houver RAW + JPEG)
                     const StoredSession& session = sessions.back();
@@ -1288,7 +1301,7 @@ namespace
                             measured[camera] = ColorMatch::Measure(orderStore.Root() / session.name / photo->file);
                     return true;
                 };
-                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile());
+                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); });
 
                 std::string changes = "[";
                 for (size_t i = 0; i < result.changes.size(); ++i)
@@ -1310,6 +1323,7 @@ namespace
 
                 listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
                 listener.Emit(Json("autoMatchResult").Add("ok", result.ok).Add("matched", result.matched)
+                                  .Add("cancelled", result.cancelled)
                                   .Add("error", result.error).Raw("changes", changes).Raw("notes", notes));
                 EmitCameraSettings(controller, listener, singleShotWarned);
             });

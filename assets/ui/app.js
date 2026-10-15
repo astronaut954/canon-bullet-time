@@ -751,7 +751,10 @@
     ui.shootBtn.disabled = shooting ? shootCancelling : (busy || connected === 0 || sdkBusy);
     ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
     $("camSettingsBtn").disabled = busy || connected === 0;
-    $("csTest").disabled = busy || connected === 0;
+    // Fotografando: o botão do Test shot vira "Cancel"
+    $("csTest").textContent = csTest.capturing ? (csTest.cancelling ? "Cancelling…" : "Cancel") : "Test shot";
+    $("csTest").classList.toggle("btn-danger", csTest.capturing);
+    $("csTest").disabled = csTest.capturing ? !!csTest.cancelling : (busy || connected === 0);
     document.querySelectorAll("#cameraList li[data-placed='1']").forEach((li) => li.classList.toggle("can-drag", !busy));
     ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
     ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
@@ -1743,9 +1746,12 @@
         if (csTest.capturing) {
           // Teste do Camera settings terminou sem fotos (ex.: uma câmera ainda conectando)
           csTest.capturing = false;
+          const wasCancelled = csTest.cancelling;
+          csTest.cancelling = false;
           $("camSettingsOverlay").querySelector(".cs-sheet").classList.remove("capturing");
-          csGallery.setHead("No photos", "");
-          csGallery.message("The photos could not be taken. Try again when all cameras are ready.");
+          csGallery.setHead(wasCancelled ? "Test shot cancelled" : "No photos", "");
+          csGallery.message(wasCancelled ? "Cancelled. Nothing was kept." : "The photos could not be taken. Try again when all cameras are ready.");
+          if (wasCancelled) window.discardOrderPhotos();
         } else if (orderCapture()) {
           // O pedido terminou sem fotos (ex.: uma câmera ainda conectando)
           order.capturing = false;
@@ -1887,6 +1893,11 @@
     },
     autoMatchResult(e) {
       const notes = e.notes || [];
+      if (e.cancelled) {
+        toast("Test shot cancelled. The cameras are back to how they were.");
+        log("Match automatically cancelled; camera settings restored", "warn");
+        return;
+      }
       if (!e.matched) {
         if (!e.ok) toast(e.error || "The photos could not be taken.", 8000);
         if (notes.length) dialog("Not matched automatically", notes.join("\n"), [{ label: "OK", primary: true }]);
@@ -1904,6 +1915,7 @@
       log("Match automatically: " + (blocks.length ? plural(blocks.length, "camera", "cameras") + " changed" : "no change"), e.ok ? "ok" : "warn");
     },
     orderPhotos(e) {
+      if (csTest.capturing && csTest.cancelling) return;  // cancelado: as fotos não são mostradas
       if (csTest.capturing) showCsTest(e.sessions);
       else if (order.open) showOrderPhotos(e.sessions);
     },
@@ -2565,11 +2577,29 @@
   // ----- Test shot: dispara todas as câmeras (fotos temporárias, como no "Reorder by
   // photo") para conferir lado a lado. Com "Match automatically", o app também muda as
   // câmeras para ficarem parecidas (até 5 fotos) e mostra as últimas. -----
-  function csTakeTest() {
+  function csTakeTest(skipIsoCheck) {
+    if (csTest.capturing) {  // o botão virou "Cancel"
+      if (csTest.cancelling) return;
+      csTest.cancelling = true;
+      window.cancelTest();
+      csGallery.message("Cancelling");
+      updateButtons();
+      return;
+    }
     const connected = cameras.filter((c) => c.connected).length;
-    if (busy || csTest.capturing || !connected) return;
+    if (busy || !connected) return;
     const match = $("csAuto").checked && connected >= 2;
+    // ISO em Auto: o brilho não tem como ser igualado; avisa antes de começar
+    const isoAuto = camSettings.filter((c) => c.adjustable && c.settings.iso && c.settings.iso.available && c.settings.iso.value === 0).map((c) => c.camera);
+    if (match && isoAuto.length && skipIsoCheck !== true) {
+      dialog("ISO is on Auto",
+        (isoAuto.length === 1 ? isoAuto[0] + " has" : isoAuto.join(", ") + " have") + " ISO on Auto, so each camera picks its own brightness and the app cannot match it. " +
+        "Set an ISO first (for example in All cameras), or continue to match only the color.",
+        [{ label: "Cancel" }, { label: "Continue anyway", primary: true, onClick: () => csTakeTest(true) }]);
+      return;
+    }
     csTest.capturing = true;
+    csTest.cancelling = false;
     csTest.has = false;
     csTest.mode = match ? "match" : "test";
     $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
@@ -2584,6 +2614,7 @@
   }
   function showCsTest(list) {
     csTest.capturing = false;
+    csTest.cancelling = false;
     csTest.has = true;
     $("camSettingsOverlay").querySelector(".cs-sheet").classList.remove("capturing");
     const session = (list || [])[0];
@@ -2632,7 +2663,7 @@
     clearInterval(csPoll);
     csPoll = setInterval(csPollTick, 3000);
   });
-  $("csTest").addEventListener("click", csTakeTest);
+  $("csTest").addEventListener("click", () => csTakeTest());
   $("csDone").addEventListener("click", closeCamSettings);
   $("csRead").addEventListener("click", () => window.readCameraSettings());
   $("csCopy").addEventListener("change", (e) => { if (e.target.value) copyFromCamera(e.target.value); });

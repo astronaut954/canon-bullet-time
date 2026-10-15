@@ -34,7 +34,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. | em andamento |
-| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. | depois |
+| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. Candidatos anotados em 2026-10-15: igualar contraste e saturação pelo Picture Style (conferir antes se a SL3 e a T7 aceitam pelo computador) e medir um cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | depois |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -272,7 +272,11 @@ fixo, só a lista rola, e arrastar para reordenar.
     cada eixo (A9, depois G9) e mede o sentido e a força dele naquela câmera. Fica guardado em
     `camera-calibration.txt` na pasta de dados do app; nas próximas vezes pula essas fotos. Se
     uma foto contradisser o guardado, o app apaga e calibra de novo. Modelo medido invertido:
-    a tabela troca os rótulos (A/B, G/M) só para ele. No máximo 6 fotos (7 se inverter). e brilho pelo ISO (em M) ou pela compensação (outros
+    a tabela troca os rótulos (A/B, G/M) só para ele. No máximo 6 fotos (7 se inverter).
+  - Decidido em 2026-10-15: não calibrar ISO, abertura nem balanço de branco (efeito já
+    conhecido ou que muda com a lente e a luz). Com ISO em Auto, o app avisa antes de começar
+    (Cancel / Continue anyway). Durante o Test shot o botão vira "Cancel": para entre as fotos
+    ou esperando as fotos e, com ajuste, volta as câmeras como estavam. e brilho pelo ISO (em M) ou pela compensação (outros
      modos); foto de novo e corrige pelo quanto a câmera respondeu. No máximo 5 fotos.
   Mostra as últimas fotos e um resumo do que mudou em cada câmera. Medida conferida aqui com
   cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido; +1/3 de stop esperado, +0,35

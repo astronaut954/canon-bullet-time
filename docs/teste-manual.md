@@ -236,6 +236,11 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       vez seguinte essas duas fotos não aparecem. (Para calibrar de novo: apagar
       camera-calibration.txt na pasta de dados do app.)
 - [ ] Câmera com o disco fora do M durante o ajuste: ela aparece no resumo como não ajustada.
+- [ ] Com ISO em Auto e "Match automatically" ligado: antes de começar aparece "ISO is on Auto"
+      com Cancel e Continue anyway.
+- [ ] Durante o Test shot o botão vira "Cancel". Cancelar no meio (inclusive nas fotos de
+      calibração): para, mostra "Test shot cancelled" e as configurações das câmeras voltam
+      como estavam antes (conferir na tabela e na câmera). Sem ajuste: só para.
 - [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu.
       Conferido (2026-10-15): T7 e SL3 (G5 no app = G5 no menu WB Shift/BKT).
 - [ ] Câmera de modelo ainda não conferido: pôr só G5 pelo app (lista da direita do WB

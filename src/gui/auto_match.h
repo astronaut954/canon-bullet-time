@@ -43,6 +43,7 @@ namespace AutoMatch
     {
         bool ok = false;        // terminou (as fotos vieram e deu para medir)
         bool matched = false;   // o ajuste rodou (false: menos de duas câmeras ajustáveis)
+        bool cancelled = false; // a pessoa cancelou: as câmeras voltaram como estavam
         std::string error;
         std::vector<Change> changes;
         std::vector<std::string> notes;
@@ -61,5 +62,8 @@ namespace AutoMatch
 
     // Chamar na thread das câmeras, sem conexão em andamento. calibrationFile: onde ficam
     // as calibrações por modelo (lidas e atualizadas).
-    Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile);
+    // cancelled: a pessoa pediu para parar (conferido entre as fotos; Shoot também deve
+    // devolver false). Ao parar, as câmeras voltam às configurações de antes.
+    Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile,
+               const std::function<bool()>& cancelled);
 }
