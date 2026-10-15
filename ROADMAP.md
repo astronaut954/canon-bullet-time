@@ -33,7 +33,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 9 | Abertura | Tela de entrada com chuva de código verde aparecendo aos poucos e o logo com fade in; toda vez que o app abre; clique ou tecla pula. Testado no Mac e no Windows (2026-10-14). | feito |
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
-| 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. | em andamento |
+| 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
 | 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. Candidatos anotados em 2026-10-15: igualar contraste e saturação pelo Picture Style (conferir antes se a SL3 e a T7 aceitam pelo computador) e medir um cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | depois |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
@@ -225,7 +225,7 @@ lado para sempre, e o botão não limpava essa lista. Correção: o botão limpa
 Canon que aparece de novo no USB conta como esse aviso. Só o app de janela usa essa parte. Testado no Mac e no
 Windows pelo dono do projeto (2026-10-15).
 
-### Etapa 12: configurações das câmeras pelo app (iniciada em 2026-10-15)
+### Etapa 12: configurações das câmeras pelo app (2026-10-15, versão 2.7.0)
 
 Decisões do dono do projeto (2026-10-15): começar pela Canon, preparado para outras marcas;
 o app precisa indicar quais câmeras não dá para ajustar. Dado verificado na documentação do
