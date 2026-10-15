@@ -203,6 +203,8 @@ sozinha, na v2.5.1. Motivo extra: sem menu, o Mac não aceitava ⌘C, ⌘V e ⌘
   só aparece o arquivo que começa com `/* stillpoint-theme: ... */`, um tema inválido volta ao
   padrão sozinho, e cada compilação recopia `assets/ui` do zero. Os pacotes publicados não tinham
   esses arquivos (o `build_release.py` copia do projeto).
+- Junto (pedido em 2026-10-15): Countdown, Sessions e Download wait só aceitam números inteiros
+  (o Mac deixava digitar letras), até 999.
 - Verificado aqui: código de Mac e de Windows compila (Mac com cabeçalhos simulados, Windows com
   MinGW); telas testadas num navegador. Falta: compilar e testar no Mac e no Windows.
 

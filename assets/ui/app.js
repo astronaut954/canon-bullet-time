@@ -278,6 +278,22 @@
     return Number.isFinite(n) && n >= min ? n : fallback;
   }
 
+  // Campos do disparo: só números inteiros, até 999 (o Mac deixava digitar letras).
+  // Vazio ou abaixo do mínimo volta ao padrão ao sair do campo; setas ↑ ↓ somam 1.
+  [[ui.countdown, 0, 0], [ui.sessions, 1, 1], [ui.downloadWait, 1, 10]].forEach(([input, min, fallback]) => {
+    input.addEventListener("input", () => {
+      const digits = input.value.replace(/\D/g, "").slice(0, 3);
+      if (digits !== input.value) input.value = digits;
+    });
+    input.addEventListener("blur", () => { input.value = String(intValue(input, min, fallback)); });
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      e.preventDefault();
+      const value = intValue(input, min, min) + (e.key === "ArrowUp" ? 1 : -1);
+      input.value = String(Math.min(999, Math.max(min, value)));
+    });
+  });
+
   function photo(loader, store, session, file, size) {
     const key = store + "/" + session + "/" + file + "/" + size;
     if (!photoCache[key]) photoCache[key] = Promise.resolve(loader(session, file, size));

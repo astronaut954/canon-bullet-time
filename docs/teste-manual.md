@@ -178,6 +178,9 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Settings (⌘, no Mac, Ctrl+, no Windows): tema Nocturne Neo e idioma English marcados; Done fecha.
 - [ ] Help, Compatible cameras, What's new e Report a problem abrem as páginas do GitHub.
 - [ ] Esc fecha o menu, o About e o Settings.
+- [ ] Countdown, Sessions e Download wait: só aceitam números inteiros (letras, ponto e sinal
+      não entram); no máximo 3 dígitos; vazio ou abaixo do mínimo volta ao padrão ao sair do
+      campo; setas ↑ ↓ somam ou tiram 1.
 
 ## Resultado
 
