@@ -980,8 +980,8 @@ namespace
             Export::SequenceOptions options;
         };
 
-        // Salvamento de fato (na fila de prévias). replace: grava dentro da pasta que já
-        // existe com o mesmo nome, por cima dos arquivos de mesmo nome.
+        // Salvamento de fato (na fila de prévias). replace: apaga o que havia dentro da
+        // pasta que já existe com o mesmo nome e grava só o desta exportação.
         std::function<void(bool)> pendingExport;
         auto startExport = [&](const std::string& folder, bool exitAfter, bool deleteRest, std::vector<ExportJob> jobs, bool replace)
         {
@@ -1013,6 +1013,38 @@ namespace
                     fs::path target = fs::path(folder) / job.folderName;
                     for (int n = 2; !replace && fs::exists(target, ec); ++n)
                         target = fs::path(folder) / (job.folderName + " (" + std::to_string(n) + ")");
+                    if (replace && fs::exists(target, ec))
+                    {
+                        // Nunca apaga a pasta de dados do app (onde as fotos da sessão estão)
+                        const fs::path root = fs::weakly_canonical(store.Root(), ec);
+                        const fs::path old = fs::weakly_canonical(target, ec);
+                        const auto inside = [](const fs::path& child, const fs::path& parent)
+                        {
+                            auto c = child.begin();
+                            for (auto p = parent.begin(); p != parent.end(); ++p, ++c)
+                                if (c == child.end() || *c != *p)
+                                    return false;
+                            return true;
+                        };
+                        if (inside(root, old) || inside(old, root))
+                        {
+                            error = "Could not replace " + target.filename().string() + ": it is the app's own photo folder.";
+                            break;
+                        }
+                        if (!fs::is_directory(target, ec))
+                            fs::remove(target, ec);
+                        else
+                            for (const auto& entry : fs::directory_iterator(target, ec))
+                            {
+                                std::error_code removeError;
+                                fs::remove_all(entry.path(), removeError);
+                                if (removeError && error.empty())
+                                    error = "Could not delete " + entry.path().filename().string() + " in "
+                                            + target.filename().string() + " (it may be open in another app).";
+                            }
+                        if (!error.empty())
+                            break;
+                    }
                     fs::create_directories(target, ec);
 
                     // Uma foto por câmera para converter e para a sequência (RAW + JPG: o JPG)

@@ -1736,8 +1736,8 @@
       const one = e.names.length === 1;
       dialog(one ? "This session was already saved here" : "Some sessions were already saved here",
         "The folder " + e.folder + " already has " + (one ? "a folder" : "folders") + " for " + labels.join(", ") + ". " +
-        "Keep both saves a new folder with (2) in the name. Replace saves inside the existing " + (one ? "folder" : "folders") +
-        ", over the files with the same name.", [
+        "Keep both saves a new folder with (2) in the name. Replace deletes everything inside the existing " +
+        (one ? "folder" : "folders") + " and keeps only this new save.", [
         { label: "Cancel", onClick: () => window.resolveExportConflict("cancel") },
         { label: "Keep both", onClick: () => window.resolveExportConflict("both") },
         { label: "Replace", danger: true, onClick: () => window.resolveExportConflict("replace") },

@@ -150,6 +150,7 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Fotos salvas com nome curto ("01_SL3_1.JPG"); subpastas Photos/ e Sequence/ só quando há
       fotos e sequência juntas.
 - [ ] Pasta com o mesmo nome já existe: aviso com Keep both / Replace / Cancel.
+- [ ] Replace: salve uma sessão como MP4 + GIF; depois salve de novo com o mesmo nome só como WEBP e escolha Replace. A pasta deve ficar só com o WEBP (o MP4 e o GIF antigos somem).
 - [ ] Fechar o app com a janela de salvar aberta: aviso com Delete and close / Continue saving.
 - [ ] Fechar o app durante o salvamento: Stop and close / Close when done.
 
