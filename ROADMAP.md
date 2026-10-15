@@ -181,6 +181,8 @@ sai junto com o Reverse loop, a velocidade e o "abrir a pasta" (v2.5.0).
 - Teste no Linux sem câmeras: `tests/export` (gera todos os formatos da sessão de teste).
 - Verificado aqui: todos os formatos comuns gerados e conferidos (ffprobe/Pillow); telas testadas
   num navegador; código de Windows compila (MinGW). Falta: compilar e testar no Mac e no Windows.
+- Pendente (decidido em 2026-10-14): conferir a qualidade com uma sequência real em RAW de várias
+  câmeras (Standard / High / Maximum), quando houver uma sessão assim. Não bloqueia a v2.5.0.
 
 ## Futuro (não planejado ainda)
 
