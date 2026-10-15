@@ -185,3 +185,4 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 | 2026-10-14 | Mac + Windows | etapa-8-atualizacao | Canon T7 (Mac) | sim | Atualização simulada (2.1.0 → 2.2.0) aprovada pelo dono do projeto nos dois sistemas |
 | 2026-10-14 | Mac + Windows | etapa-9-abertura | — | sim | Abertura aprovada pelo dono do projeto nos dois sistemas |
 | 2026-10-14 | Mac + Windows | v2.4.0 | — | sim | Primeira atualização real pelo app (2.3.0 → 2.4.0) funcionou nos dois sistemas |
+| 2026-10-15 | Mac + Windows | etapa-10-exportacao | — (sessão de teste) | sim | Exportação (fotos e sequência), Replace e qualidade aprovados pelo dono do projeto; qualidade com RAW real fica pendente |
