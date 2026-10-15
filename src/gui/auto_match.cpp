@@ -6,7 +6,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <fstream>
 #include <optional>
+#include <sstream>
 #include <thread>
 
 namespace
@@ -300,6 +302,8 @@ namespace
     struct Cam
     {
         std::string name;
+        std::string model;
+        bool calibrated = false;  // sentido e força já medidos (agora ou antes, guardado)
         Stats last;
         std::string wbId;
         bool baseKnown = false;
@@ -669,11 +673,64 @@ namespace
             for (const auto& name : wbCams)
                 Write(controller, name, "wb", best, notes);
     }
+
+    // Usa uma calibração (guardada ou medida agora) numa câmera
+    void ApplyCalibration(Cam& c, const AutoMatch::Calibration& cal)
+    {
+        c.abSign = cal.abSign;
+        c.gmSign = cal.gmSign;
+        c.abKnown = c.gmKnown = c.calibrated = true;
+        if (cal.rbPerStep > 0)
+            c.rbPerMired = std::clamp(cal.rbPerStep / kMiredsPerStep, 0.004, 0.03);
+        if (cal.gPerStep > 0)
+            c.gainGM = std::clamp(cal.gPerStep, 0.015, 0.12);
+    }
+
+    void SaveCalibration(const std::filesystem::path& file, const std::map<std::string, AutoMatch::Calibration>& all)
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(file.parent_path(), ec);
+        std::ofstream out(file, std::ios::trunc);
+        out << "# Stillpoint: ajuste fino do balanço de branco medido por modelo\n"
+               "# modelo<TAB>sentido azul/âmbar<TAB>ln(R/B) por passo<TAB>sentido verde/magenta<TAB>ln(G/√RB) por passo\n";
+        for (const auto& [model, cal] : all)
+            out << model << '\t' << cal.abSign << '\t' << cal.rbPerStep << '\t' << cal.gmSign << '\t' << cal.gPerStep << '\n';
+    }
 }
 
 namespace AutoMatch
 {
-    Result Run(CanonController& controller, const Shoot& shoot)
+    std::map<std::string, Calibration> LoadCalibration(const std::filesystem::path& file)
+    {
+        std::map<std::string, Calibration> all;
+        std::ifstream in(file);
+        std::string line;
+        while (std::getline(in, line))
+        {
+            if (line.empty() || line[0] == '#')
+                continue;
+            std::vector<std::string> parts;
+            std::stringstream ss(line);
+            std::string part;
+            while (std::getline(ss, part, '\t'))
+                parts.push_back(part);
+            if (parts.size() < 5 || parts[0].empty())
+                continue;
+            try
+            {
+                Calibration cal;
+                cal.abSign = std::stoi(parts[1]) < 0 ? -1 : 1;
+                cal.rbPerStep = std::stod(parts[2]);
+                cal.gmSign = std::stoi(parts[3]) < 0 ? -1 : 1;
+                cal.gPerStep = std::stod(parts[4]);
+                all[parts[0]] = cal;
+            }
+            catch (...) {}
+        }
+        return all;
+    }
+
+    Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile)
     {
         Result result;
 
@@ -746,16 +803,26 @@ namespace AutoMatch
         if (!sameFixed && wbCams.empty())
             notes.push_back("The white balance cannot be changed from the app on these cameras. Set the same white balance on each camera.");
 
-        int shots = (commonWb ? 2 : 1) + 3;
-        bool extraShot = false;  // uma foto a mais quando uma câmera mostrou o sentido contrário
-        int shot = 0;
+        // Calibração guardada por modelo; as câmeras de modelo novo com ajuste fino são
+        // calibradas agora (2 fotos), se o balanço de branco ficar fixo (no Auto a câmera
+        // muda a cor a cada foto e a medida não vale)
+        std::map<std::string, Calibration> calibrations = LoadCalibration(calibrationFile);
         std::vector<Cam> cams;
+        bool needCalibration = false;
         for (const auto& name : names)
         {
             Cam c;
             c.name = name;
+            c.model = before[name].model;
+            if (const auto it = calibrations.find(c.model); it != calibrations.end())
+                ApplyCalibration(c, it->second);
+            else if (before[name].shiftAvailable && (sameFixed || commonWb))
+                needCalibration = true;
             cams.push_back(c);
         }
+        int shots = (commonWb ? 2 : 1) + (needCalibration ? 2 : 0) + (commonWb ? 3 : 2);
+        bool extraShot = false;  // uma foto a mais quando uma câmera mostrou o sentido contrário
+        int shot = 0;
 
         auto take = [&](const std::string& stage) -> bool
         {
@@ -779,6 +846,9 @@ namespace AutoMatch
                     extraShot = true;
                     ++shots;
                 }
+                // A foto contradisse a calibração guardada: esquece (calibra de novo na próxima)
+                if (c.flipped && calibrations.erase(c.model))
+                    SaveCalibration(calibrationFile, calibrations);
             }
             return true;
         };
@@ -837,6 +907,75 @@ namespace AutoMatch
             Settle();
             if (!take("Finding a common white balance"))
                 return finish("The test photos did not arrive.");
+        }
+
+        // 3b. Calibração dos modelos novos: ajuste fino no extremo de um eixo de cada vez
+        if (needCalibration)
+        {
+            struct Probe { std::string name; int ab = 0, gm = 0; Stats base; };
+            std::vector<Probe> probes;
+            for (const auto& c : cams)
+            {
+                const CameraContext* ctx = Find(controller, c.name);
+                if (c.calibrated || !c.last.ok || !ctx)
+                    continue;
+                const CameraSettings s = CameraSettingsCanon::Read(*ctx);
+                if (s.shiftAvailable && Changeable(s, "wb"))
+                    probes.push_back({ c.name, s.shiftAB, s.shiftGM, c.last });
+            }
+            // Uma foto com o ajuste no lado mais distante; devolve a medida de cada câmera
+            auto probeShot = [&](const char* key, bool ab, const std::string& stage, std::map<std::string, Stats>& measured)
+            {
+                for (const auto& p : probes)
+                {
+                    const int now = ab ? p.ab : p.gm;
+                    Write(controller, p.name, key, now <= 0 ? 9 : -9, notes);
+                }
+                Settle();
+                ++shot;
+                const bool ok = shoot(shot, shots, stage, measured);
+                for (const auto& p : probes)
+                    Write(controller, p.name, key, ab ? p.ab : p.gm, notes);  // volta como estava
+                Settle();
+                return ok;
+            };
+            std::map<std::string, Stats> amber, green;
+            if (!probeShot("shiftab", true, "Calibrating the cameras (blue/amber)", amber)
+                || !probeShot("shiftgm", false, "Calibrating the cameras (green/magenta)", green))
+                return finish("The test photos did not arrive.");
+            bool saved = false;
+            for (const auto& p : probes)
+            {
+                auto a = amber.find(p.name), g = green.find(p.name);
+                if (a == amber.end() || g == green.end() || !a->second.ok || !g->second.ok)
+                    continue;
+                const int dAb = (p.ab <= 0 ? 9 : -9) - p.ab, dGm = (p.gm <= 0 ? 9 : -9) - p.gm;
+                const double perAb = (a->second.rb - p.base.rb) / dAb;   // + = como o app mostra (âmbar)
+                const double perGm = (g->second.g - p.base.g) / dGm;     // + = como o app mostra (verde)
+                auto c = std::find_if(cams.begin(), cams.end(), [&](const Cam& x) { return x.name == p.name; });
+                // Mudança pequena demais para confiar (cena mexeu? foto escura?): não guarda
+                if (std::abs(perAb) * std::abs(dAb) < 0.06 || std::abs(perGm) * std::abs(dGm) < 0.04)
+                {
+                    notes.push_back(p.name + ": its calibration photos were not clear enough. It will be calibrated again next time.");
+                    continue;
+                }
+                Calibration cal;
+                cal.abSign = perAb < 0 ? -1 : 1;
+                cal.gmSign = perGm < 0 ? -1 : 1;
+                cal.rbPerStep = std::abs(perAb);
+                cal.gPerStep = std::abs(perGm);
+                ApplyCalibration(*c, cal);
+                if (!calibrations.count(c->model))
+                {
+                    calibrations[c->model] = cal;
+                    saved = true;
+                }
+            }
+            if (saved)
+                SaveCalibration(calibrationFile, calibrations);
+        }
+        if (commonWb)
+        {
             ChooseCommonWb(controller, cams, wbCams, target, notes);
             Settle();
         }

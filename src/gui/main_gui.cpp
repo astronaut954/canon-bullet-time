@@ -476,9 +476,13 @@ namespace
         EnsureSingleShot(controller, all, warned);
     }
 
+    // Calibração do ajuste fino por modelo (feita pelo "Match automatically")
+    std::filesystem::path CalibrationFile() { return Platform::AppDataFolder() / "camera-calibration.txt"; }
+
     // Configurações para a tela Camera settings (JSON)
     std::string CameraSettingsJson(CanonController& controller, const std::vector<CameraSettings>& all)
     {
+        const auto calibrations = AutoMatch::LoadCalibration(CalibrationFile());
         std::string list = "[";
         for (size_t i = 0; i < all.size(); ++i)
         {
@@ -501,7 +505,12 @@ namespace
                                   .Add("label", c.label).Raw("choices", choices).Str();
             }
             settings += "}";
+            // Modelo medido com o ajuste fino invertido: a página troca os rótulos (A/B, G/M)
+            const auto cal = calibrations.find(s.model);
+            const bool abFlip = cal != calibrations.end() && cal->second.abSign < 0;
+            const bool gmFlip = cal != calibrations.end() && cal->second.gmSign < 0;
             list += (i ? "," : "") + Json("camera").Add("camera", s.camera).Add("model", s.model)
+                .Add("abFlip", abFlip).Add("gmFlip", gmFlip)
                 .Add("order", order).Add("adjustable", s.adjustable).Add("reason", s.reason)
                 .Add("mode", s.mode).Add("manual", s.manualMode).Add("kelvin", s.kelvin)
                 .Add("kelvinAvailable", s.kelvinAvailable).Add("shiftAvailable", s.shiftAvailable)
@@ -1279,7 +1288,7 @@ namespace
                             measured[camera] = ColorMatch::Measure(orderStore.Root() / session.name / photo->file);
                     return true;
                 };
-                const AutoMatch::Result result = AutoMatch::Run(controller, shoot);
+                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile());
 
                 std::string changes = "[";
                 for (size_t i = 0; i < result.changes.size(); ++i)

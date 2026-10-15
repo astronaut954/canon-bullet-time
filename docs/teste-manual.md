@@ -231,6 +231,10 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       Style). Confira na tela de cada câmera que os valores mudaram. As fotos finais devem
       parecer mais iguais entre si do que antes (cor e brilho).
 - [ ] Rodar o Test shot de novo logo depois: muda pouco ou nada ("Nothing to change").
+- [ ] Primeira vez com um modelo: aparecem as fotos "Calibrating the cameras (blue/amber)" e
+      "(green/magenta)"; no fim, o ajuste fino das câmeras não ficou no extremo (A9/G9). Na
+      vez seguinte essas duas fotos não aparecem. (Para calibrar de novo: apagar
+      camera-calibration.txt na pasta de dados do app.)
 - [ ] Câmera com o disco fora do M durante o ajuste: ela aparece no resumo como não ajustada.
 - [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu.
       Conferido (2026-10-15): T7 e SL3 (G5 no app = G5 no menu WB Shift/BKT).

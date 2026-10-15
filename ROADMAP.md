@@ -266,7 +266,13 @@ fixo, só a lista rola, e arrastar para reordenar.
      menu da câmera — conferido em 2026-10-15 na T7 e na SL3, então o app usa − magenta/+ verde). O ajuste
      automático não depende disso: confere pela foto o sentido de cada câmera e, se a cor andou
      para o lado contrário, inverte (enquanto não confere, anda no máximo 3 passos; uma foto a
-     mais quando inverte). Simulação com 30% das câmeras invertidas: resultado igual ao normal. e brilho pelo ISO (em M) ou pela compensação (outros
+     mais quando inverte). Simulação com 30% das câmeras invertidas: resultado igual ao normal.
+  - Calibração por modelo (ideia do dono do projeto, 2026-10-15): na primeira vez de um modelo,
+    com o balanço de branco fixo, o app tira 2 fotos a mais com o ajuste fino no extremo de
+    cada eixo (A9, depois G9) e mede o sentido e a força dele naquela câmera. Fica guardado em
+    `camera-calibration.txt` na pasta de dados do app; nas próximas vezes pula essas fotos. Se
+    uma foto contradisser o guardado, o app apaga e calibra de novo. Modelo medido invertido:
+    a tabela troca os rótulos (A/B, G/M) só para ele. No máximo 6 fotos (7 se inverter). e brilho pelo ISO (em M) ou pela compensação (outros
      modos); foto de novo e corrige pelo quanto a câmera respondeu. No máximo 5 fotos.
   Mostra as últimas fotos e um resumo do que mudou em cada câmera. Medida conferida aqui com
   cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido; +1/3 de stop esperado, +0,35

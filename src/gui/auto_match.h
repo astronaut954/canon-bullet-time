@@ -8,6 +8,8 @@
 //  3. Balanço de branco em Auto ou diferente entre elas: todas em Daylight sem ajuste
 //     fino, foto 2, e daí um balanço comum (Kelvin, se todas aceitarem; senão o
 //     predefinido mais perto) que deixa a cor perto do alvo.
+//  3b. Modelo ainda não calibrado neste computador: mais 2 fotos, com o ajuste fino no
+//     extremo de cada eixo, para medir o sentido e a força dele naquela câmera.
 //  4. Cor pelo ajuste fino do balanço de branco e brilho pelo ISO (em M) ou pela
 //     compensação (outros modos); foto de novo para conferir, até ficarem perto do alvo.
 // Quem dispara e mede é quem chama (função Shoot); aqui ficam as decisões.
@@ -15,6 +17,7 @@
 #include "color_match.h"
 
 #include <array>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <string>
@@ -45,6 +48,18 @@ namespace AutoMatch
         std::vector<std::string> notes;
     };
 
-    // Chamar na thread das câmeras, sem conexão em andamento.
-    Result Run(CanonController& controller, const Shoot& shoot);
+    // Como o ajuste fino de um modelo mexe na foto, medido pelo app (2 fotos de teste nos
+    // extremos) e guardado no computador: sentido de cada eixo (1 = + âmbar / + verde,
+    // como o app mostra; -1 = invertido) e quanto 1 passo muda a cor.
+    struct Calibration
+    {
+        int abSign = 1, gmSign = 1;
+        double rbPerStep = 0, gPerStep = 0;
+    };
+    // Arquivo de texto, uma linha por modelo. Sem arquivo: lista vazia.
+    std::map<std::string, Calibration> LoadCalibration(const std::filesystem::path& file);
+
+    // Chamar na thread das câmeras, sem conexão em andamento. calibrationFile: onde ficam
+    // as calibrações por modelo (lidas e atualizadas).
+    Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile);
 }

@@ -2347,7 +2347,9 @@
   const COL_KEYS = { wb: ["wb", "kelvin"], shift: ["shiftab", "shiftgm"] };
 
   // ab ou gm null: câmeras com valores diferentes ("—" na lista; qualquer valor, até 0, aplica)
-  function shiftPair(ab, gm, onAB, onGM, diff) {
+  // flip: modelo que o app mediu com o sentido invertido (troca os rótulos daquele eixo)
+  function shiftPair(ab, gm, onAB, onGM, diff, flip) {
+    const f = flip || {};
     const box = el("span", "cs-pair");
     const range = [];
     for (let v = -9; v <= 9; v++) range.push(v);
@@ -2356,7 +2358,9 @@
       if (current === null) options.unshift(["", "—", true]);
       return csSelect(options, current === null ? "" : String(current), (v) => onPick(+v), "small" + (differs ? " diff" : ""));
     };
-    box.append(list(ab, "B", "A", onAB, diff || ab === null), list(gm, "M", "G", onGM, diff || gm === null));  // no SDK: + = verde (conferido na T7)
+    // No SDK, + = âmbar e + = verde (conferido na T7 e na SL3)
+    box.append(list(ab, f.ab ? "A" : "B", f.ab ? "B" : "A", onAB, diff || ab === null),
+               list(gm, f.gm ? "G" : "M", f.gm ? "M" : "G", onGM, diff || gm === null));
     box.title = "Blue (B) ↔ amber (A) and green (G) ↔ magenta (M)";
     return box;
   }
@@ -2375,7 +2379,7 @@
     }
     if (k === "shift") {
       if (!c.shiftAvailable) td.appendChild(csText("—", "na", "Not available on this camera"));
-      else td.appendChild(shiftPair(c.shiftAB, c.shiftGM, (v) => csSet(c.camera, "shiftab", v), (v) => csSet(c.camera, "shiftgm", v), diff));
+      else td.appendChild(shiftPair(c.shiftAB, c.shiftGM, (v) => csSet(c.camera, "shiftab", v), (v) => csSet(c.camera, "shiftgm", v), diff, { ab: c.abFlip, gm: c.gmFlip }));
       return td;
     }
     const st = c.settings[k];
