@@ -977,6 +977,7 @@ namespace
             std::string folderName;           // nome final (data, número ou nome dado)
             bool sequence = false;
             std::string photoFormat;          // "original", "jpg"... ("" = não salvar fotos)
+            Export::Quality photoQuality = Export::Quality::High;
             Export::SequenceOptions options;
         };
 
@@ -1125,7 +1126,8 @@ namespace
                                     error = "Could not save " + to.filename().string() + ": " + moveError.message();
                             }
                             else
-                                Export::ConvertPhoto(from, photosDir / shortStem(files[i], "." + job.photoFormat), job.photoFormat, error);
+                                Export::ConvertPhoto(from, photosDir / shortStem(files[i], "." + job.photoFormat), job.photoFormat,
+                                                     job.photoQuality, error);
                         }
                         if (!error.empty())
                             break;
@@ -1205,9 +1207,13 @@ namespace
                     catch (...) {}
                     job.options.reverse = f.size() <= 9 || f[9] == "1";
                     job.photoFormat = (f.size() > 11 && f[11] == "1") ? "original" : "";
+                    job.options.quality = Export::ParseQuality(f.size() > 12 ? f[12] : "");
                 }
                 else
+                {
                     job.photoFormat = f[6];
+                    job.photoQuality = Export::ParseQuality(f.size() > 7 ? f[7] : "");
+                }
                 jobs.push_back(job);
                 namings.push_back(naming);
             }

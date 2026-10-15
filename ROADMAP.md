@@ -170,7 +170,14 @@ sai junto com o Reverse loop, a velocidade e o "abrir a pasta" (v2.5.0).
   ("01_SL3_1.JPG"). Subpastas Photos/ e Sequence/ só com fotos e sequência juntas. A janela de salvar só fecha
   depois de salvar. "Same settings for all sessions" ligado por padrão;
   desligado, as sessões diferentes da aberta ganham "Different". Aviso de pasta já existente e
-  ao fechar o app com a janela de salvar aberta ou durante o salvamento.
+  ao fechar o app com a janela de salvar aberta ou durante o salvamento. Replace apaga o que
+  havia na pasta antiga e deixa só o novo salvamento.
+- Qualidade (decidida em 2026-10-14): Standard / High (padrão) / Maximum, por sessão, nas fotos
+  convertidas com perda (JPG 85/95/100, WEBP 80/92/sem perda, HEIC 0.75/0.9/1.0) e na sequência
+  (MP4/MOV por taxa de bits, `Export::VideoBitrate`; WEBP 75/90/sem perda; AVIF 60/75/90, este
+  com cor 4:4:4). PNG e TIFF são sempre sem perda; GIF sempre 256 cores (sem mudança, decisão do
+  dono). RAW convertido continua usando a imagem grande guardada dentro do RAW (sem revelação, para
+  não pesar); a qualidade total do RAW fica no "Original".
 - Teste no Linux sem câmeras: `tests/export` (gera todos os formatos da sessão de teste).
 - Verificado aqui: todos os formatos comuns gerados e conferidos (ffprobe/Pillow); telas testadas
   num navegador; código de Windows compila (MinGW). Falta: compilar e testar no Mac e no Windows.

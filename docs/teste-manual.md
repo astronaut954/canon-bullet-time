@@ -133,6 +133,14 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] Com várias sessões salvas de uma vez: abre a pasta escolhida, com todas dentro.
 
 ## 13. Salvar como fotos ou sequência
+
+Sem câmeras, copie a sessão de teste (`docs/test-session`) para a pasta de fotos do app com
+o app fechado:
+- Mac: `mkdir -p ~/Library/Application\ Support/Stillpoint/Photos && cp -R docs/test-session/* ~/Library/Application\ Support/Stillpoint/Photos/`
+- Windows (PowerShell): `New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\Stillpoint\Photos" | Out-Null; Copy-Item -Recurse -Force docs\test-session\* "$env:LOCALAPPDATA\Stillpoint\Photos\"`
+
+Salvar tira a sessão do app; copie de novo para testar outra vez.
+
 - [ ] "Save sessions" pergunta Photos ou Sequence.
 - [ ] Photos: Original move as fotos como antes; PNG, JPG, WEBP, TIFF e HEIC criam os arquivos
       convertidos (Windows: HEIC desativado se faltar a extensão, com o motivo).
@@ -151,6 +159,10 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
       fotos e sequência juntas.
 - [ ] Pasta com o mesmo nome já existe: aviso com Keep both / Replace / Cancel.
 - [ ] Replace: salve uma sessão como MP4 + GIF; depois salve de novo com o mesmo nome só como WEBP e escolha Replace. A pasta deve ficar só com o WEBP (o MP4 e o GIF antigos somem).
+- [ ] Quality (Standard / High / Maximum): aparece na sequência e nas fotos em JPG, WEBP e HEIC
+      (não em Original, PNG e TIFF). Salve a mesma sessão em Standard e em Maximum e compare:
+      Maximum gera arquivos maiores e o WEBP em Maximum é sem perda.
+- [ ] Com RAW: Original salva os arquivos RAW intactos; JPG converte a partir da imagem grande do RAW.
 - [ ] Fechar o app com a janela de salvar aberta: aviso com Delete and close / Continue saving.
 - [ ] Fechar o app durante o salvamento: Stop and close / Close when done.
 

@@ -1,8 +1,9 @@
-// Teste da exportação: stillpoint_export_test <pasta da sessão> <pasta de saída>
+// Teste da exportação: stillpoint_export_test <pasta da sessão> <pasta de saída> [standard|high|maximum] [altura]
 #include "exporter.h"
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -25,6 +26,10 @@ int main(int argc, char** argv)
     options.formats = { "mp4", "mov", "gif", "webp", "avif" };
     options.fps = 6;
     options.loops = 3;
+    const Export::Quality quality = Export::ParseQuality(argc > 3 ? argv[3] : "high");
+    options.quality = quality;
+    if (argc > 4)
+        options.height = std::atoi(argv[4]);
     std::string error;
     const bool ok = Export::WriteSequence(photos, fs::path(argv[2]) / "sequence", options,
         [](double f, const std::string& step) { std::printf("\r%-6s %3d%%", step.c_str(), static_cast<int>(f * 100)); std::fflush(stdout); },
@@ -34,7 +39,7 @@ int main(int argc, char** argv)
     for (const char* format : { "jpg", "png", "webp", "tiff" })
     {
         error.clear();
-        const bool converted = Export::ConvertPhoto(photos[0], fs::path(argv[2]) / photos[0].stem(), format, error);
+        const bool converted = Export::ConvertPhoto(photos[0], fs::path(argv[2]) / photos[0].stem(), format, quality, error);
         std::printf("photo %s: %s %s\n", format, converted ? "ok" : "FAILED", error.c_str());
         failures += converted ? 0 : 1;
     }

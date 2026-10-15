@@ -304,7 +304,7 @@ namespace
     }
 
     bool WriteWebpAnimation(const std::vector<std::vector<unsigned char>>& frames, int w, int h, int fps,
-                            const fs::path& file)
+                            const fs::path& file, Export::Quality quality)
     {
         WebPAnimEncoderOptions options;
         if (!WebPAnimEncoderOptionsInit(&options))
@@ -315,8 +315,16 @@ namespace
             return false;
         WebPConfig config;
         WebPConfigInit(&config);
-        config.quality = 85;
-        config.method = 4;
+        // Maximum: sem perda (cada pixel igual ao da foto reduzida)
+        if (quality == Export::Quality::Maximum)
+        {
+            WebPConfigLosslessPreset(&config, 4);
+        }
+        else
+        {
+            config.quality = quality == Export::Quality::Standard ? 75 : 90;
+            config.method = 4;
+        }
         bool ok = true;
         int timestamp = 0;
         for (size_t i = 0; i < frames.size() && ok; ++i)
@@ -341,13 +349,15 @@ namespace
     }
 
     bool WriteAvif(const std::vector<std::vector<unsigned char>>& frames, int w, int h, int fps, const fs::path& file,
-                   const Export::Progress& progress, const std::atomic<bool>* cancel)
+                   Export::Quality quality, const Export::Progress& progress, const std::atomic<bool>* cancel)
     {
         avifEncoder* encoder = avifEncoderCreate();
         if (!encoder)
             return false;
-        encoder->speed = 8;
-        encoder->quality = 60;
+        // Maximum: qualidade 90 e cor em resolução total (4:4:4); demora mais
+        const bool maximum = quality == Export::Quality::Maximum;
+        encoder->speed = maximum ? 6 : quality == Export::Quality::High ? 7 : 8;
+        encoder->quality = maximum ? 90 : quality == Export::Quality::High ? 75 : 60;
         encoder->maxThreads = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
         encoder->timescale = static_cast<uint64_t>(fps);
         encoder->repetitionCount = AVIF_REPETITION_COUNT_INFINITE;
@@ -356,7 +366,8 @@ namespace
         {
             if (cancel && *cancel)
                 ok = false;
-            avifImage* image = avifImageCreate(static_cast<uint32_t>(w), static_cast<uint32_t>(h), 8, AVIF_PIXEL_FORMAT_YUV420);
+            avifImage* image = avifImageCreate(static_cast<uint32_t>(w), static_cast<uint32_t>(h), 8,
+                                               maximum ? AVIF_PIXEL_FORMAT_YUV444 : AVIF_PIXEL_FORMAT_YUV420);
             avifRGBImage rgb;
             avifRGBImageSetDefaults(&rgb, image);
             rgb.format = AVIF_RGB_FORMAT_RGB;
@@ -406,12 +417,13 @@ namespace
     }
 
     bool WriteVideo(const std::vector<std::vector<unsigned char>>& cycle, const std::vector<int>& order, int w, int h,
-                    int fps, const fs::path& file, bool mov, const Export::Progress& progress,
+                    int fps, const fs::path& file, bool mov, Export::Quality quality, const Export::Progress& progress,
                     const std::atomic<bool>* cancel, std::string& error)
     {
+        const int bitrate = Export::VideoBitrate(w, h, fps, quality);
         // Sistema que grava o MP4 inteiro (Windows): mais compatível com os players de lá
         bool ok = true;
-        if (auto native = Platform::CreateVideoFileWriter(file, w, h, fps, error))
+        if (auto native = Platform::CreateVideoFileWriter(file, w, h, fps, bitrate, error))
         {
             for (size_t i = 0; i < order.size() && ok; ++i)
             {
@@ -435,7 +447,7 @@ namespace
         }
         if (!error.empty())
             return false;
-        auto encoder = Platform::CreateH264Encoder(w, h, fps, error);
+        auto encoder = Platform::CreateH264Encoder(w, h, fps, bitrate, error);
         if (!encoder)
             return false;
         std::fstream out(file, std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc);
@@ -530,6 +542,22 @@ namespace
 
 namespace Export
 {
+    Quality ParseQuality(const std::string& text)
+    {
+        if (text == "standard") return Quality::Standard;
+        if (text == "maximum") return Quality::Maximum;
+        return Quality::High;
+    }
+
+    int VideoBitrate(int width, int height, int fps, Quality quality)
+    {
+        // Bits por pixel de cada quadro, um mínimo e um teto (o teto respeita o limite do H.264)
+        const double bitsPerPixel = quality == Quality::Standard ? 0.25 : quality == Quality::High ? 0.75 : 2.0;
+        const double floor = quality == Quality::Standard ? 2e6 : quality == Quality::High ? 4e6 : 8e6;
+        const double cap = quality == Quality::Standard ? 40e6 : quality == Quality::High ? 100e6 : 160e6;
+        return static_cast<int>(std::min(cap, static_cast<double>(width) * height * fps * bitsPerPixel + floor));
+    }
+
     std::vector<int> CycleOrder(int photos, bool reverse)
     {
         std::vector<int> order;
@@ -618,13 +646,13 @@ namespace Export
                 progress(0, [&] { std::string up = format; for (char& c : up) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c))); return up; }());
             bool ok = false;
             if (format == "mp4" || format == "mov")
-                ok = WriteVideo(fitted, video, w, h, fps, file, format == "mov", progress, cancel, error);
+                ok = WriteVideo(fitted, video, w, h, fps, file, format == "mov", options.quality, progress, cancel, error);
             else if (format == "gif")
                 ok = WriteGif(inCycle(), w, h, fps, file);
             else if (format == "webp")
-                ok = WriteWebpAnimation(inCycle(), w, h, fps, file);
+                ok = WriteWebpAnimation(inCycle(), w, h, fps, file, options.quality);
             else if (format == "avif")
-                ok = WriteAvif(inCycle(), w, h, fps, file, progress, cancel);
+                ok = WriteAvif(inCycle(), w, h, fps, file, options.quality, progress, cancel);
             if (!ok)
             {
                 if (error.empty())
@@ -635,7 +663,8 @@ namespace Export
         return true;
     }
 
-    bool ConvertPhoto(const fs::path& photo, const fs::path& dest, const std::string& format, std::string& error)
+    bool ConvertPhoto(const fs::path& photo, const fs::path& dest, const std::string& format, Quality quality,
+                      std::string& error)
     {
         const fs::path file = fs::path(dest).concat("." + format);
         std::string jpeg;
@@ -657,7 +686,9 @@ namespace Export
         if (format == "jpg")
         {
             std::vector<unsigned char> out;
-            ok = stbi_write_jpg_to_func(AppendToVector, &out, image.width, image.height, 3, image.pixels.data(), 95)
+            // Acima de 90 a cor fica em resolução total (sem 4:2:0)
+            const int q = quality == Quality::Standard ? 85 : quality == Quality::High ? 95 : 100;
+            ok = stbi_write_jpg_to_func(AppendToVector, &out, image.width, image.height, 3, image.pixels.data(), q)
                  && WriteBytes(file, out.data(), out.size());
         }
         else if (format == "png")
@@ -670,14 +701,18 @@ namespace Export
         else if (format == "webp")
         {
             uint8_t* out = nullptr;
-            const size_t size = WebPEncodeRGB(image.pixels.data(), image.width, image.height, image.width * 3, 92, &out);
+            const size_t size = quality == Quality::Maximum
+                ? WebPEncodeLosslessRGB(image.pixels.data(), image.width, image.height, image.width * 3, &out)
+                : WebPEncodeRGB(image.pixels.data(), image.width, image.height, image.width * 3,
+                                quality == Quality::Standard ? 80.f : 92.f, &out);
             ok = size > 0 && WriteBytes(file, out, size);
             WebPFree(out);
         }
         else if (format == "tiff")
             ok = WriteTiff(image, file);
         else if (format == "heic")
-            ok = Platform::WriteHeic(image.pixels.data(), image.width, image.height, file, error);
+            ok = Platform::WriteHeic(image.pixels.data(), image.width, image.height, file,
+                                     quality == Quality::Standard ? 0.75f : quality == Quality::High ? 0.9f : 1.0f, error);
         if (!ok && error.empty())
             error = "Could not save " + file.filename().string();
         return ok;

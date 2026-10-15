@@ -74,7 +74,7 @@ namespace Platform
         public:
             ~MfH264() override { Release(transform); }
 
-            bool Start(int width, int height, int fps, std::string& error)
+            bool Start(int width, int height, int fps, int bitrate, std::string& error)
             {
                 w = width; h = height; rate = fps;
                 MFT_REGISTER_TYPE_INFO input{ MFMediaType_Video, MFVideoFormat_NV12 };
@@ -98,8 +98,7 @@ namespace Platform
                 MFCreateMediaType(&out);
                 out->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
                 out->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_H264);
-                out->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(std::min<long long>(
-                    static_cast<long long>(w) * h * fps / 4 * 3 / 2 + 2000000, 60000000)));
+                out->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(bitrate));
                 MFSetAttributeSize(out, MF_MT_FRAME_SIZE, w, h);
                 MFSetAttributeRatio(out, MF_MT_FRAME_RATE, fps, 1);
                 MFSetAttributeRatio(out, MF_MT_PIXEL_ASPECT_RATIO, 1, 1);
@@ -312,7 +311,7 @@ namespace Platform
         public:
             ~MfFileWriter() override { Release(writer); }
 
-            bool Start(const std::filesystem::path& file, int width, int height, int fps, std::string& error)
+            bool Start(const std::filesystem::path& file, int width, int height, int fps, int bitrate, std::string& error)
             {
                 w = width; h = height; rate = fps;
                 IMFAttributes* attributes = nullptr;
@@ -329,8 +328,7 @@ namespace Platform
                 {
                     out->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
                     out->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_H264);
-                    out->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(std::min<long long>(
-                        static_cast<long long>(w) * h * fps / 4 * 3 / 2 * 2 + 4000000, 80000000)));
+                    out->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(bitrate));
                     out->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
                     out->SetUINT32(MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_High);
                     MFSetAttributeSize(out, MF_MT_FRAME_SIZE, w, h);
@@ -434,20 +432,20 @@ namespace Platform
     }
 
     std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path& file, int width, int height,
-                                                           int fps, std::string& error)
+                                                           int fps, int bitrate, std::string& error)
     {
         StartCom();
         auto writer = std::make_unique<MfFileWriter>();
-        if (!writer->Start(file, width, height, fps, error))
+        if (!writer->Start(file, width, height, fps, bitrate, error))
             return nullptr;
         return writer;
     }
 
-    std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, std::string& error)
+    std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, int bitrate, std::string& error)
     {
         StartCom();
         auto encoder = std::make_unique<MfH264>();
-        if (!encoder->Start(width, height, fps, error))
+        if (!encoder->Start(width, height, fps, bitrate, error))
             return nullptr;
         return encoder;
     }
@@ -475,7 +473,7 @@ namespace Platform
         return false;
     }
 
-    bool WriteHeic(const unsigned char* rgb, int width, int height, const std::filesystem::path& file,
+    bool WriteHeic(const unsigned char* rgb, int width, int height, const std::filesystem::path& file, float quality,
                    std::string& error)
     {
         IWICImagingFactory* factory = Factory();
@@ -488,6 +486,17 @@ namespace Platform
         if (SUCCEEDED(hr)) hr = factory->CreateEncoder(kContainerHeif, nullptr, &encoder);
         if (SUCCEEDED(hr)) hr = encoder->Initialize(stream, WICBitmapEncoderNoCache);
         if (SUCCEEDED(hr)) hr = encoder->CreateNewFrame(&frame, &props);
+        if (SUCCEEDED(hr) && props)
+        {
+            // Qualidade de 0 a 1; se o codificador não aceitar, fica a dele
+            PROPBAG2 option = {};
+            option.pstrName = const_cast<LPOLESTR>(L"ImageQuality");
+            VARIANT value;
+            VariantInit(&value);
+            value.vt = VT_R4;
+            value.fltVal = quality;
+            props->Write(1, &option, &value);
+        }
         if (SUCCEEDED(hr)) hr = frame->Initialize(props);
         if (SUCCEEDED(hr)) hr = frame->SetSize(static_cast<UINT>(width), static_cast<UINT>(height));
         WICPixelFormatGUID format = GUID_WICPixelFormat24bppBGR;

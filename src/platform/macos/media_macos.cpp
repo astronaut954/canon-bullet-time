@@ -37,7 +37,7 @@ namespace Platform
                 }
             }
 
-            bool Start(int width, int height, int fps, std::string& error)
+            bool Start(int width, int height, int fps, int bitrate, std::string& error)
             {
                 w = width; h = height; rate = fps;
                 OSStatus status = VTCompressionSessionCreate(kCFAllocatorDefault, w, h, kCMVideoCodecType_H264, nullptr,
@@ -51,8 +51,7 @@ namespace Platform
                 VTSessionSetProperty(session, kVTCompressionPropertyKey_RealTime, kCFBooleanFalse);
                 VTSessionSetProperty(session, kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_High_AutoLevel);
                 VTSessionSetProperty(session, kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse);
-                SetNumber(session, kVTCompressionPropertyKey_AverageBitRate,
-                          static_cast<int>(std::min<long long>(static_cast<long long>(w) * h * fps / 4 * 3 / 2 + 2000000, 60000000)));
+                SetNumber(session, kVTCompressionPropertyKey_AverageBitRate, bitrate);
                 SetNumber(session, kVTCompressionPropertyKey_ExpectedFrameRate, fps);
                 SetNumber(session, kVTCompressionPropertyKey_MaxKeyFrameInterval, fps * 2);
                 VTCompressionSessionPrepareToEncodeFrames(session);
@@ -187,10 +186,10 @@ namespace Platform
         };
     }
 
-    std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, std::string& error)
+    std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, int bitrate, std::string& error)
     {
         auto encoder = std::make_unique<VtH264>();
-        if (!encoder->Start(width, height, fps, error))
+        if (!encoder->Start(width, height, fps, bitrate, error))
             return nullptr;
         return encoder;
     }
@@ -206,7 +205,7 @@ namespace Platform
         return ok;
     }
 
-    bool WriteHeic(const unsigned char* rgb, int width, int height, const std::filesystem::path& file,
+    bool WriteHeic(const unsigned char* rgb, int width, int height, const std::filesystem::path& file, float quality,
                    std::string& error)
     {
         const std::string path = file.string();
@@ -221,7 +220,6 @@ namespace Platform
         bool ok = false;
         if (destination && image)
         {
-            float quality = 0.9f;
             CFNumberRef number = CFNumberCreate(kCFAllocatorDefault, kCFNumberFloatType, &quality);
             const void* keys[] = { kCGImageDestinationLossyCompressionQuality };
             const void* values[] = { number };
@@ -242,7 +240,7 @@ namespace Platform
         return ok;
     }
 
-    std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path&, int, int, int, std::string&)
+    std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path&, int, int, int, int, std::string&)
     {
         return nullptr;  // usa o H264Encoder + minimp4
     }

@@ -114,7 +114,7 @@ xattr -dr com.apple.quarantine path/to/stillpoint-vX.Y.Z
    In the terminal app, follow the instructions on screen
 5. Click **Save sessions** and choose **Photos** (original files, or converted to JPG, PNG, WEBP,
    TIFF or HEIC) or **Sequence** (MP4, MOV, GIF, WEBP or AVIF, with the speed, loops and size you
-   choose). Each session can have its own settings.
+   choose), and the quality: Standard, High or Maximum. Each session can have its own settings.
 6. Enter the Matrix
 
 

@@ -34,13 +34,15 @@ namespace Platform
         virtual bool AddFrame(const unsigned char* rgb, std::string& error) = 0;
         virtual bool Finish(std::string& error) = 0;
     };
+    // bitrate: bits por segundo (Export::VideoBitrate)
     std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path& file, int width, int height,
-                                                           int fps, std::string& error);
+                                                           int fps, int bitrate, std::string& error);
 
     // width e height pares. nullptr (com error preenchido) se não houver codificador.
-    std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, std::string& error);
+    std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, int bitrate, std::string& error);
 
     bool HeicAvailable(std::string& reason);
-    bool WriteHeic(const unsigned char* rgb, int width, int height, const std::filesystem::path& file,
+    // quality de 0 a 1 (1 = o máximo que o sistema grava)
+    bool WriteHeic(const unsigned char* rgb, int width, int height, const std::filesystem::path& file, float quality,
                    std::string& error);
 }

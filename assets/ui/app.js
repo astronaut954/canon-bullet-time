@@ -1041,6 +1041,9 @@
   const PHOTO_FORMATS = [["original", "Original"], ["jpg", "JPG"], ["png", "PNG"], ["webp", "WEBP"], ["tiff", "TIFF"], ["heic", "HEIC"]];
   const SEQ_FORMATS = ["mp4", "mov", "gif", "webp", "avif"];
   const SIZES = [[720, "720p"], [1080, "1080p"], [2160, "4K"]];
+  const QUALITIES = [["standard", "Standard"], ["high", "High"], ["maximum", "Maximum"]];
+  const LOSSY_PHOTOS = ["jpg", "webp", "heic"];  // PNG e TIFF são sempre sem perda
+  function qualityLabel(q) { return QUALITIES.find((x) => x[0] === q)[1]; }
   const exp = { mode: "photos", exitAfter: false, selected: new Set(), active: "", settings: {}, heic: { ok: true, reason: "" },
                 timer: null, frame: 0, photo: 0, sameForAll: true };
 
@@ -1065,8 +1068,8 @@
 
   function defaultSettings() {
     return { naming: { kind: "date", text: "", date: true, position: "after" },
-             photos: { format: "original" },
-             seq: { formats: ["mp4"], fps: 6, loops: 3, reverse: true, height: 1080, alsoPhotos: true } };
+             photos: { format: "original", quality: "high" },
+             seq: { formats: ["mp4"], fps: 6, loops: 3, reverse: true, height: 1080, alsoPhotos: true, quality: "high" } };
   }
   function settingsFor(name) {
     if (!exp.settings[name]) exp.settings[name] = defaultSettings();
@@ -1108,11 +1111,13 @@
   }
   function settingsText(session) {
     const st = settingsFor(session.name);
-    if (exp.mode === "photos") return "→ " + PHOTO_FORMATS.find((f) => f[0] === st.photos.format)[1];
+    if (exp.mode === "photos")
+      return "→ " + PHOTO_FORMATS.find((f) => f[0] === st.photos.format)[1] +
+        (LOSSY_PHOTOS.includes(st.photos.format) ? " · " + qualityLabel(st.photos.quality) : "");
     const s = st.seq;
     if (!s.formats.length) return "No format chosen";
     return s.formats.map((f) => f.toUpperCase()).join(" · ") + " · " + s.fps + " fps · " + plural(s.loops, "loop", "loops") +
-      " · " + seconds(seqTotal(session, s).seconds);
+      " · " + seconds(seqTotal(session, s).seconds) + " · " + qualityLabel(s.quality);
   }
 
   function startSave(exitAfter) {
@@ -1315,9 +1320,22 @@
       r.appendChild(segmented(PHOTO_FORMATS, s.format, (v) => { s.format = v; rerender(); },
         (v) => (v === "heic" && !exp.heic.ok ? exp.heic.reason || "Not available on this computer" : "")));
       box.appendChild(r);
+      if (LOSSY_PHOTOS.includes(s.format)) {
+        const q = row("Quality");
+        q.appendChild(segmented(QUALITIES, s.quality, (v) => { s.quality = v; rerender(); }));
+        box.appendChild(q);
+        const max = { jpg: "JPG at the highest quality, with full color detail.", webp: "Lossless: every pixel is kept.",
+                      heic: "HEIC at the highest quality." };
+        box.appendChild(el("div", "export-note", s.quality === "standard" ? "Smaller files, good for sharing online."
+          : s.quality === "high" ? "Very close to the original photos, with smaller files. Good for most uses."
+          : max[s.format] + " Largest files."));
+      } else if (s.format === "png" || s.format === "tiff") {
+        box.appendChild(el("div", "export-note", s.format.toUpperCase() + " keeps every pixel: no quality is lost in the conversion."));
+      }
       box.appendChild(el("div", "export-note",
-        "Original keeps each file exactly as the camera saved it (JPG and RAW). The other formats convert every photo; " +
-        "when a camera saved RAW + JPG, the JPG is used."));
+        "Original keeps each file exactly as the camera saved it (JPG and RAW): the highest quality. The other formats convert " +
+        "every photo; RAW photos are converted from the full-size image the camera keeps inside them, and when a camera " +
+        "saved RAW + JPG, the JPG is used."));
     } else {
       const s = st.seq;
       const order = cycleOrder(items.length, s.reverse);
@@ -1371,6 +1389,14 @@
       size.appendChild(segmented(SIZES, s.height, (v) => { s.height = v; rerender(); }));
       size.appendChild(el("span", "export-note", "4K only for MP4 and MOV. GIF, WEBP and AVIF go up to 1080p."));
       box.appendChild(size);
+
+      const quality = row("Quality");
+      quality.appendChild(segmented(QUALITIES, s.quality, (v) => { s.quality = v; rerender(); }));
+      box.appendChild(quality);
+      box.appendChild(el("div", "export-note", (s.quality === "standard" ? "Smaller files, good for sharing online."
+        : s.quality === "high" ? "Very close to the photos, with smaller files. Good for most uses."
+        : "As close to the photos as each format allows: WEBP keeps every pixel, MP4, MOV and AVIF get much more detail. " +
+          "Large files, and AVIF takes longer.") + (s.formats.includes("gif") ? " GIF always has 256 colors, at any quality." : "")));
 
       const t = seqTotal(session, s);
       const total = el("div", "export-total");
@@ -1442,9 +1468,9 @@
     const st = settingsFor(name);
     const n = st.naming;
     const head = [name, n.kind, (n.text || "").replace(/\|/g, ""), n.date ? 1 : 0, n.position];
-    if (exp.mode === "photos") return [...head, "photos", st.photos.format].join("|");
+    if (exp.mode === "photos") return [...head, "photos", st.photos.format, st.photos.quality].join("|");
     const s = st.seq;
-    return [...head, "sequence", s.formats.join(","), s.fps, s.loops, s.reverse ? 1 : 0, s.height, s.alsoPhotos ? 1 : 0].join("|");
+    return [...head, "sequence", s.formats.join(","), s.fps, s.loops, s.reverse ? 1 : 0, s.height, s.alsoPhotos ? 1 : 0, s.quality].join("|");
   }
 
   function runExport(deleteRest) {

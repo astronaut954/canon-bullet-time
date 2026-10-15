@@ -11,6 +11,16 @@
 
 namespace Export
 {
+    // Qualidade escolhida na janela de salvar. High é o padrão.
+    //   Standard: arquivos menores. High: muito perto das fotos.
+    //   Maximum: o mais perto das fotos que cada formato permite (arquivos grandes).
+    // PNG e TIFF são sempre sem perda; GIF é sempre 256 cores.
+    enum class Quality { Standard, High, Maximum };
+    Quality ParseQuality(const std::string& text);  // "standard" | "high" | "maximum"
+
+    // Bits por segundo do MP4/MOV (H.264) para o tamanho, a velocidade e a qualidade
+    int VideoBitrate(int width, int height, int fps, Quality quality);
+
     struct SequenceOptions
     {
         std::vector<std::string> formats;  // "mp4", "mov", "gif", "webp", "avif"
@@ -18,6 +28,7 @@ namespace Export
         int loops = 3;                     // repetições dentro do MP4/MOV
         bool reverse = true;               // vai e volta: 1, 2, 3, 2, 1...
         int height = 1080;                 // 720, 1080 ou 2160 (4K: só MP4/MOV)
+        Quality quality = Quality::High;
     };
 
     // Ordem dos quadros de UMA volta: 0..n-1 e, com reverse, volta até 1 (sem repetir as pontas)
@@ -35,7 +46,7 @@ namespace Export
 
     // Converte uma foto para "jpg", "png", "webp", "tiff" ou "heic". dest sem extensão.
     bool ConvertPhoto(const std::filesystem::path& photo, const std::filesystem::path& destWithoutExtension,
-                      const std::string& format, std::string& error);
+                      const std::string& format, Quality quality, std::string& error);
 
     // Formatos que este computador consegue gerar (HEIC no Windows depende de extensões)
     bool FormatAvailable(const std::string& format, std::string& reason);
