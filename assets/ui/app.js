@@ -2383,7 +2383,8 @@
     const current = k === "wb" && st.value === 9 ? "k" + c.kelvin : String(st.value);
     const currentLabel = k === "wb" && st.value === 9 ? c.kelvin + " K" : st.label;
     if (!st.choices.length) {
-      td.appendChild(csText(currentLabel, diff ? "diff" : "", "The camera does not allow changing this now."));
+      // Tem o valor, mas não deixa mudar agora: valor dentro do tracejado
+      td.appendChild(csText(currentLabel, "na" + (diff ? " diff" : ""), "The camera does not allow changing this now."));
       return td;
     }
     let options = st.choices.filter(([v]) => !(k === "wb" && v === 9)).map(([v, l]) => [String(v), l]);
