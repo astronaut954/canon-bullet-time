@@ -35,7 +35,8 @@ namespace
         return out + "\"";
     }
 
-    std::string Fixed(double v, int decimals)
+    // (Não "Fixed": o macOS já tem um tipo com esse nome)
+    std::string Decimals(double v, int decimals)
     {
         char text[32];
         std::snprintf(text, sizeof(text), "%.*f", decimals, v);
@@ -118,8 +119,8 @@ void MatchDebug::Shot(int shot, const std::string& stage, const std::vector<Phot
             << (s.styleDetailAvailable ? std::to_string(s.saturation) : "") << ','
             << (s.styleDetailAvailable ? std::to_string(s.colorTone) : "") << ','
             << (m.ok ? "yes" : "no") << ','
-            << (m.ok ? Fixed(m.ev, 3) : "") << ',' << (m.ok ? Fixed(m.rb, 4) : "") << ',' << (m.ok ? Fixed(m.g, 4) : "") << ','
-            << (m.ok ? Fixed(m.contrast, 3) : "") << ',' << (m.ok ? Fixed(m.sat, 4) : "") << ','
+            << (m.ok ? Decimals(m.ev, 3) : "") << ',' << (m.ok ? Decimals(m.rb, 4) : "") << ',' << (m.ok ? Decimals(m.g, 4) : "") << ','
+            << (m.ok ? Decimals(m.contrast, 3) : "") << ',' << (m.ok ? Decimals(m.sat, 4) : "") << ','
             << (m.ok ? std::to_string(std::lround(m.dark * 100)) : "") << ','
             << (m.ok ? std::to_string(std::lround(m.clipped * 100)) : "") << ','
             << (m.ok ? (m.exposureOk ? "yes" : "no") : "") << ',' << Csv(saved) << '\n';
