@@ -9,6 +9,7 @@
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
+#include <mfreadwrite.h>
 #include <mftransform.h>
 #include <codecapi.h>
 #include <strmif.h>
@@ -300,6 +301,125 @@ namespace Platform
             CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory));
             return factory;
         }
+    }
+
+    namespace
+    {
+        // MP4 gravado pelo Sink Writer do Media Foundation: ele mesmo configura o
+        // codificador, ordena os quadros e monta o arquivo.
+        class MfFileWriter : public VideoFileWriter
+        {
+        public:
+            ~MfFileWriter() override { Release(writer); }
+
+            bool Start(const std::filesystem::path& file, int width, int height, int fps, std::string& error)
+            {
+                w = width; h = height; rate = fps;
+                IMFAttributes* attributes = nullptr;
+                MFCreateAttributes(&attributes, 2);
+                attributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE);
+                attributes->SetUINT32(MF_SINK_WRITER_DISABLE_THROTTLING, TRUE);
+                attributes->SetGUID(MF_TRANSCODE_CONTAINERTYPE, MFTranscodeContainerType_MPEG4);
+                HRESULT hr = MFCreateSinkWriterFromURL(file.wstring().c_str(), nullptr, attributes, &writer);
+                Release(attributes);
+
+                IMFMediaType* out = nullptr;
+                if (SUCCEEDED(hr)) hr = MFCreateMediaType(&out);
+                if (SUCCEEDED(hr))
+                {
+                    out->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
+                    out->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_H264);
+                    out->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(std::min<long long>(
+                        static_cast<long long>(w) * h * fps / 4 * 3 / 2 * 2 + 4000000, 80000000)));
+                    out->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
+                    out->SetUINT32(MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_High);
+                    MFSetAttributeSize(out, MF_MT_FRAME_SIZE, w, h);
+                    MFSetAttributeRatio(out, MF_MT_FRAME_RATE, fps, 1);
+                    MFSetAttributeRatio(out, MF_MT_PIXEL_ASPECT_RATIO, 1, 1);
+                    hr = writer->AddStream(out, &stream);
+                }
+                Release(out);
+
+                IMFMediaType* in = nullptr;
+                if (SUCCEEDED(hr)) hr = MFCreateMediaType(&in);
+                if (SUCCEEDED(hr))
+                {
+                    in->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
+                    in->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12);
+                    in->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
+                    MFSetAttributeSize(in, MF_MT_FRAME_SIZE, w, h);
+                    MFSetAttributeRatio(in, MF_MT_FRAME_RATE, fps, 1);
+                    MFSetAttributeRatio(in, MF_MT_PIXEL_ASPECT_RATIO, 1, 1);
+                    hr = writer->SetInputMediaType(stream, in, nullptr);
+                }
+                Release(in);
+                if (SUCCEEDED(hr)) hr = writer->BeginWriting();
+                if (FAILED(hr))
+                {
+                    error = "Windows could not start the video (" + std::to_string(static_cast<unsigned long>(hr)) + ").";
+                    return false;
+                }
+                return true;
+            }
+
+            bool AddFrame(const unsigned char* rgb, std::string& error) override
+            {
+                const DWORD size = static_cast<DWORD>(w) * h * 3 / 2;
+                IMFMediaBuffer* buffer = nullptr;
+                IMFSample* sample = nullptr;
+                HRESULT hr = MFCreateMemoryBuffer(size, &buffer);
+                BYTE* data = nullptr;
+                if (SUCCEEDED(hr) && SUCCEEDED(hr = buffer->Lock(&data, nullptr, nullptr)))
+                {
+                    RgbToNv12(rgb, w, h, data);
+                    buffer->Unlock();
+                    buffer->SetCurrentLength(size);
+                }
+                if (SUCCEEDED(hr)) hr = MFCreateSample(&sample);
+                if (SUCCEEDED(hr)) hr = sample->AddBuffer(buffer);
+                const LONGLONG duration = 10000000LL / rate;
+                if (SUCCEEDED(hr)) hr = sample->SetSampleTime(frame * duration);
+                if (SUCCEEDED(hr)) hr = sample->SetSampleDuration(duration);
+                if (SUCCEEDED(hr)) hr = writer->WriteSample(stream, sample);
+                Release(sample);
+                Release(buffer);
+                ++frame;
+                if (FAILED(hr))
+                {
+                    error = "Windows could not write the video (frame " + std::to_string(frame) + ").";
+                    return false;
+                }
+                return true;
+            }
+
+            bool Finish(std::string& error) override
+            {
+                const HRESULT hr = writer->Finalize();
+                Release(writer);
+                if (FAILED(hr))
+                {
+                    error = "Windows could not finish the video.";
+                    return false;
+                }
+                return true;
+            }
+
+        private:
+            IMFSinkWriter* writer = nullptr;
+            DWORD stream = 0;
+            int w = 0, h = 0, rate = 30;
+            LONGLONG frame = 0;
+        };
+    }
+
+    std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path& file, int width, int height,
+                                                           int fps, std::string& error)
+    {
+        StartCom();
+        auto writer = std::make_unique<MfFileWriter>();
+        if (!writer->Start(file, width, height, fps, error))
+            return nullptr;
+        return writer;
     }
 
     std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, std::string& error)

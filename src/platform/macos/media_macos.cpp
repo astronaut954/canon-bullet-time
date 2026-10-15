@@ -241,4 +241,9 @@ namespace Platform
             error = "Could not save " + file.filename().string() + " as HEIC.";
         return ok;
     }
+
+    std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path&, int, int, int, std::string&)
+    {
+        return nullptr;  // usa o H264Encoder + minimp4
+    }
 }

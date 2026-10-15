@@ -24,6 +24,19 @@ namespace Platform
         virtual bool Finish(std::vector<unsigned char>& out, std::string& error) = 0;
     };
 
+    // Arquivo MP4 inteiro gravado pelo próprio sistema (Windows: Media Foundation, que
+    // monta o arquivo do jeito que os players do Windows esperam). Onde não houver,
+    // devolve nullptr sem erro e a exportação usa o H264Encoder + minimp4.
+    class VideoFileWriter
+    {
+    public:
+        virtual ~VideoFileWriter() = default;
+        virtual bool AddFrame(const unsigned char* rgb, std::string& error) = 0;
+        virtual bool Finish(std::string& error) = 0;
+    };
+    std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path& file, int width, int height,
+                                                           int fps, std::string& error);
+
     // width e height pares. nullptr (com error preenchido) se não houver codificador.
     std::unique_ptr<H264Encoder> CreateH264Encoder(int width, int height, int fps, std::string& error);
 

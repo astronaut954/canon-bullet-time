@@ -78,7 +78,7 @@ target_include_directories(stillpoint_export PUBLIC "${STILLPOINT_SOURCE_ROOT}/s
 target_link_libraries(stillpoint_export PUBLIC libraw::libraw PRIVATE webp libwebpmux avif)
 if(WIN32)
     target_sources(stillpoint_export PRIVATE "${STILLPOINT_SOURCE_ROOT}/src/platform/windows/media_windows.cpp")
-    target_link_libraries(stillpoint_export PRIVATE mfplat mfuuid windowscodecs ole32)
+    target_link_libraries(stillpoint_export PRIVATE mfplat mfreadwrite mfuuid windowscodecs ole32)
 elseif(APPLE)
     target_sources(stillpoint_export PRIVATE "${STILLPOINT_SOURCE_ROOT}/src/platform/macos/media_macos.cpp")
     target_link_libraries(stillpoint_export PRIVATE "-framework VideoToolbox" "-framework CoreMedia"

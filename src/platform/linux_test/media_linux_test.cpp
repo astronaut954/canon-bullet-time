@@ -63,4 +63,9 @@ namespace Platform
         error = "HEIC is not available in the Linux test.";
         return false;
     }
+
+    std::unique_ptr<VideoFileWriter> CreateVideoFileWriter(const std::filesystem::path&, int, int, int, std::string&)
+    {
+        return nullptr;  // usa o H264Encoder + minimp4
+    }
 }

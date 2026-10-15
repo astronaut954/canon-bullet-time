@@ -384,10 +384,57 @@ namespace
         return out->good() ? 0 : 1;
     }
 
+    // MOV: mesma estrutura do MP4, marcada como QuickTime ("qt  ")
+    void MarkAsQuickTime(const fs::path& file)
+    {
+        std::fstream patch(file, std::ios::binary | std::ios::in | std::ios::out);
+        char head[64] = {};
+        patch.read(head, sizeof(head));
+        if (std::memcmp(head + 4, "ftyp", 4) == 0)
+        {
+            const uint32_t size = (static_cast<unsigned char>(head[0]) << 24) | (static_cast<unsigned char>(head[1]) << 16)
+                                  | (static_cast<unsigned char>(head[2]) << 8) | static_cast<unsigned char>(head[3]);
+            patch.clear();
+            patch.seekp(8);
+            patch.write("qt  ", 4);
+            for (uint32_t pos = 16; pos + 4 <= size && pos + 4 <= sizeof(head); pos += 4)
+            {
+                patch.seekp(pos);
+                patch.write("qt  ", 4);
+            }
+        }
+    }
+
     bool WriteVideo(const std::vector<std::vector<unsigned char>>& cycle, const std::vector<int>& order, int w, int h,
                     int fps, const fs::path& file, bool mov, const Export::Progress& progress,
                     const std::atomic<bool>* cancel, std::string& error)
     {
+        // Sistema que grava o MP4 inteiro (Windows): mais compatível com os players de lá
+        bool ok = true;
+        if (auto native = Platform::CreateVideoFileWriter(file, w, h, fps, error))
+        {
+            for (size_t i = 0; i < order.size() && ok; ++i)
+            {
+                if (cancel && *cancel) { error = "cancelled"; ok = false; break; }
+                ok = native->AddFrame(cycle[order[i]].data(), error);
+                if (progress)
+                    progress(static_cast<double>(i + 1) / order.size(), mov ? "MOV" : "MP4");
+            }
+            std::string finishError;
+            const bool finished = native->Finish(finishError);
+            if (ok && !finished) { ok = false; error = finishError; }
+            native.reset();
+            if (ok && mov)
+                MarkAsQuickTime(file);
+            if (!ok)
+            {
+                std::error_code ec;
+                fs::remove(file, ec);
+            }
+            return ok;
+        }
+        if (!error.empty())
+            return false;
         auto encoder = Platform::CreateH264Encoder(w, h, fps, error);
         if (!encoder)
             return false;
@@ -405,7 +452,6 @@ namespace
             return false;
         }
         const unsigned duration = static_cast<unsigned>(90000 / fps);
-        bool ok = true;
         std::vector<unsigned char> nal;
         auto flush = [&]
         {
@@ -438,25 +484,7 @@ namespace
         MP4E_close(mux);
         out.close();
         if (ok && mov)
-        {
-            // MOV: mesma estrutura, marcada como QuickTime ("qt  ")
-            std::fstream patch(file, std::ios::binary | std::ios::in | std::ios::out);
-            char head[64] = {};
-            patch.read(head, sizeof(head));
-            if (std::memcmp(head + 4, "ftyp", 4) == 0)
-            {
-                const uint32_t size = (static_cast<unsigned char>(head[0]) << 24) | (static_cast<unsigned char>(head[1]) << 16)
-                                      | (static_cast<unsigned char>(head[2]) << 8) | static_cast<unsigned char>(head[3]);
-                patch.clear();
-                patch.seekp(8);
-                patch.write("qt  ", 4);
-                for (uint32_t pos = 16; pos + 4 <= size && pos + 4 <= sizeof(head); pos += 4)
-                {
-                    patch.seekp(pos);
-                    patch.write("qt  ", 4);
-                }
-            }
-        }
+            MarkAsQuickTime(file);
         if (!ok)
         {
             std::error_code ec;
