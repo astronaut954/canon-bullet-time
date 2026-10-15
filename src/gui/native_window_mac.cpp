@@ -161,6 +161,8 @@ namespace NativeWindow
         g_menuItems.clear();
         g_window = static_cast<id>(nativeWindow);
         id app = Send<id>(GetClass("NSApplication"), "sharedApplication");
+        // Uma janela só: sem abas (o Mac acrescentaria "Show Tab Bar" no menu View)
+        Send<void>(GetClass("NSWindow"), "setAllowsAutomaticWindowTabbing:", NO);
         id bar = NewMenu("");
 
         // Stillpoint
