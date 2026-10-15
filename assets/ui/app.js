@@ -1042,7 +1042,26 @@
   const SEQ_FORMATS = ["mp4", "mov", "gif", "webp", "avif"];
   const SIZES = [[720, "720p"], [1080, "1080p"], [2160, "4K"]];
   const exp = { mode: "photos", exitAfter: false, selected: new Set(), active: "", settings: {}, heic: { ok: true, reason: "" },
-                timer: null, frame: 0, photo: 0 };
+                timer: null, frame: 0, photo: 0, sameForAll: true };
+
+  // Configuração da sessão aberta igual nas outras (só a parte do modo atual e o nome)
+  function settingsKey() { return exp.mode === "photos" ? "photos" : "seq"; }
+  function sameAsActive(name) {
+    const a = settingsFor(exp.active), o = settingsFor(name), k = settingsKey();
+    return JSON.stringify(a[k]) === JSON.stringify(o[k]) && JSON.stringify(a.naming) === JSON.stringify(o.naming);
+  }
+  // "Same settings for all sessions" ligado: o que muda na sessão aberta vale para todas
+  function syncAll() {
+    if (!exp.sameForAll || !exp.active) return;
+    const st = settingsFor(exp.active);
+    sessions.forEach((o) => {
+      if (o.name === exp.active) return;
+      const t = settingsFor(o.name);
+      t.photos = JSON.parse(JSON.stringify(st.photos));
+      t.seq = JSON.parse(JSON.stringify(st.seq));
+      t.naming = JSON.parse(JSON.stringify(st.naming));
+    });
+  }
 
   function defaultSettings() {
     return { naming: { kind: "date", text: "", date: true, position: "after" },
@@ -1144,7 +1163,7 @@
       li.className = "export-item" + (s.name === exp.active ? " active" : "") + (exp.selected.has(s.name) ? "" : " off");
       li.innerHTML = '<label class="export-check"><input type="checkbox"><span class="save-check" aria-hidden="true"></span></label>' +
         '<span class="export-thumb"></span><span><span class="folder-date"></span><span class="folder-meta"></span>' +
-        '<span class="export-summary"></span></span>';
+        '<span class="export-summary"></span><span class="export-diff">Different</span></span>';
       const box = li.querySelector("input");
       box.checked = exp.selected.has(s.name);
       box.addEventListener("change", () => {
@@ -1156,6 +1175,7 @@
       li.querySelector(".folder-date").textContent = label.date;
       li.querySelector(".folder-meta").textContent = [plural(sessionItems(s).length, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
       li.querySelector(".export-summary").textContent = summaryText(s);
+      li.classList.toggle("different", !exp.sameForAll && s.name !== exp.active && !sameAsActive(s.name));
       const first = sessionItems(s).find((i) => i.previewable);
       if (first) sessionPhoto(s.name, first.file, 320).then((url) => { if (url) li.querySelector(".export-thumb").style.backgroundImage = "url(" + url + ")"; });
       li.addEventListener("click", () => {
@@ -1181,7 +1201,9 @@
 
   function refreshSummaries() {
     [...$("exportList").children].forEach((li, i) => {
-      if (sessions[i]) li.querySelector(".export-summary").textContent = summaryText(sessions[i]);
+      if (!sessions[i]) return;
+      li.querySelector(".export-summary").textContent = summaryText(sessions[i]);
+      li.classList.toggle("different", !exp.sameForAll && sessions[i].name !== exp.active && !sameAsActive(sessions[i].name));
     });
     updateExportCount();
   }
@@ -1243,7 +1265,14 @@
     const items = sessionItems(session).filter((i) => i.previewable);
     const st = settingsFor(session.name);
     const label = sessionLabel(session.name).date;
-    const rerender = () => { renderExportSettings(); refreshSummaries(); };
+    const rerender = () => { syncAll(); renderExportSettings(); refreshSummaries(); };
+
+    // Mesma configuração para todas (padrão) ou uma por sessão
+    if (sessions.length > 1) {
+      const scope = checkOption("Same settings for all sessions", exp.sameForAll, (v) => { exp.sameForAll = v; rerender(); });
+      scope.classList.add("export-scope");
+      box.appendChild(scope);
+    }
 
     const preview = el("div", "export-preview");
     const img = document.createElement("img");
@@ -1353,7 +1382,7 @@
       total.appendChild(sum);
       box.appendChild(total);
       box.appendChild(el("div", "export-note", "MP4 and MOV have the loops inside the video. GIF, WEBP and AVIF repeat without stopping."));
-      box.appendChild(checkOption("Also save the photos (original format)", s.alsoPhotos, (v) => { s.alsoPhotos = v; }));
+      box.appendChild(checkOption("Also save the photos (original format)", s.alsoPhotos, (v) => { s.alsoPhotos = v; syncAll(); refreshSummaries(); }));
     }
 
     // Nome da pasta e dos arquivos
@@ -1370,7 +1399,7 @@
       input.placeholder = "Name, e.g. Studio test";
       input.maxLength = 80;
       input.value = n.text;
-      input.addEventListener("input", () => { n.text = input.value.replace(/\|/g, ""); folderLine.textContent = "Folder: " + folderName(session); refreshSummaries(); });
+      input.addEventListener("input", () => { n.text = input.value.replace(/\|/g, ""); syncAll(); folderLine.textContent = "Folder: " + folderName(session); refreshSummaries(); });
       custom.appendChild(input);
       custom.appendChild(checkOption("Add date + time", n.date, (v) => { n.date = v; rerender(); }));
       if (n.date) custom.appendChild(segmented([["before", "Before"], ["after", "After"]], n.position, (v) => { n.position = v; rerender(); }));
@@ -1383,26 +1412,30 @@
         ? "Numbers continue from the ones already in the folder you choose."
         : "Sessions with the same name get numbers (01, 02…), continuing from the folder you choose."));
 
-    const apply = el("div", "export-apply");
-    const key = exp.mode === "photos" ? "photos" : "seq";
-    const same = sessions.length > 1 && sessions.every((o) => JSON.stringify(settingsFor(o.name)[key]) === JSON.stringify(st[key]) &&
-      JSON.stringify(settingsFor(o.name).naming) === JSON.stringify(st.naming));
-    const note = el("span", "export-note", sessions.length === 1 ? "" : same
-      ? (exp.mode === "photos" ? "All sessions use this format." : "All sessions use these settings.")
-      : (exp.mode === "photos" ? "This format is" : "These settings are") + " only for " + label + ".");
-    apply.appendChild(note);
-    apply.appendChild(button("Apply to all sessions", () => {
-      const source = JSON.stringify(st[key]);
-      const naming = JSON.stringify(st.naming);
-      sessions.forEach((other) => {
-        if (other.name === session.name) return;
-        settingsFor(other.name)[key] = JSON.parse(source);
-        settingsFor(other.name).naming = JSON.parse(naming);
-      });
-      rerender();
-      toast("Applied to all " + plural(sessions.length, "session", "sessions"));
-    }));
-    box.appendChild(apply);
+    if (!exp.sameForAll && sessions.length > 1) {
+      const apply = el("div", "export-apply");
+      const key = exp.mode === "photos" ? "photos" : "seq";
+      const same = sessions.length > 1 && sessions.every((o) => JSON.stringify(settingsFor(o.name)[key]) === JSON.stringify(st[key]) &&
+        JSON.stringify(settingsFor(o.name).naming) === JSON.stringify(st.naming));
+      const note = el("span", "export-note", sessions.length === 1 ? "" : same
+        ? (exp.mode === "photos" ? "All sessions use this format." : "All sessions use these settings.")
+        : (exp.mode === "photos" ? "This format is" : "These settings are") + " only for " + label + ".");
+      apply.appendChild(note);
+      apply.appendChild(button("Apply to all sessions", () => {
+        const source = JSON.stringify(st[key]);
+        const naming = JSON.stringify(st.naming);
+        sessions.forEach((other) => {
+          if (other.name === session.name) return;
+          settingsFor(other.name)[key] = JSON.parse(source);
+          settingsFor(other.name).naming = JSON.parse(naming);
+        });
+        rerender();
+        toast("Applied to all " + plural(sessions.length, "session", "sessions"));
+      }));
+      box.appendChild(apply);
+    } else if (sessions.length > 1) {
+      box.appendChild(el("div", "export-note export-apply", "Changes apply to all sessions. Turn off \"Same settings for all sessions\" to set each one."));
+    }
   }
 
   function exportSpec(name) {

@@ -648,3 +648,10 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .export-name:focus { border-color: var(--noct-primary); background: var(--noct-elevated); }
 .export-name::placeholder { color: var(--noct-text-dim); }
 #dialogOverlay { z-index: 12; }  /* avisos ficam por cima das janelas de salvar */
+
+/* Sessão com configuração diferente da aberta */
+.export-diff { display: none; margin-top: 4px; width: fit-content; padding: 1px 6px; border: 1px solid var(--noct-pending);
+  color: var(--noct-pending); font: 600 10px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; }
+.export-item.different .export-diff { display: block; }
+.export-item.different { border-color: rgba(var(--noct-pending-rgb), .6); }
+.export-scope { padding-bottom: 10px; border-bottom: 1px solid var(--noct-border); }

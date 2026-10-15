@@ -168,7 +168,8 @@ sai junto com o Reverse loop, a velocidade e o "abrir a pasta" (v2.5.0).
   padrão), Number (01, 02... continuando os da pasta) ou Custom (data opcional, depois do nome por
   padrão; nome repetido sem data ganha numeração). Fotos salvas sem o número do cartão
   ("01_SL3_1.JPG"). Subpastas Photos/ e Sequence/ só com fotos e sequência juntas. A janela de salvar só fecha
-  depois de salvar. Aviso de pasta já existente e
+  depois de salvar. "Same settings for all sessions" ligado por padrão;
+  desligado, as sessões diferentes da aberta ganham "Different". Aviso de pasta já existente e
   ao fechar o app com a janela de salvar aberta ou durante o salvamento.
 - Teste no Linux sem câmeras: `tests/export` (gera todos os formatos da sessão de teste).
 - Verificado aqui: todos os formatos comuns gerados e conferidos (ffprobe/Pillow); telas testadas

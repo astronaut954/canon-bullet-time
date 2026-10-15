@@ -140,8 +140,9 @@ Anotar o sistema (Windows/Mac), a versão/branch testada e os modelos de câmera
 - [ ] MP4, MOV, GIF, WEBP e AVIF abrem e tocam (GIF/WEBP/AVIF repetem sem parar; MP4/MOV com o
       número de loops escolhido). 4K só no MP4/MOV.
 - [ ] "Also save the photos" marcado: fotos e vídeos na mesma pasta; desmarcado: só os vídeos.
-- [ ] "Apply to all sessions" copia a configuração; sessões com configurações diferentes saem cada
-      uma do seu jeito.
+- [ ] "Same settings for all sessions" (ligado por padrão): mudar uma sessão muda todas. Desligado:
+      cada sessão com a sua, "Different" em âmbar nas diferentes da aberta, "Apply to all sessions"
+      copia; ligar de novo copia a configuração da sessão aberta para todas.
 - [ ] Andamento aparece; "Cancel" para e as sessões não salvas continuam no app.
 - [ ] No fim abre a pasta (uma sessão: a dela; várias: a escolhida).
 - [ ] Name: Date + time ("2026-10-14 16.31.00"), Number (01, 02… continuando os que já existem na
