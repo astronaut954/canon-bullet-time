@@ -768,6 +768,8 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
   border: 1px solid var(--noct-border); background: var(--noct-surface); color: var(--noct-primary); font: 700 13px var(--noct-font-mono); }
 .cs-more:hover, .cs-more.open { border-color: var(--noct-primary); }
 .cs-more.open { background: var(--noct-primary); color: var(--noct-on-primary); }
+.cs-more.diff { border-color: var(--noct-pending); color: var(--noct-pending); }
+.cs-more.diff.open { background: var(--noct-pending); color: var(--noct-on-primary); }
 .cs-pop { position: fixed; z-index: 7; width: 230px; box-sizing: border-box; padding: 10px 12px 12px; background: var(--noct-surface);
   border: 1px solid var(--noct-border-strong); box-shadow: 0 12px 32px rgba(0, 0, 0, .55); }
 .cs-pop-title { font: 700 11px var(--noct-font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--noct-primary); margin-bottom: 8px; }

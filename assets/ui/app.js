@@ -2337,6 +2337,17 @@
     });
     return ref;
   }
+  // Ajustes do Picture Style (contraste, saturação, tom): diferente do mais comum entre as câmeras
+  const styleKey = (c) => (c.styleDetail ? c.contrast + "/" + c.saturation + "/" + c.colorTone : null);
+  function csStyleDetailRef() {
+    const counts = new Map();
+    camSettings.filter((c) => c.adjustable && c.styleDetail).forEach((c) => counts.set(styleKey(c), (counts.get(styleKey(c)) || 0) + 1));
+    if (counts.size < 2) return null;
+    let best = null, n = 0;
+    counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
+    return best;
+  }
+  const csStyleDetailDiffers = (c) => { const ref = csStyleDetailRef(); return ref !== null && c.styleDetail && styleKey(c) !== ref; };
   const csDiffers = (c, k, ref) => ref[k] !== null && ref[k] !== undefined && csLabel(c, k) !== null && csLabel(c, k) !== ref[k];
 
   // Aviso no painel Cameras
@@ -2348,7 +2359,7 @@
       return { cls: "diff", text: "Not on single shot", title: "The camera is on " + drive.label + " and did not accept single shooting. Set it to single shooting on the camera." };
     if (!c.adjustable) return { cls: "locked", text: "Settings on the camera only", title: c.reason };
     const ref = csReference();
-    if (CS_COLS.some(([k]) => k !== "focus" && csDiffers(c, k, ref))) return { cls: "diff", text: "Settings differ", title: "Open Camera settings to match the cameras." };
+    if (CS_COLS.some(([k]) => k !== "focus" && csDiffers(c, k, ref)) || csStyleDetailDiffers(c)) return { cls: "diff", text: "Settings differ", title: "Open Camera settings to match the cameras." };
     return null;
   }
 
@@ -2386,11 +2397,12 @@
   const STYLE_DETAILS = [["contrast", "Contrast", "contrast"], ["saturation", "Saturation", "saturation"], ["colortone", "Color tone", "colorTone"]];
   let csStylePop = null;  // { camera } aberto ("*" = All cameras)
   const signed = (v) => (v > 0 ? "+" + v : String(v));
-  function csStyleButton(camera, differs) {
+  function csStyleButton(camera, differs, values) {
     const b = document.createElement("button");
     b.className = "cs-more" + (differs ? " diff" : "") + (csStylePop && csStylePop.camera === camera ? " open" : "");
     b.textContent = "±";
-    b.title = "Contrast, saturation and color tone";
+    b.title = (values ? "Contrast " + signed(values.contrast) + " · Saturation " + signed(values.saturation) + " · Color tone " + signed(values.colorTone)
+                      : "Contrast, saturation and color tone") + (differs ? " (different from the other cameras)" : "");
     b.dataset.styleCam = camera;
     b.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -2495,7 +2507,7 @@
       if (k === "wb" && v.startsWith("k")) csSet(c.camera, "kelvin", +v.slice(1));
       else csSet(c.camera, k, +v);
     }, diff ? "diff" : ""));
-    if (k === "style" && c.styleDetail) td.appendChild(csStyleButton(c.camera, false));
+    if (k === "style" && c.styleDetail) td.appendChild(csStyleButton(c.camera, csStyleDetailDiffers(c), c));
     return td;
   }
 
@@ -2561,7 +2573,8 @@
     }
     if (!current) options.unshift(["", same ? [...labels][0] : "Different", true]);
     td.appendChild(csSelect(options, current, (v) => csSet("*", k, +v), same ? "" : "diff"));
-    if (k === "style" && cams.some((c) => c.styleDetail)) td.appendChild(csStyleButton("*", false));
+    if (k === "style" && cams.some((c) => c.styleDetail))
+      td.appendChild(csStyleButton("*", new Set(cams.filter((c) => c.styleDetail).map(styleKey)).size > 1, null));
     return td;
   }
 
