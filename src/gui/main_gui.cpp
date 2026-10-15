@@ -1029,10 +1029,10 @@ namespace
                     for (const auto& [group, file] : byCamera)
                         perCamera.push_back(file);
 
-                    // Subpastas só quando há mais de um tipo de arquivo (fotos + vídeo, ou dois formatos)
+                    // Subpastas só quando há fotos e sequência juntas: Photos/ e Sequence/
                     const bool savePhotos = !job.photoFormat.empty();
-                    const size_t kinds = (savePhotos ? 1 : 0) + (job.sequence ? job.options.formats.size() : 0);
-                    const fs::path photosDir = kinds > 1 ? target / "Photos" : target;
+                    const bool split = savePhotos && job.sequence && !job.options.formats.empty();
+                    const fs::path photosDir = split ? target / "Photos" : target;
 
                     if (job.sequence)
                     {
@@ -1043,9 +1043,7 @@ namespace
                         {
                             Export::SequenceOptions one = job.options;
                             one.formats = { format };
-                            std::string upper = format;
-                            for (char& c : upper) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-                            const fs::path dir = kinds > 1 ? target / upper : target;
+                            const fs::path dir = split ? target / "Sequence" : target;
                             fs::create_directories(dir, ec);
                             if (!Export::WriteSequence(photos, dir / job.folderName, one, report, &exportCancel, error))
                                 break;

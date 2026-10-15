@@ -741,6 +741,13 @@
   // A sessão mais recente fica selecionada: ao abrir, quando chega uma sessão
   // nova e quando a selecionada é apagada ou salva
   function setSessions(list) {
+    setTimeout(() => {
+      // Janela de salvar aberta (ex.: salvamento com erro): mostra só o que ainda está no app
+      if ($("exportOverlay").classList.contains("hidden") || !sessions.length) return;
+      exp.selected = new Set([...exp.selected].filter((n) => sessions.some((s) => s.name === n)));
+      if (!sessions.some((s) => s.name === exp.active)) exp.active = sessions[0].name;
+      renderExport();
+    }, 0);
     const known = sessions.map((x) => x.name);
     sessions = list || [];
     updateButtons();
@@ -1409,8 +1416,7 @@
 
   function runExport(deleteRest) {
     const names = sessions.filter((s) => exp.selected.has(s.name)).map((s) => s.name);
-    closeExport();
-    exp.waiting = true;  // se a escolha da pasta for cancelada, a janela volta como estava
+    exp.waiting = true;  // a janela fica aberta até salvar de fato
     window.exportSessions(exp.exitAfter ? "exit" : "", deleteRest ? "delete" : "", ...names.map(exportSpec));
   }
 
@@ -1419,12 +1425,10 @@
     if (!chosen) return;
     const left = sessions.length - chosen;
     if (!left) return runExport(false);
-    $("exportOverlay").classList.add("hidden");
-    stopPreview();
     dialog("Delete the sessions you did not select?",
       plural(left, "session was", "sessions were") + " not selected. You can delete " + (left === 1 ? "it" : "them") +
       " after the others are saved, or keep " + (left === 1 ? "it" : "them") + " in the app to save later.", [
-      { label: "Back", onClick: () => { $("exportOverlay").classList.remove("hidden"); renderExportSettings(); } },
+      { label: "Back" },
       { label: "Keep " + (left === 1 ? "it" : "them"), onClick: () => runExport(false) },
       { label: "Delete " + (left === 1 ? "it" : "them"), danger: true, onClick: () => runExport(true) },
     ]);
@@ -1688,14 +1692,11 @@
 
     // Fotos guardadas
     sessions(e) { setSessions(e.sessions); },
-    saving() { exp.waiting = false; activity.saving = true; renderActivity(); },
+    saving() { activity.saving = true; renderActivity(); },
     exportProgress(e) { showProgress(e); },
     saveCancelled() {
-      if (exp.waiting) {
-        exp.waiting = false;
-        $("exportOverlay").classList.remove("hidden");
-        renderExport();
-      } else toast("Save cancelled");
+      if (exp.waiting) exp.waiting = false;  // a janela continua aberta como estava
+      else toast("Save cancelled");
     },
     exportConflict(e) {
       const labels = e.names.map((n) => sessionLabel(n).date);
@@ -1712,6 +1713,9 @@
     saved(e) {
       activity.saving = false;
       $("progressOverlay").classList.add("hidden");
+      // Salvo: a janela de salvar fecha. Com erro, continua aberta com o que faltou
+      exp.waiting = false;
+      if (!e.error) closeExport();
       if (exp.closeWhenDone) {
         const how = exp.closeWhenDone;
         exp.closeWhenDone = "";
