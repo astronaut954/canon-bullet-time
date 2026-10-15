@@ -181,6 +181,13 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Countdown, Sessions e Download wait: só aceitam números inteiros (letras, ponto e sinal
       não entram); no máximo 3 dígitos; vazio ou abaixo do mínimo volta ao padrão ao sair do
       campo; setas ↑ ↓ somam ou tiram 1.
+- [ ] Cancelar o bullet time (com câmeras): Countdown 10 e Sessions 3.
+  - [ ] Na contagem: botão Cancel (ou Esc) para na hora; nada é disparado e não aparece sessão vazia.
+  - [ ] Entre sessões: "Cancel bullet time" (o botão de disparo) depois da 1ª sessão; a 2ª não
+        começa e a 1ª fica no app.
+  - [ ] Esperando as fotos: "Cancel bullet time"; as fotos que chegaram ficam na sessão.
+  - [ ] Atividade mostra "Bullet time cancelled"; o botão volta a "It's bullet time".
+  - [ ] Terminal app: sem mudança (não tem cancelamento).
 
 ## Resultado
 

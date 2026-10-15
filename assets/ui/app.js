@@ -109,6 +109,8 @@
   const startedAt = Date.now();
   let busy = false;
   let busyAction = "";
+  let shootCancelling = false;   // pediu para cancelar, esperando o núcleo parar
+  let shootCancelled = false;    // o bullet time atual foi cancelado
   let cameras = [];              // última lista recebida (inclui as que estão conectando)
   let sessions = [];
   let currentSession = null;
@@ -654,7 +656,12 @@
 
     // Reiniciar as conexões espera a conexão em andamento terminar: não durante uma
     ui.restartBtn.disabled = busy || sdkBusy;
-    ui.shootBtn.disabled = busy || connected === 0 || sdkBusy;
+    // Durante o bullet time, o botão de disparo vira "Cancel bullet time"
+    const shooting = busy && busyAction === "shoot";
+    ui.shootBtn.textContent = shooting ? (shootCancelling ? "Cancelling…" : "Cancel bullet time") : "It's bullet time";
+    ui.shootBtn.classList.toggle("btn-primary", !shooting);
+    ui.shootBtn.classList.toggle("btn-danger", shooting);
+    ui.shootBtn.disabled = shooting ? shootCancelling : (busy || connected === 0 || sdkBusy);
     ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
     ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
     ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
@@ -1606,6 +1613,7 @@
     busy(e) {
       busy = e.busy;
       busyAction = e.busy ? e.action : "";
+      if (e.busy && e.action === "shoot") { shootCancelling = false; shootCancelled = false; }
       activity.busyText = "";
       renderActivity();
       if (busy) {
@@ -1678,6 +1686,7 @@
     sessionFolderFailed() { log("Could not create the folder for the session.", "error"); },
     countdownStarted() {
       if (orderCapture()) return;
+      $("countdownCancel").disabled = shootCancelling;
       ui.countdownOverlay.classList.remove("hidden");
     },
     countdownTick(e) {
@@ -1717,8 +1726,16 @@
     },
     sessionInterrupted() { if (!orderCapture()) log("The session stopped before the end.", "error"); },
     sessionCompleted() {},
+    sequenceCancelled() {
+      ui.countdownOverlay.classList.add("hidden");
+      if (orderCapture()) return;
+      shootCancelled = true;
+      log("Bullet time cancelled", "warn", "Photos that already arrived stay in the session.");
+      ui.progress.textContent = "Cancelled.";
+    },
     sequenceFinished(e) {
       if (orderCapture()) return;
+      if (shootCancelled) return;  // já avisado em sequenceCancelled
       if (e.completed) {
         log("Bullet time complete", "ok");
         ui.progress.textContent = "Done. The new session is shown above.";
@@ -2106,8 +2123,25 @@
     ]);
   });
   ui.shootBtn.addEventListener("click", () => {
+    if (busy && busyAction === "shoot") return cancelShoot();
     window.shoot(intValue(ui.countdown, 0, 0), intValue(ui.sessions, 1, 1), intValue(ui.downloadWait, 1, 10));
   });
+
+  // Cancelar o bullet time: botão na contagem, Esc na contagem ou o botão de disparo
+  // (que vira "Cancel bullet time" enquanto roda). O que já foi disparado não volta.
+  function cancelShoot() {
+    if (!(busy && busyAction === "shoot") || shootCancelling) return;
+    shootCancelling = true;
+    $("countdownCancel").disabled = true;
+    updateButtons();
+    window.cancelShoot();
+  }
+  $("countdownCancel").addEventListener("click", cancelShoot);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || ui.countdownOverlay.classList.contains("hidden")) return;
+    e.stopImmediatePropagation();
+    cancelShoot();
+  }, true);
   ui.logToggle.addEventListener("click", () => {
     ui.log.classList.toggle("expanded");
     ui.log.classList.toggle("collapsed");

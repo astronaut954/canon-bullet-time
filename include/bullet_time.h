@@ -7,6 +7,7 @@
 
 #include "canon_controller.h"
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -43,6 +44,8 @@ public:
     virtual void OnDownloadTimeout(const std::vector<const CameraContext*>& /*lostCameras*/) {}
     virtual void OnSessionInterrupted() {}
     virtual void OnSessionCompleted() {}
+    // A pessoa cancelou (RequestCancel); depois vem OnSequenceFinished(false)
+    virtual void OnSequenceCancelled() {}
     virtual void OnSequenceFinished(bool /*completed*/) {}
 };
 
@@ -64,6 +67,11 @@ public:
     // Executa a sequência de disparos. Retorna true se todas as sessões terminaram.
     bool RunSequence(const SequenceSettings& settings);
 
+    // Pede para parar a sequência em andamento: na contagem (nada é disparado), entre
+    // sessões (a próxima não começa) ou esperando as fotos (as que chegaram ficam).
+    // Um disparo já feito não volta. Pode ser chamado de outra thread.
+    void RequestCancel() { cancelRequested = true; }
+
     // Aperta o botão do obturador até a metade, para identificar a câmera.
     bool TestCamera(const CameraContext& camera);
 
@@ -71,9 +79,11 @@ public:
     void PumpEvents(int totalMs, int stepMs = 50);
 
 private:
-    void RunCountdown(int seconds, bool playSounds);
+    // false se a contagem foi cancelada (aí não dispara)
+    bool RunCountdown(int seconds, bool playSounds);
     static std::string GenerateShotId();
 
     CanonController& controller;
     BulletTimeListener& listener;
+    std::atomic<bool> cancelRequested{ false };
 };

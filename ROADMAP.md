@@ -205,6 +205,11 @@ sozinha, na v2.5.1. Motivo extra: sem menu, o Mac não aceitava ⌘C, ⌘V e ⌘
   esses arquivos (o `build_release.py` copia do projeto).
 - Junto (pedido em 2026-10-15): Countdown, Sessions e Download wait só aceitam números inteiros
   (o Mac deixava digitar letras), até 999.
+- Junto (aprovado em 2026-10-15): cancelar o bullet time. Na contagem (botão Cancel e Esc; nada
+  dispara e a pasta vazia sai), entre sessões e esperando as fotos (o botão de disparo vira
+  "Cancel bullet time"; as fotos que chegaram ficam). Núcleo: `BulletTime::RequestCancel()` e o
+  aviso `OnSequenceCancelled`; a contagem passou a esperar em passos de 0,1 s. O terminal não
+  chama o cancelamento, então a saída dele não muda.
 - Verificado aqui: código de Mac e de Windows compila (Mac com cabeçalhos simulados, Windows com
   MinGW); telas testadas num navegador. Falta: compilar e testar no Mac e no Windows.
 

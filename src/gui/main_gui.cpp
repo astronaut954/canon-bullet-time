@@ -397,6 +397,7 @@ namespace
             lastDone = lastTotal = -1;
             Emit(Json("sessionCompleted"));
         }
+        void OnSequenceCancelled() override { Emit(Json("sequenceCancelled")); }
         void OnSequenceFinished(bool completed) override
         {
             lastDone = lastTotal = -1;
@@ -963,6 +964,14 @@ namespace
                 bulletTime.RunSequence(settings);
                 emitSessions();
             });
+            return "null";
+        });
+
+        // cancelShoot(): para o bullet time em andamento (contagem, entre sessões ou
+        // esperando as fotos). Só avisa o núcleo; ele para no próximo décimo de segundo.
+        window.bind("cancelShoot", [&](const std::string&) -> std::string
+        {
+            bulletTime.RequestCancel();
             return "null";
         });
 

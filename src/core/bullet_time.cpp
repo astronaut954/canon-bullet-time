@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 #include <random>
 #include <set>
 #include <thread>
@@ -131,7 +132,7 @@ bool BulletTime::TestCamera(const CameraContext& camera)
     return true;
 }
 
-void BulletTime::RunCountdown(int seconds, bool playSounds)
+bool BulletTime::RunCountdown(int seconds, bool playSounds)
 {
     const auto countdownAudio = GetAssetAudioPath("countdown.wav");
     const auto bulletTimeAudio = GetAssetAudioPath("itsbullettime.wav");
@@ -145,13 +146,22 @@ void BulletTime::RunCountdown(int seconds, bool playSounds)
             listener.OnCountdownTick(i);
             if (playSounds)
                 AudioPlayer::PlayWavAsync(countdownAudio.string());
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            // 1 s em passos de 0,1 s, para o cancelamento responder na hora
+            for (int step = 0; step < 10; ++step)
+            {
+                if (cancelRequested)
+                    return false;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
         }
     }
+    if (cancelRequested)
+        return false;
 
     listener.OnTrigger();
     if (playSounds)
         AudioPlayer::PlayWavAsync(bulletTimeAudio.string());
+    return true;
 }
 
 std::string BulletTime::GenerateShotId()
@@ -174,6 +184,8 @@ std::string BulletTime::GenerateShotId()
 bool BulletTime::RunSequence(const SequenceSettings& settings)
 {
     bool sequenceAborted = false;
+    bool cancelled = false;
+    cancelRequested = false;
     std::string shotId;
 
     if (settings.sessionCount > 1)
@@ -181,6 +193,11 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
 
     for (int sessionIndex = 1; sessionIndex <= settings.sessionCount; ++sessionIndex)
     {
+        if (cancelRequested)  // cancelado entre sessões: a próxima não começa
+        {
+            cancelled = true;
+            break;
+        }
         listener.OnSessionStarted(sessionIndex, settings.sessionCount);
 
         if (!controller.PrepareSessionFolder(sessionIndex, settings.sessionCount, shotId))
@@ -190,7 +207,16 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             break;
         }
 
-        RunCountdown(settings.countdownSeconds, settings.playSounds);
+        if (!RunCountdown(settings.countdownSeconds, settings.playSounds))
+        {
+            // Cancelado na contagem: nada foi disparado; a pasta vazia da sessão sai
+            std::error_code ec;
+            for (const auto& cam : controller.GetCameras())
+                if (!cam.currentShotDir.empty())
+                    std::filesystem::remove(cam.currentShotDir, ec);  // só apaga se estiver vazia
+            cancelled = true;
+            break;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
 
         controller.ShootAll();
@@ -222,6 +248,12 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             if (done >= total && total > 0)
                 break;
 
+            if (cancelRequested)  // cancelado esperando as fotos: as que chegaram ficam
+            {
+                cancelled = true;
+                break;
+            }
+
             if (elapsed >= maxWaitMs)
             {
                 controller.RefreshCameraConnectionStatus();
@@ -245,10 +277,14 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             listener.OnSessionInterrupted();
             break;
         }
+        if (cancelled)
+            break;
 
         listener.OnSessionCompleted();
     }
 
-    listener.OnSequenceFinished(!sequenceAborted);
-    return !sequenceAborted;
+    if (cancelled)
+        listener.OnSequenceCancelled();
+    listener.OnSequenceFinished(!sequenceAborted && !cancelled);
+    return !sequenceAborted && !cancelled;
 }
