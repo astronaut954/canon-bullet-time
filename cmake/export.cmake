@@ -72,7 +72,8 @@ FetchContent_MakeAvailable(libwebp minimp4 libavif)
 set(BUILD_SHARED_LIBS ${_stillpoint_shared})
 unset(CMAKE_POLICY_DEFAULT_CMP0077)
 
-add_library(stillpoint_export STATIC "${STILLPOINT_SOURCE_ROOT}/src/gui/exporter.cpp" "${STILLPOINT_SOURCE_ROOT}/src/gui/photo_store.cpp")
+add_library(stillpoint_export STATIC "${STILLPOINT_SOURCE_ROOT}/src/gui/exporter.cpp" "${STILLPOINT_SOURCE_ROOT}/src/gui/photo_store.cpp"
+            "${STILLPOINT_SOURCE_ROOT}/src/gui/color_match.cpp")
 target_include_directories(stillpoint_export PUBLIC "${STILLPOINT_SOURCE_ROOT}/src/gui" "${STILLPOINT_SOURCE_ROOT}/include" "${stb_SOURCE_DIR}"
                            PRIVATE "${libwebp_SOURCE_DIR}/src" "${minimp4_SOURCE_DIR}")
 target_link_libraries(stillpoint_export PUBLIC libraw::libraw PRIVATE webp libwebpmux avif)

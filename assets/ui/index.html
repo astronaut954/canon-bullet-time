@@ -69,8 +69,11 @@
       <!-- ====================== CÂMERAS ====================== -->
       <section class="panel cameras-panel">
         <div class="panel-head">
-          <h2>Cameras</h2>
-          <button id="orderBtn" class="btn btn-secondary btn-small" disabled>Reorder by photo</button>
+          <h2>Cameras<span id="cameraCount" class="count hidden"></span></h2>
+          <div class="panel-actions">
+            <button id="camSettingsBtn" class="btn btn-secondary btn-small" disabled title="See and match the settings of all cameras">Camera settings</button>
+            <button id="orderBtn" class="btn btn-secondary btn-small" disabled>Reorder by photo</button>
+          </div>
         </div>
         <ul id="cameraList" class="camera-list"></ul>
         <p id="searching" class="empty">Looking for cameras</p>
@@ -162,6 +165,36 @@
       <h3 id="dialogTitle"></h3>
       <p id="dialogText"></p>
       <div id="dialogActions" class="dialog-actions"></div>
+    </div>
+  </div>
+
+  <!-- Camera settings: ISO, velocidade, abertura... de cada câmera, mudados na hora -->
+  <div id="camSettingsOverlay" class="overlay hidden">
+    <div class="sheet cs-sheet">
+      <div class="cs-head">
+        <h3>Camera settings
+          <span class="info-tip" tabindex="0" aria-label="What the colors mean">?
+            <span class="info-tip-text">
+              <span class="cs-key cs-key-diff"></span>Different from the other cameras<br>
+              <span class="cs-key cs-key-na"></span>Not available or not changeable on this camera<br>
+              <span class="cs-key cs-key-warn"></span>Needs attention on the camera (for example, autofocus on)<br>
+              Changes go to the camera right away.
+            </span>
+          </span>
+        </h3>
+        <p>Settings of each camera, read from the camera. Change a value in <b>All cameras</b> to set it on every camera, or change one camera only. <b>Test shot</b> fires all cameras to show how the photos look. With <b>Match automatically</b> on, it also changes the cameras so they look alike.</p>
+      </div>
+      <!-- Teste rápido: uma foto de cada câmera, só para conferir (não é salva) -->
+      <div id="csTestBox" class="cs-test hidden"><div id="csGallery" class="gallery"></div></div>
+      <div id="csBody" class="cs-body"></div>
+      <div class="cs-foot">
+        <button id="csTest" class="btn btn-secondary" title="Fires all cameras to check the photos. The photos are not saved.">Test shot</button>
+        <label class="log-option cs-auto" title="Sets the same shutter, aperture, ISO and Picture Style, a common white balance, and matches the color (white balance fine-tune) and brightness (ISO) of every camera to the average of all. Takes up to 5 photos."><input id="csAuto" type="checkbox" checked> Match automatically</label>
+        <button id="csRead" class="btn btn-link btn-small">Read again</button>
+        <span class="spacer"></span>
+        <label class="cs-copy"><span>Copy from camera</span><select id="csCopy" class="cs-sel"></select></label>
+        <button id="csDone" class="btn btn-primary">Done</button>
+      </div>
     </div>
   </div>
 

@@ -33,6 +33,8 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 9 | Abertura | Tela de entrada com chuva de código verde aparecendo aos poucos e o logo com fade in; toda vez que o app abre; clique ou tecla pula. Testado no Mac e no Windows (2026-10-14). | feito |
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
+| 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
+| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. Candidatos anotados em 2026-10-15: igualar contraste e saturação pelo Picture Style (conferir antes se a SL3 e a T7 aceitam pelo computador) e medir um cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | depois |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -223,11 +225,93 @@ lado para sempre, e o botão não limpava essa lista. Correção: o botão limpa
 Canon que aparece de novo no USB conta como esse aviso. Só o app de janela usa essa parte. Testado no Mac e no
 Windows pelo dono do projeto (2026-10-15).
 
+### Etapa 12: configurações das câmeras pelo app (2026-10-15, versão 2.7.0)
+
+Decisões do dono do projeto (2026-10-15): começar pela Canon, preparado para outras marcas;
+o app precisa indicar quais câmeras não dá para ajustar. Dado verificado na documentação do
+EDSDK 13.20.10: ISO, Av, Tv, compensação de exposição, balanço de branco, temperatura de cor
+(2800–10000 K), ajuste fino do balanço, Picture Style e qualidade são de leitura e escrita, sem
+restrição por modelo; cada câmera informa os valores aceitos (EdsGetPropertyDesc). O modo (M,
+Av...) não muda pelo SDK em câmeras com disco de modos; nos modos automáticos as configurações
+de disparo não podem ser mudadas. EOS M, M2, M3, M5, M6, M10 e M100 não aceitam disparo remoto.
+Modo de foco: só leitura (MF vem da chave da lente; mudar o modo AF só foi testado pela Canon na
+EOS R5). Compensação de exposição não vale no modo M (fica sem opções).
+
+Tela aprovada em 2026-10-15: botão "Camera settings" no painel Cameras; tabela com uma linha por
+câmera e a linha "All cameras" (balanço de branco nela: os predefinidos que todas aceitam e, se
+todas aceitarem, os valores em Kelvin; a SL3 e a T7 não oferecem Kelvin); colunas ISO, Shutter, Aperture,
+Exp. comp., White balance, WB fine-tune, Picture Style, Quality e Focus (só leitura, âmbar
+com AF ligado); Drive saiu da tabela (decisão de 2026-10-15): o app põe toda câmera em disparo único
+sozinho (único silencioso também vale) e, se a câmera não aceitar, avisa ("Not on single shot"); mudanças vão para a câmera na hora; legenda num ícone (?); "Copy from camera";
+avisos no painel ("Settings differ", "Settings on the camera only"). No painel Cameras: cabeçalho
+fixo, só a lista rola, e arrastar para reordenar.
+- Teste rápido (pedido em 2026-10-15): botão "Test shot" no Camera settings dispara todas as
+  câmeras uma vez e mostra as fotos lado a lado (← → para comparar). São fotos temporárias, as
+  mesmas do "Reorder by photo": apagadas ao fechar a janela ou no próximo teste.
+- Ajuste automático (decidido em 2026-10-15: igualar à média de todas, cor e brilho; refeito no
+  mesmo dia: é o próprio Test shot que ajusta, e mexe em tudo que faz as câmeras ficarem
+  parecidas). Caixa "Match automatically" ao lado do Test shot (ligada por padrão; não há mais
+  botão "Auto match"). Com ela, o Test shot (`src/gui/auto_match.cpp`):
+  1. sem foto, põe a mesma velocidade, abertura, ISO e compensação em todas (o valor mais perto
+     da média que todas aceitam) e o mesmo Picture Style (o mais comum; nunca Auto, que muda a
+     cada cena; só Auto vira Standard);
+  2. foto 1, como estão: a média da cor e do brilho de todas é o alvo;
+  3. se o balanço de branco está em Auto ou diferente entre elas: todas em Daylight sem ajuste
+     fino, foto 2, e daí um balanço comum que deixa a cor perto do alvo (Kelvin se todas
+     aceitarem; senão o predefinido mais perto: Daylight 5200 K, Shade 7000, Cloudy 6000,
+     Tungsten 3200, Fluorescent 4000; troca de predefinido uma vez, se a foto seguinte mostrar
+     que outro fica mais perto);
+  4. cor pelo ajuste fino do balanço (Canon: 1 passo azul/âmbar ≈ 5 mireds; no SDK, AB −
+     azul/+ âmbar; GM: a documentação diz − verde/+ magenta, mas na T7 +5 aparece como G5 no
+     menu da câmera — conferido em 2026-10-15 na T7 e na SL3, então o app usa − magenta/+ verde). O ajuste
+     automático não depende disso: confere pela foto o sentido de cada câmera e, se a cor andou
+     para o lado contrário, inverte (enquanto não confere, anda no máximo 3 passos; uma foto a
+     mais quando inverte). Simulação com 30% das câmeras invertidas: resultado igual ao normal.
+  - Calibração por modelo (ideia do dono do projeto, 2026-10-15): na primeira vez de um modelo,
+    com o balanço de branco fixo, o app tira 2 fotos a mais com o ajuste fino no extremo de
+    cada eixo (A9, depois G9) e mede o sentido e a força dele naquela câmera. Fica guardado em
+    `camera-calibration.txt` na pasta de dados do app; nas próximas vezes pula essas fotos. Se
+    uma foto contradisser o guardado, o app apaga e calibra de novo. Modelo medido invertido:
+    a tabela troca os rótulos (A/B, G/M) só para ele. No máximo 6 fotos (7 se inverter).
+  - Decidido em 2026-10-15: não calibrar ISO, abertura nem balanço de branco (efeito já
+    conhecido ou que muda com a lente e a luz). Com ISO em Auto, o app avisa antes de começar
+    (Cancel / Continue anyway). Durante o Test shot o botão vira "Cancel": para entre as fotos
+    ou esperando as fotos e, com ajuste, volta as câmeras como estavam. e brilho pelo ISO (em M) ou pela compensação (outros
+     modos); foto de novo e corrige pelo quanto a câmera respondeu. No máximo 5 fotos.
+  Mostra as últimas fotos e um resumo do que mudou em cada câmera. Medida conferida aqui com
+  cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido; +1/3 de stop esperado, +0,35
+  medido). Simulação aqui com câmeras falsas (300 cenários sorteados: sensores, luz de 2900 a
+  7000 K, balanço em Auto ou Daylight): diferença típica entre câmeras caiu de ~6 para ~0,8
+  passo em azul/âmbar e de ~1 para ~0,2 stop no brilho. Isso é a conta, não câmera de verdade.
+  Limite: ISO anda de 1/3 de stop, então sobra até ~1/6 de stop de diferença.
+  **Pendente (2026-10-15):** no primeiro teste com câmeras de verdade (Mac, SL3 + T7) o resultado
+  "deixou muito a desejar" (dono do projeto). Corrigir depois, com fotos do teste para analisar.
+- Layout do Test shot (decidido em 2026-10-15, opção A entre três comparadas): sem a prévia
+  grande; só a fileira de miniaturas, maiores e com a foto inteira. Clicar numa miniatura abre a
+  foto grande por cima da janela (← → passam de câmera, Esc ou Close fecham). "Hide photos"
+  recolhe a fileira; um novo Test shot abre de novo.
+- Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
+  `src/core/camera_settings_canon.cpp` (Canon). Com a janela aberta, a página lê as câmeras de
+  novo a cada 3 s (mudanças feitas na própria câmera aparecem sozinhas). O aviso do SDK de
+  "configuração mudada" foi tirado: no Mac, o app fechou ao desligar as câmeras com ele ligado
+  (falha dentro do EdsGetEvent; a causa é suspeita, não confirmada). O app confere o disparo
+  único antes de cada bullet time e de cada Test shot.
+- Verificado aqui: código compila (cabeçalhos simulados do SDK); telas testadas num navegador com
+  dados simulados (5 e 16 câmeras). Falta: testar com câmeras de verdade no Mac e no Windows.
+
 ## Futuro (não planejado ainda)
 
 - **Outras marcas (Sony, Nikon).** Viável marca a marca, com câmera para testar.
-  Sony: SDK oficial gratuito, Windows 11 x64 e macOS 14.1+, ~33 modelos recentes.
-  Nikon: confirmar como o SDK atual é distribuído antes de decidir.
+  Sony (site oficial, conferido em 2026-10-15): SDK gratuito, Windows 11 x64 e macOS 14.1+,
+  cerca de 35 modelos recentes (α1, α9 II/III, α7 IV/V, α7R IV/V, α7S III, α7C/C II/CR,
+  α6700, FX3/FX30/FX2, ZV-E1, ZV-E10 II...); modelos antigos comuns (a6000 a a6600, α7 III)
+  ficam de fora; exige o firmware mais recente. A lista exata de configurações por modelo
+  está no manual do SDK (não lido).
+  Nikon (site oficial, conferido em 2026-10-15): um SDK por modelo (D300 a D850, Df, Z5,
+  Z6/6 II, Z7/7 II, Z8, Z9; Z6 III e Z50 II não aparecem). **O SDK de controle remoto só
+  controla uma câmera por vez** — bloqueia o bullet time com várias Nikon. No Mac com Apple
+  Silicon, os módulos rodam pelo Rosetta 2 (o Stillpoint é só Apple Silicon: precisaria de
+  um programa auxiliar).
 - **Pesquisar a libgphoto2** (biblioteca aberta, várias marcas via PTP/USB) como
   alternativa a um SDK por marca. Pontos a verificar: suporte no Windows e
   precisão do disparo sincronizado.

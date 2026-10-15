@@ -111,6 +111,11 @@
   let busyAction = "";
   let shootCancelling = false;   // pediu para cancelar, esperando o núcleo parar
   let shootCancelled = false;    // o bullet time atual foi cancelado
+  let camSettings = [];          // configurações de cada câmera (evento cameraSettings)
+  const csPending = new Set();   // "câmera|chave" enviados e ainda sem resposta ("*" = todas)
+  const csTest = { capturing: false, has: false };  // teste rápido do Camera settings
+  let csPoll = 0;                // releitura a cada 3 s com a janela aberta
+  let csRenderLater = false;     // chegou leitura nova com uma lista aberta: redesenha ao sair dela
   let cameras = [];              // última lista recebida (inclui as que estão conectando)
   let sessions = [];
   let currentSession = null;
@@ -345,7 +350,16 @@
       li.title = item.title + (item.subtitle ? " · " + item.subtitle : "");
       const img = li.querySelector(".frame-img");
       if (item.file && item.previewable) {
-        opts.load(item, 320).then((url) => { if (url) img.style.backgroundImage = "url(" + url + ")"; });
+        opts.load(item, 320).then((url) => {
+          if (!url) return;
+          img.style.backgroundImage = "url(" + url + ")";
+          // Miniatura com a proporção da foto (foto inteira, em pé ou deitada)
+          if (opts.fitThumbs) {
+            const probe = new Image();
+            probe.onload = () => img.style.setProperty("--ar", probe.naturalWidth + " / " + probe.naturalHeight);
+            probe.src = url;
+          }
+        });
       } else {
         // Sem prévia: mostra o tipo do arquivo (ex.: "TIF"), ou nada se a câmera não mandou foto
         img.appendChild(document.createTextNode(item.file ? item.file.split(".").pop().toUpperCase() : ""));
@@ -545,6 +559,8 @@
 
     placed.forEach((cam, index) => ui.cameraList.appendChild(cameraRow(cam, index, placed.length)));
     cameras.filter((c) => c.order === 0).forEach((cam) => ui.cameraList.appendChild(cameraRow(cam, -1, placed.length)));
+    $("cameraCount").textContent = cameras.length;
+    $("cameraCount").classList.toggle("hidden", cameras.length === 0);
     updateButtons();
   }
 
@@ -584,6 +600,15 @@
       warn.textContent = "Not on Canon's compatibility list. It may not work correctly.";
       info.appendChild(warn);
     }
+    // Configurações: diferente das outras, ou só dá para ajustar na câmera
+    const tag = state === "connected" ? cameraSettingsTag(cam.name) : null;
+    if (tag) {
+      const t = document.createElement("div");
+      t.innerHTML = '<span class="cs-tag ' + tag.cls + '"></span>';
+      t.firstChild.textContent = tag.text;
+      if (tag.title) t.firstChild.title = tag.title;
+      info.appendChild(t);
+    }
 
     const actions = document.createElement("div");
     actions.className = "camera-actions";
@@ -596,7 +621,69 @@
     }
 
     li.append(order, info, actions);
+    li.dataset.name = cam.name || "";
+    // Arrastar para mudar a ordem (só as câmeras que já têm posição)
+    if (index >= 0) {
+      li.dataset.placed = "1";
+      li.classList.toggle("can-drag", !busy);
+      li.addEventListener("pointerdown", (e) => camPointerDown(e, li));
+    }
     return li;
+  }
+
+  // ----- Arrastar câmeras para reordenar -----
+  let camDrag = null;
+  function placedRows() { return [...ui.cameraList.querySelectorAll("li.camera[data-placed='1']")]; }
+  function camPointerDown(e, li) {
+    if (e.button !== 0 || busy || e.target.closest("button")) return;
+    camDrag = { li, y: e.clientY, moved: false, scroll: ui.cameraList.scrollTop };
+    li.setPointerCapture(e.pointerId);
+    li.onpointermove = camPointerMove;
+    li.onpointerup = (ev) => camEndDrag(camDrag && camDrag.moved ? camInsertion(ev.clientY) : null);
+    li.onpointercancel = () => camEndDrag(null);
+  }
+  function camInsertion(y) {
+    return placedRows().filter((li) => {
+      if (li === camDrag.li) return false;
+      const r = li.getBoundingClientRect();
+      return r.top + r.height / 2 < y;
+    }).length;
+  }
+  function camPointerMove(e) {
+    const d = camDrag;
+    if (!d) return;
+    const dy = e.clientY - d.y;
+    if (!d.moved && Math.abs(dy) < 6) return;
+    d.moved = true;
+    d.li.classList.add("dragging");
+    // Rola a lista quando o arraste chega perto de cima ou de baixo
+    const list = ui.cameraList, r = list.getBoundingClientRect();
+    if (e.clientY < r.top + 30) list.scrollTop -= 10;
+    if (e.clientY > r.bottom - 30) list.scrollTop += 10;
+    d.li.style.transform = "translateY(" + (dy + list.scrollTop - d.scroll) + "px)";
+    const others = placedRows().filter((li) => li !== d.li);
+    const target = camInsertion(e.clientY);
+    let marker = list.querySelector(".camera-drop");
+    if (!marker) { marker = document.createElement("div"); marker.className = "camera-drop"; list.appendChild(marker); }
+    const top = !others.length ? 0 : target < others.length ? others[target].offsetTop - 5
+      : others[others.length - 1].offsetTop + others[others.length - 1].offsetHeight + 3;
+    marker.style.top = top + "px";
+  }
+  function camEndDrag(target) {
+    const d = camDrag;
+    camDrag = null;
+    if (!d) return;
+    d.li.onpointermove = d.li.onpointerup = d.li.onpointercancel = null;
+    d.li.classList.remove("dragging");
+    d.li.style.transform = "";
+    const marker = ui.cameraList.querySelector(".camera-drop");
+    if (marker) marker.remove();
+    if (target === null || busy) return;
+    const names = placedRows().filter((li) => li !== d.li).map((li) => li.dataset.name);
+    names.splice(target, 0, d.li.dataset.name);
+    const before = placedRows().map((li) => li.dataset.name);
+    if (names.join("|") === before.join("|")) return;
+    window.setOrder(...names);
   }
 
   function smallButton(b, locked, usesCamera) {
@@ -663,6 +750,12 @@
     ui.shootBtn.classList.toggle("btn-danger", shooting);
     ui.shootBtn.disabled = shooting ? shootCancelling : (busy || connected === 0 || sdkBusy);
     ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
+    $("camSettingsBtn").disabled = busy || connected === 0;
+    // Fotografando: o botão do Test shot vira "Cancel"
+    $("csTest").textContent = csTest.capturing ? (csTest.cancelling ? "Cancelling…" : "Cancel") : "Test shot";
+    $("csTest").classList.toggle("btn-danger", csTest.capturing);
+    $("csTest").disabled = csTest.capturing ? !!csTest.cancelling : (busy || connected === 0);
+    document.querySelectorAll("#cameraList li[data-placed='1']").forEach((li) => li.classList.toggle("can-drag", !busy));
     ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
     ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
     checkSlowConnections();
@@ -972,6 +1065,34 @@
     draggable: true,
     load: (item, size) => orderPhoto(item.session, item.file, size),
   });
+  // Teste rápido do Camera settings (fotos temporárias, as mesmas do "Reorder by photo")
+  const csGallery = Gallery($("csGallery"), {
+    draggable: false,
+    fitThumbs: true,
+    load: (item, size) => orderPhoto(item.session, item.file, size),
+  });
+  // Só a fileira de miniaturas (maiores); clicar numa abre a foto grande por cima da
+  // janela, com ← → e Esc. "Hide photos" recolhe a fileira.
+  let csZoom = false, csCollapsed = false;
+  const csHideBtn = button("Hide photos", () => csSetCollapsed(!csCollapsed), { kind: "btn-link" });
+  csGallery.setActions([csHideBtn]);
+  csGallery.setStageTools([
+    button("", () => csGallery.prev(), { icon: "left", title: "Previous camera" }),
+    button("", () => csGallery.next(), { icon: "right", title: "Next camera" }),
+    button("Close", () => csSetZoom(false), { title: "Close (Esc)" }),
+  ]);
+  function csSetZoom(on) {
+    csZoom = !!on && csTest.has;
+    $("csTestBox").classList.toggle("zoom", csZoom);
+  }
+  function csSetCollapsed(on) {
+    csCollapsed = !!on;
+    $("csTestBox").classList.toggle("collapsed", csCollapsed);
+    csHideBtn.textContent = csCollapsed ? "Show photos" : "Hide photos";
+    if (csCollapsed) csSetZoom(false);
+  }
+  $("csGallery").querySelector(".carousel").addEventListener("click", (e) => { if (e.target.closest(".frame")) csSetZoom(true); });
+  $("csGallery").querySelector(".stage").addEventListener("click", (e) => { if (e.target === e.currentTarget) csSetZoom(false); });
   orderGallery.setActions([
     button("Move earlier", () => orderGallery.moveSelected(-1), { icon: "left" }),
     button("Move later", () => orderGallery.moveSelected(1), { icon: "right" }),
@@ -1607,7 +1728,8 @@
   // =================== Avisos do programa ===================
   // Enquanto as fotos do "Reorder by photo" são tiradas, os avisos de disparo
   // vão para essa janela, não para a atividade nem para a contagem.
-  const orderCapture = () => order.open && order.capturing;
+  const orderCapture = () => (order.open && order.capturing) || csTest.capturing;
+  const captureGallery = () => (csTest.capturing ? csGallery : orderGallery);
 
   const handlers = {
     busy(e) {
@@ -1621,7 +1743,16 @@
         setStatus(labels[e.action] || "Working", "busy");
         if (e.action === "restart") log("Camera connections restarted");
       } else {
-        if (orderCapture()) {
+        if (csTest.capturing) {
+          // Teste do Camera settings terminou sem fotos (ex.: uma câmera ainda conectando)
+          csTest.capturing = false;
+          const wasCancelled = csTest.cancelling;
+          csTest.cancelling = false;
+          $("camSettingsOverlay").querySelector(".cs-sheet").classList.remove("capturing");
+          csGallery.setHead(wasCancelled ? "Test shot cancelled" : "No photos", "");
+          csGallery.message(wasCancelled ? "Cancelled. Nothing was kept." : "The photos could not be taken. Try again when all cameras are ready.");
+          if (wasCancelled) window.discardOrderPhotos();
+        } else if (orderCapture()) {
           // O pedido terminou sem fotos (ex.: uma câmera ainda conectando)
           order.capturing = false;
           orderGallery.setHead("No photos", "");
@@ -1711,13 +1842,13 @@
     },
     waitingDownloads() {
       activity.busyText = "Receiving photos";
-      if (orderCapture()) return orderGallery.message("Receiving photos");
+      if (orderCapture()) return captureGallery().message("Receiving photos");
       ui.progress.textContent = "Receiving photos";
     },
     downloadProgress(e) {
       const text = "Receiving photos, " + e.done + " of " + e.total;
       activity.busyText = text;
-      if (orderCapture()) return orderGallery.message(text);
+      if (orderCapture()) return captureGallery().message(text);
       ui.progress.textContent = text;
     },
     downloadTimeout(e) {
@@ -1755,7 +1886,39 @@
     },
 
     // Reordenar por foto
-    orderPhotos(e) { if (order.open) showOrderPhotos(e.sessions); },
+    // Test shot com "Match automatically"
+    autoMatchProgress(e) {
+      csGallery.setHead("Test shot · matching", "Photo " + e.shot + " of up to " + e.shots + " · " + e.stage);
+      csGallery.message(e.stage);
+    },
+    autoMatchResult(e) {
+      const notes = e.notes || [];
+      if (e.cancelled) {
+        toast("Test shot cancelled. The cameras are back to how they were.");
+        log("Match automatically cancelled; camera settings restored", "warn");
+        return;
+      }
+      if (!e.matched) {
+        if (!e.ok) toast(e.error || "The photos could not be taken.", 8000);
+        if (notes.length) dialog("Not matched automatically", notes.join("\n"), [{ label: "OK", primary: true }]);
+        return;
+      }
+      const changes = e.changes || [];
+      const blocks = changes.map((c) => c.camera + "\n" + c.items.map(([what, from, to]) => "   " + what + ":  " + from + "  →  " + to).join("\n"));
+      const parts = [];
+      if (!e.ok) parts.push(e.error || "Try again.");
+      parts.push(blocks.length ? blocks.join("\n\n") : (e.ok ? "The cameras already look alike. Nothing was changed." : "Nothing was changed."));
+      if (notes.length) parts.push(notes.join("\n"));
+      if (e.ok) parts.push("The photos show the result. Use ← → to compare.");
+      const title = !e.ok ? "Matching did not finish" : blocks.length ? "Cameras matched" : "Nothing to change";
+      dialog(title, parts.join("\n\n"), [{ label: "OK", primary: true }]);
+      log("Match automatically: " + (blocks.length ? plural(blocks.length, "camera", "cameras") + " changed" : "no change"), e.ok ? "ok" : "warn");
+    },
+    orderPhotos(e) {
+      if (csTest.capturing && csTest.cancelling) return;  // cancelado: as fotos não são mostradas
+      if (csTest.capturing) showCsTest(e.sessions);
+      else if (order.open) showOrderPhotos(e.sessions);
+    },
 
     // Atualização
     updateProgress(e) {
@@ -1832,6 +1995,28 @@
     },
     // Item escolhido no menu do Mac (barra de cima)
     menu(e) { menuAction(e.item); },
+
+    // Configurações das câmeras (lidas quando as câmeras mudam ou depois de uma mudança)
+    cameraSettings(e) {
+      const next = e.cameras || [];
+      const same = JSON.stringify(next) === JSON.stringify(camSettings);
+      camSettings = next;
+      if (same) return;  // releitura sem mudança: nada a redesenhar
+      renderCameras();
+      if (!$("camSettingsOverlay").classList.contains("hidden")) csRender();
+    },
+    cameraSettingResult(e) {
+      const keys = e.key === "kelvin" || e.key === "wb" ? ["wb", "kelvin"] : [e.key];
+      [...csPending].forEach((p) => {
+        const [cam, key] = p.split("|");
+        if (keys.includes(key) && (e.camera === "*" || cam === e.camera || cam === "*")) csPending.delete(p);
+      });
+      if (!e.ok) {
+        toast(e.error || "A camera did not accept the change.", 8000);
+        log("A camera setting was not changed.", "warn", e.error);
+      }
+      if (!$("camSettingsOverlay").classList.contains("hidden")) renderCamSettings();
+    },
   };
 
   window.onCoreEvent = function (event) {
@@ -2095,6 +2280,394 @@
     restartApp();
   });
 
+  // =================== Camera settings ===================
+  // ISO, velocidade, abertura... de cada câmera, lidos da própria câmera e mudados na
+  // hora. "All cameras" muda em todas as que dá para ajustar. Cada lista só tem os
+  // valores que aquela câmera aceita agora.
+  const CS_COLS = [["iso", "ISO"], ["tv", "Shutter"], ["av", "Aperture"], ["expcomp", "Exp. comp."], ["wb", "White balance"],
+    ["shift", "WB fine-tune"], ["style", "Picture Style"], ["quality", "Quality"], ["focus", "Focus"]];
+  // Disparo único (o app põe sozinho; não é escolha). Único silencioso também vale.
+  const isSingleShot = (v) => v === 0x00 || v === 0x06 || v === 0x13;
+  const KELVINS = [];
+  for (let k = 2800; k <= 10000; k += 100) KELVINS.push(k);
+  const shiftLabel = (v, neg, pos) => (v === 0 ? "0" : (v < 0 ? neg : pos) + Math.abs(v));
+
+  // Valor para comparar entre câmeras (null = a câmera não tem)
+  function csLabel(c, key) {
+    if (key === "shift") return c.shiftAvailable ? c.shiftAB + "/" + c.shiftGM : null;
+    const st = c.settings && c.settings[key];
+    if (!st || !st.available) return null;
+    if (key === "wb" && st.value === 9) return "K" + c.kelvin;
+    return st.label;
+  }
+  // Valor mais comum de cada configuração entre as câmeras ajustáveis (empate: a primeira na ordem)
+  function csReference() {
+    const ref = {};
+    const cams = camSettings.filter((c) => c.adjustable);
+    CS_COLS.forEach(([k]) => {
+      if (k === "focus") return;
+      const counts = new Map();
+      cams.forEach((c) => { const l = csLabel(c, k); if (l !== null) counts.set(l, (counts.get(l) || 0) + 1); });
+      let best = null, n = 0;
+      counts.forEach((v, l) => { if (v > n) { n = v; best = l; } });
+      ref[k] = counts.size > 1 ? best : null;  // null: todas iguais (nada a marcar)
+    });
+    return ref;
+  }
+  const csDiffers = (c, k, ref) => ref[k] !== null && ref[k] !== undefined && csLabel(c, k) !== null && csLabel(c, k) !== ref[k];
+
+  // Aviso no painel Cameras
+  function cameraSettingsTag(name) {
+    const c = camSettings.find((x) => x.camera === name);
+    if (!c) return null;
+    const drive = c.settings && c.settings.drive;
+    if (drive && drive.available && !isSingleShot(drive.value))
+      return { cls: "diff", text: "Not on single shot", title: "The camera is on " + drive.label + " and did not accept single shooting. Set it to single shooting on the camera." };
+    if (!c.adjustable) return { cls: "locked", text: "Settings on the camera only", title: c.reason };
+    const ref = csReference();
+    if (CS_COLS.some(([k]) => k !== "focus" && csDiffers(c, k, ref))) return { cls: "diff", text: "Settings differ", title: "Open Camera settings to match the cameras." };
+    return null;
+  }
+
+  function csSelect(options, current, onPick, extraClass) {
+    const sel = document.createElement("select");
+    sel.className = "cs-sel" + (extraClass ? " " + extraClass : "");
+    options.forEach(([value, label, disabled]) => {
+      const o = document.createElement("option");
+      o.value = value;
+      o.textContent = label;
+      if (disabled) o.disabled = true;
+      sel.appendChild(o);
+    });
+    sel.value = current;
+    sel.addEventListener("change", () => onPick(sel.value));
+    return sel;
+  }
+  function csText(text, cls, title) {
+    const v = el("span", "cs-val" + (cls ? " " + cls : ""), text);
+    if (title) v.title = title;
+    return v;
+  }
+  function csSet(camera, key, value) {
+    csPending.add(camera + "|" + key);
+    renderCamSettings();
+    window.setCameraSetting(camera, key, String(value));
+  }
+  function csIsPending(camera, keys) {
+    return keys.some((k) => csPending.has(camera + "|" + k) || csPending.has("*|" + k));
+  }
+  const COL_KEYS = { wb: ["wb", "kelvin"], shift: ["shiftab", "shiftgm"] };
+
+  // ab ou gm null: câmeras com valores diferentes ("—" na lista; qualquer valor, até 0, aplica)
+  // flip: modelo que o app mediu com o sentido invertido (troca os rótulos daquele eixo)
+  function shiftPair(ab, gm, onAB, onGM, diff, flip) {
+    const f = flip || {};
+    const box = el("span", "cs-pair");
+    const range = [];
+    for (let v = -9; v <= 9; v++) range.push(v);
+    const list = (current, neg, pos, onPick, differs) => {
+      const options = range.map((v) => [String(v), shiftLabel(v, neg, pos)]);
+      if (current === null) options.unshift(["", "—", true]);
+      return csSelect(options, current === null ? "" : String(current), (v) => onPick(+v), "small" + (differs ? " diff" : ""));
+    };
+    // No SDK, + = âmbar e + = verde (conferido na T7 e na SL3)
+    box.append(list(ab, f.ab ? "A" : "B", f.ab ? "B" : "A", onAB, diff || ab === null),
+               list(gm, f.gm ? "G" : "M", f.gm ? "M" : "G", onGM, diff || gm === null));
+    box.title = "Blue (B) ↔ amber (A) and green (G) ↔ magenta (M)";
+    return box;
+  }
+
+  // Célula de uma câmera
+  function csCell(c, k, ref) {
+    const td = document.createElement("td");
+    td.className = "cs-cell" + (csIsPending(c.camera, COL_KEYS[k] || [k]) ? " applying" : "");
+    const diff = csDiffers(c, k, ref);
+    if (k === "focus") {
+      const f = c.settings.focus;
+      if (!f || !f.available) td.appendChild(csText("—", "na", "Not available on this camera"));
+      else if (c.focusManual) td.appendChild(csText("MF", "ok"));
+      else td.appendChild(csText(f.label, "warn", "Autofocus is on. Turn the lens switch to MF so the camera fires without delay."));
+      return td;
+    }
+    if (k === "shift") {
+      if (!c.shiftAvailable) td.appendChild(csText("—", "na", "Not available on this camera"));
+      else td.appendChild(shiftPair(c.shiftAB, c.shiftGM, (v) => csSet(c.camera, "shiftab", v), (v) => csSet(c.camera, "shiftgm", v), diff, { ab: c.abFlip, gm: c.gmFlip }));
+      return td;
+    }
+    const st = c.settings[k];
+    if (!st || !st.available) { td.appendChild(csText("—", "na", "Not available on this camera")); return td; }
+    const current = k === "wb" && st.value === 9 ? "k" + c.kelvin : String(st.value);
+    const currentLabel = k === "wb" && st.value === 9 ? c.kelvin + " K" : st.label;
+    if (!st.choices.length) {
+      // Tem o valor, mas não deixa mudar agora: valor dentro do tracejado
+      td.appendChild(csText(currentLabel, "na" + (diff ? " diff" : ""), "The camera does not allow changing this now."));
+      return td;
+    }
+    let options = st.choices.filter(([v]) => !(k === "wb" && v === 9)).map(([v, l]) => [String(v), l]);
+    if (k === "wb" && st.choices.some(([v]) => v === 9)) {
+      options = options.concat(KELVINS.map((kv) => ["k" + kv, kv + " K"]));
+      if (st.value === 9 && !KELVINS.includes(c.kelvin)) options.push(["k" + c.kelvin, c.kelvin + " K"]);
+    }
+    if (!options.some(([v]) => v === current)) options.unshift([current, currentLabel]);
+    td.appendChild(csSelect(options, current, (v) => {
+      if (k === "wb" && v.startsWith("k")) csSet(c.camera, "kelvin", +v.slice(1));
+      else csSet(c.camera, k, +v);
+    }, diff ? "diff" : ""));
+    return td;
+  }
+
+  // Célula de "All cameras": só os valores que todas as câmeras ajustáveis aceitam
+  function csAllCell(k, cams) {
+    const td = document.createElement("td");
+    td.className = "cs-cell" + (csIsPending("*", COL_KEYS[k] || [k]) ? " applying" : "");
+    const labels = new Set(cams.map((c) => csLabel(c, k)).filter((l) => l !== null));
+    const same = labels.size === 1;
+    if (k === "focus") {
+      const af = camSettings.filter((c) => c.settings.focus && c.settings.focus.available && !c.focusManual).length;
+      td.appendChild(af ? csText("AF on " + af, "warn", "Autofocus is on in " + plural(af, "camera", "cameras") + ". Turn the lens switch to MF.")
+                        : csText("All MF", "ok"));
+      return td;
+    }
+    if (!cams.length) { td.appendChild(csText("—", "na")); return td; }
+    if (k === "shift") {
+      if (!cams.every((c) => c.shiftAvailable)) { td.appendChild(csText("—", "na", "Not available on every camera")); return td; }
+      const one = (key) => (new Set(cams.map((c) => c[key])).size === 1 ? cams[0][key] : null);
+      td.appendChild(shiftPair(one("shiftAB"), one("shiftGM"), (v) => csSet("*", "shiftab", v), (v) => csSet("*", "shiftgm", v), false));
+      return td;
+    }
+    if (k === "wb") {
+      // Os predefinidos que todas aceitam e, se todas aceitarem, o atalho de Kelvin
+      // (a SL3 e a T7, por exemplo, não têm Kelvin)
+      const wbs = cams.map((c) => c.settings.wb).filter((w) => w && w.available);
+      const wbText = (c) => (c.settings.wb.value === 9 ? c.kelvin + " K" : c.settings.wb.label);
+      if (!wbs.length || wbs.some((w) => !w.choices.length)) {
+        td.appendChild(csText("—", "na", "Not changeable on every camera"));
+        return td;
+      }
+      const accepted = (v) => wbs.every((w) => w.choices.some(([x]) => x === v));
+      let options = wbs[0].choices.filter(([v]) => v !== 9 && accepted(v)).map(([v, l]) => [String(v), l]);
+      if (accepted(9)) options = options.concat(KELVINS.map((kv) => ["k" + kv, kv + " K"]));
+      if (!options.length) { td.appendChild(csText("—", "na", "The cameras have no white balance in common")); return td; }
+      let current = "";
+      const first = cams.find((c) => c.settings.wb && c.settings.wb.available);
+      if (same) {
+        current = first.settings.wb.value === 9 ? "k" + first.kelvin : String(first.settings.wb.value);
+        if (!options.some(([x]) => x === current)) current = "";
+      }
+      if (!current) options.unshift(["", same ? wbText(first) : "Different", true]);
+      td.appendChild(csSelect(options, current, (v) => {
+        if (v.startsWith("k")) csSet("*", "kelvin", +v.slice(1));
+        else csSet("*", "wb", +v);
+      }, same ? "" : "diff"));
+      return td;
+    }
+    const lists = cams.filter((c) => c.settings[k] && c.settings[k].available).map((c) => c.settings[k].choices);
+    // Alguma câmera não deixa mudar agora: "—" tracejado (não dá para aplicar em todas)
+    if (!lists.length || lists.some((l) => !l.length)) {
+      const fixed = cams.filter((c) => !(c.settings[k] && c.settings[k].available && c.settings[k].choices.length)).map((c) => c.camera);
+      td.appendChild(csText("—", "na", "Not changeable on every camera" + (fixed.length ? " (" + fixed.join(", ") + " does not allow it now)" : "")));
+      return td;
+    }
+    const common = lists[0].filter(([v]) => lists.every((l) => l.some(([x]) => x === v)));
+    if (!common.length) { td.appendChild(csText("—", "na", "The cameras have no value in common")); return td; }
+    const options = common.map(([v, l]) => [String(v), l]);
+    let current = "";
+    if (same) {
+      const v = String(cams.find((c) => c.settings[k] && c.settings[k].available).settings[k].value);
+      if (options.some(([x]) => x === v)) current = v;
+    }
+    if (!current) options.unshift(["", same ? [...labels][0] : "Different", true]);
+    td.appendChild(csSelect(options, current, (v) => csSet("*", k, +v), same ? "" : "diff"));
+    return td;
+  }
+
+  // Redesenha, mas não com uma lista aberta (a lista fecharia sozinha): espera sair dela
+  function csRender() {
+    const a = document.activeElement;
+    if (a && a.tagName === "SELECT" && $("csBody").contains(a)) { csRenderLater = true; return; }
+    csRenderLater = false;
+    renderCamSettings();
+  }
+  $("csBody").addEventListener("focusout", () => { if (csRenderLater) setTimeout(csRender, 0); });
+
+  function renderCamSettings() {
+    const body = $("csBody");
+    const scroll = body.scrollTop;
+    body.innerHTML = "";
+    const copy = $("csCopy");
+    copy.innerHTML = "";
+    if (!camSettings.length) {
+      body.appendChild(el("div", "cs-empty", "No camera connected."));
+      copy.disabled = true;
+      return;
+    }
+    const ref = csReference();
+    const adjustable = camSettings.filter((c) => c.adjustable);
+    const table = document.createElement("table");
+    table.className = "cs";
+    const head = document.createElement("tr");
+    head.appendChild(document.createElement("th"));
+    CS_COLS.forEach(([, label]) => head.appendChild(el("th", "", label)));
+    table.appendChild(head);
+
+    const all = document.createElement("tr");
+    all.className = "all";
+    const allName = el("td", "name", "All cameras");
+    allName.appendChild(el("small", "", "applies to every camera"));
+    all.appendChild(allName);
+    CS_COLS.forEach(([k]) => all.appendChild(csAllCell(k, adjustable)));
+    table.appendChild(all);
+
+    camSettings.forEach((c) => {
+      const tr = document.createElement("tr");
+      const name = el("td", "name", pad(c.order) + " " + c.camera);
+      name.appendChild(el("small", "", c.model + (c.mode ? " · " + c.mode : "")));
+      tr.appendChild(name);
+      if (!c.adjustable) {
+        tr.className = "locked";
+        const msg = el("td", "msg", "⚠  " + (c.reason || "Settings can only be changed on the camera."));
+        msg.colSpan = CS_COLS.length;
+        tr.appendChild(msg);
+        table.appendChild(tr);
+        return;
+      }
+      CS_COLS.forEach(([k]) => tr.appendChild(csCell(c, k, ref)));
+      table.appendChild(tr);
+      const drive = c.settings.drive;
+      const driveNote = drive && drive.available && !isSingleShot(drive.value)
+        ? "The camera is on " + drive.label + " and did not accept single shooting. Set it to single shooting on the camera." : "";
+      const noteText = [c.reason, driveNote].filter(Boolean).join(" ");
+      if (noteText) {
+        tr.classList.add("has-note");
+        const note = document.createElement("tr");
+        note.className = "note";
+        note.appendChild(document.createElement("td"));
+        const td = el("td", "", "⚠  " + noteText);
+        td.colSpan = CS_COLS.length;
+        note.appendChild(td);
+        table.appendChild(note);
+      }
+    });
+    body.appendChild(table);
+    body.scrollTop = scroll;
+
+    copy.disabled = adjustable.length < 2;
+    copy.appendChild(new Option("Choose…", ""));
+    adjustable.forEach((c) => copy.appendChild(new Option(pad(c.order) + " " + c.camera, c.camera)));
+    copy.value = "";
+  }
+
+  // Deixa todas as câmeras iguais a uma escolhida
+  function copyFromCamera(name) {
+    const c = camSettings.find((x) => x.camera === name);
+    if (!c) return;
+    ["iso", "tv", "av", "expcomp", "style", "quality"].forEach((k) => {
+      const st = c.settings[k];
+      if (st && st.available && st.choices.length) csSet("*", k, st.value);
+    });
+    const wb = c.settings.wb;
+    if (wb && wb.available && wb.choices.length) {
+      if (wb.value === 9) csSet("*", "kelvin", c.kelvin);
+      else csSet("*", "wb", wb.value);
+    }
+    if (c.shiftAvailable) { csSet("*", "shiftab", c.shiftAB); csSet("*", "shiftgm", c.shiftGM); }
+    toast("Copying the settings of " + name + " to the other cameras");
+  }
+
+  // ----- Test shot: dispara todas as câmeras (fotos temporárias, como no "Reorder by
+  // photo") para conferir lado a lado. Com "Match automatically", o app também muda as
+  // câmeras para ficarem parecidas (até 5 fotos) e mostra as últimas. -----
+  function csTakeTest(skipIsoCheck) {
+    if (csTest.capturing) {  // o botão virou "Cancel"
+      if (csTest.cancelling) return;
+      csTest.cancelling = true;
+      window.cancelTest();
+      csGallery.message("Cancelling");
+      updateButtons();
+      return;
+    }
+    const connected = cameras.filter((c) => c.connected).length;
+    if (busy || !connected) return;
+    const match = $("csAuto").checked && connected >= 2;
+    // ISO em Auto: o brilho não tem como ser igualado; avisa antes de começar
+    const isoAuto = camSettings.filter((c) => c.adjustable && c.settings.iso && c.settings.iso.available && c.settings.iso.value === 0).map((c) => c.camera);
+    if (match && isoAuto.length && skipIsoCheck !== true) {
+      dialog("ISO is on Auto",
+        (isoAuto.length === 1 ? isoAuto[0] + " has" : isoAuto.join(", ") + " have") + " ISO on Auto, so each camera picks its own brightness and the app cannot match it. " +
+        "Set an ISO first (for example in All cameras), or continue to match only the color.",
+        [{ label: "Cancel" }, { label: "Continue anyway", primary: true, onClick: () => csTakeTest(true) }]);
+      return;
+    }
+    csTest.capturing = true;
+    csTest.cancelling = false;
+    csTest.has = false;
+    csTest.mode = match ? "match" : "test";
+    $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
+    $("csTestBox").classList.remove("hidden", "has-photos");
+    csSetZoom(false);
+    csSetCollapsed(false);
+    csGallery.setItems([]);
+    csGallery.setHead(match ? "Test shot · matching" : "Test shot", "");
+    csGallery.message("Taking a photo with each camera");
+    if (match) window.autoMatch(intValue(ui.downloadWait, 1, 10));
+    else window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
+  }
+  function showCsTest(list) {
+    csTest.capturing = false;
+    csTest.cancelling = false;
+    csTest.has = true;
+    $("camSettingsOverlay").querySelector(".cs-sheet").classList.remove("capturing");
+    const session = (list || [])[0];
+    // Uma foto por câmera, na ordem atual (JPEG quando houver RAW + JPEG)
+    const items = placedCameras().filter((c) => c.connected).map((cam) => {
+      const photos = session ? session.photos.filter((p) => p.camera === cam.name) : [];
+      const pick = photos.find((p) => /\.jpe?g$/i.test(p.file)) || photos.find((p) => p.previewable) || photos[0];
+      return { name: cam.name, session: session ? session.name : "", order: cam.order,
+               file: pick ? pick.file : "", previewable: pick ? pick.previewable : false,
+               title: shortModel(cam.model), subtitle: cam.name };
+    });
+    csGallery.setItems(items, 0);
+    $("csTestBox").classList.toggle("has-photos", items.length > 0);
+    const missing = items.filter((i) => !i.file).length;
+    csGallery.setHead(csTest.mode === "match" ? "Test shot · matched" : "Test shot",
+      (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · click a photo to enlarge · ← → to compare");
+  }
+  function csDiscardTest() {
+    if (!csTest.has && !csTest.capturing) return;
+    csTest.has = false;
+    csSetZoom(false);
+    $("csTestBox").classList.add("hidden");
+    $("csTestBox").classList.remove("has-photos");
+    csGallery.setItems([]);
+    if (!csTest.capturing) window.discardOrderPhotos();
+    Object.keys(photoCache).filter((k) => k.startsWith("order/")).forEach((k) => delete photoCache[k]);
+  }
+  function closeCamSettings() {
+    $("camSettingsOverlay").classList.add("hidden");
+    clearInterval(csPoll);
+    csPoll = 0;
+    csDiscardTest();
+  }
+  // Com a janela aberta, lê as câmeras de novo a cada 3 s (mudanças feitas na própria
+  // câmera aparecem sozinhas). Não lê durante fotos, mudanças ou com o app ocupado.
+  function csPollTick() {
+    if ($("camSettingsOverlay").classList.contains("hidden")) return;
+    if (busy || csTest.capturing || csPending.size || !cameras.some((c) => c.connected)) return;
+    window.readCameraSettings();
+  }
+
+  $("camSettingsBtn").addEventListener("click", () => {
+    renderCamSettings();
+    $("camSettingsOverlay").classList.remove("hidden");
+    window.readCameraSettings();
+    clearInterval(csPoll);
+    csPoll = setInterval(csPollTick, 3000);
+  });
+  $("csTest").addEventListener("click", () => csTakeTest());
+  $("csDone").addEventListener("click", closeCamSettings);
+  $("csRead").addEventListener("click", () => window.readCameraSettings());
+  $("csCopy").addEventListener("change", (e) => { if (e.target.value) copyFromCamera(e.target.value); });
+
   // Esc fecha o menu, o About e o Settings; com eles abertos, as teclas não
   // chegam à tela de trás. Windows: Ctrl+, abre o Settings.
   document.addEventListener("keydown", (e) => {
@@ -2103,9 +2676,19 @@
       e.stopImmediatePropagation();
       return;
     }
-    const open = ["aboutOverlay", "settingsOverlay"].find((id) => !$(id).classList.contains("hidden"));
+    const open = ["aboutOverlay", "settingsOverlay", "camSettingsOverlay"].find((id) => !$(id).classList.contains("hidden"));
+    if (open === "camSettingsOverlay" && csTest.has && e.target.tagName !== "SELECT" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.key === "ArrowLeft") csGallery.prev(); else csGallery.next();
+      return;
+    }
     if (open) {
-      if (e.key === "Escape") $(open).classList.add("hidden");
+      if (e.key === "Escape") {
+        if (open === "camSettingsOverlay" && csZoom) csSetZoom(false);  // primeiro fecha a foto grande
+        else if (open === "camSettingsOverlay") closeCamSettings();
+        else $(open).classList.add("hidden");
+      }
       e.stopImmediatePropagation();
       return;
     }

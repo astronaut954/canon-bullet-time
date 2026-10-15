@@ -197,6 +197,60 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       connections" e religue: ela volta.
 - [ ] Disparo normal depois de reconectar: fotos chegam das duas câmeras.
 
+## 16. Camera settings (etapa 12)
+- [ ] Painel Cameras: número de câmeras ao lado do título; com várias câmeras só a lista rola e o
+      cabeçalho fica fixo.
+- [ ] Arrastar uma câmera para outra posição muda a ordem (01, 02...), igual às setas.
+- [ ] "Camera settings" abre a tabela com os valores reais de cada câmera (confira na própria câmera).
+- [ ] Mudar ISO, velocidade, abertura, Picture Style e qualidade de uma câmera: a câmera muda
+      na hora (confira no visor/tela dela).
+- [ ] Ponha uma câmera em disparo contínuo (ou timer) na própria câmera: o app volta ela para
+      disparo único sozinho (Activity: "... was set to single shooting"). Se não conseguir, o
+      painel mostra "Not on single shot".
+- [ ] "All cameras": mudar um valor muda em todas. White balance: lista os predefinidos que todas
+      aceitam (Daylight, Cloudy...); os valores em Kelvin só aparecem se todas aceitarem Kelvin
+      (a SL3 e a T7 não aceitam).
+- [ ] WB fine-tune (B/A e M/G) muda na câmera.
+- [ ] Copy from camera: todas ficam iguais à escolhida.
+- [ ] Câmera com o disco fora do M (ex.: Auto): linha com o aviso para girar para M; no painel,
+      "Settings on the camera only". Girando para M, a linha volta a ter as opções sozinha.
+- [ ] Câmera com valor diferente: âmbar na tabela e "Settings differ" no painel.
+- [ ] Lente em AF: Focus em âmbar; em MF: "MF".
+- [ ] Mudar algo direto na câmera com a janela aberta: a tabela atualiza sozinha em até ~3 s
+      (ou com "Read again").
+- [ ] Test shot com "Match automatically" desligado: dispara todas as câmeras (sem contagem e sem
+      som) e mostra uma fileira de miniaturas, uma por câmera, na ordem; a tabela fica bloqueada
+      enquanto fotografa. As fotos do teste não viram sessão e somem ao fechar a janela.
+- [ ] Clicar numa miniatura abre a foto grande por cima da janela; ← → passam de câmera; Esc (ou
+      Close, ou clicar fora da foto) fecha só a foto grande; Esc de novo fecha a janela.
+- [ ] "Hide photos" recolhe a fileira e vira "Show photos"; um novo Test shot mostra a fileira aberta.
+- [ ] Test shot com "Match automatically" ligado (padrão), câmeras com balanço de branco em Auto e
+      valores diferentes (ex.: velocidade 1/200 numa e 1/250 na outra): tira até 5 fotos sozinho
+      ("Photo 2 of up to 5 · Finding a common white balance"...), e no fim mostra as fotos e o
+      resumo do que mudou em cada câmera (velocidade, ISO, White balance, WB fine-tune, Picture
+      Style). Confira na tela de cada câmera que os valores mudaram. As fotos finais devem
+      parecer mais iguais entre si do que antes (cor e brilho).
+- [ ] Rodar o Test shot de novo logo depois: muda pouco ou nada ("Nothing to change").
+- [ ] Primeira vez com um modelo: aparecem as fotos "Calibrating the cameras (blue/amber)" e
+      "(green/magenta)"; no fim, o ajuste fino das câmeras não ficou no extremo (A9/G9). Na
+      vez seguinte essas duas fotos não aparecem. (Para calibrar de novo: apagar
+      camera-calibration.txt na pasta de dados do app.)
+- [ ] Câmera com o disco fora do M durante o ajuste: ela aparece no resumo como não ajustada.
+- [ ] Com ISO em Auto e "Match automatically" ligado: antes de começar aparece "ISO is on Auto"
+      com Cancel e Continue anyway.
+- [ ] Durante o Test shot o botão vira "Cancel". Cancelar no meio (inclusive nas fotos de
+      calibração): para, mostra "Test shot cancelled" e as configurações das câmeras voltam
+      como estavam antes (conferir na tabela e na câmera). Sem ajuste: só para.
+- [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu.
+      Conferido (2026-10-15): T7 e SL3 (G5 no app = G5 no menu WB Shift/BKT).
+- [ ] Câmera de modelo ainda não conferido: pôr só G5 pelo app (lista da direita do WB
+      fine-tune) e ver no menu WB Shift/BKT da câmera se aparece G5. Anotar o modelo e o
+      resultado em "Observações" abaixo; se aparecer M5, o modelo é invertido.
+- [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
+- [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
+- [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
+      não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |
@@ -219,3 +273,4 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 | 2026-10-15 | Mac + Windows | etapa-10-exportacao | — (sessão de teste) | sim | Exportação (fotos e sequência), Replace e qualidade aprovados pelo dono do projeto; qualidade com RAW real fica pendente |
 | 2026-10-15 | Mac + Windows | etapa-11-menu | Canon SL3 + Canon T7 | sim | Menu do Mac, botão de menu do Windows, About, Settings, campos numéricos e cancelamento do bullet time aprovados pelo dono do projeto |
 | 2026-10-15 | Mac + Windows | fix-reconexao (2.6.1) | Canon SL3 + Canon T7 | sim | Câmeras religadas voltam sozinhas; Restart camera connections reconecta todas; resto sem mudança (aprovado pelo dono do projeto) |
+| 2026-10-15 | Mac (+ Windows compilado) | etapa-12-configuracoes (2.7.0) | Canon SL3 + Canon T7 | sim | Camera settings, All cameras, Test shot, Match automatically com calibração e Cancel aprovados pelo dono do projeto no Mac; G/M conferido na SL3 e na T7 |
