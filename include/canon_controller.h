@@ -134,8 +134,9 @@ private:
 
     // Conexões USB de câmeras que caíram: o SDK do Mac mantém a entrada antiga
     // ("fantasma"), e abrir a sessão nela pode travar o SDK. Só são tentadas de novo
-    // depois que o sistema avisa que uma câmera foi conectada (ver MonitorTick).
-    // Também entram as conexões que falharam 3 vezes seguidas.
+    // depois que o sistema avisa que uma câmera foi conectada (ver MonitorTick): pelo
+    // aviso do SDK ou por uma câmera Canon que aparece de novo no USB. Também entram as
+    // conexões que falharam 3 vezes seguidas. "Restart camera connections" limpa a lista.
     struct Suspect
     {
         int seen = 0;       // avisos de "câmera conectada" já contados
@@ -157,6 +158,7 @@ private:
     };
     bool usbAvailable = false;                  // a lista do USB pôde ser lida
     std::vector<UsbSeen> usbSeen;               // câmeras Canon no USB agora
+    bool usbListed = false;                     // a lista do USB já foi lida uma vez
     bool sdkScanned = false;                    // já houve uma procura no SDK
     std::vector<std::string> lastSdkModels;     // modelos na última lista do SDK
     std::map<int, std::string> usbModels;       // código do produto USB -> modelo (aprendido)

@@ -189,6 +189,14 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
   - [ ] Atividade mostra "Bullet time cancelled"; o botão volta a "It's bullet time".
   - [ ] Terminal app: sem mudança (não tem cancelamento).
 
+## 15. Reconexão (2.6.1)
+- [ ] Com as câmeras conectadas, desligue e religue uma delas: ela volta sozinha (Activity com
+      "Show technical details" mostra "USB: Canon camera plugged in or turned on").
+- [ ] Repita com a outra câmera e depois com as duas ao mesmo tempo.
+- [ ] Desligue uma câmera, espere ela aparecer como desconectada, clique em "Restart camera
+      connections" e religue: ela volta.
+- [ ] Disparo normal depois de reconectar: fotos chegam das duas câmeras.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

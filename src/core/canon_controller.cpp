@@ -555,18 +555,37 @@ bool CanonController::MonitorTick(ConnectionObserver* observer)
         usbAvailable = totalUsb >= 0;
         std::vector<UsbSeen> seen;
         std::string usb;
+        int plugged = 0;   // câmeras Canon que apareceram no USB desde a última olhada
         for (const auto& d : devices)
         {
             UsbSeen entry{ d.location, d.productId, Clock::now() };
+            bool already = false;
             for (const auto& old : usbSeen)
                 if (old.location == d.location && old.productId == d.productId)
+                {
                     entry.firstSeen = old.firstSeen;   // já estava: mantém desde quando
+                    already = true;
+                }
+            if (!already)
+                ++plugged;
             seen.push_back(entry);
             char product[16] = {};
             std::snprintf(product, sizeof(product), "%04x", d.productId);
             usb += (usb.empty() ? "" : ", ") + d.name + " " + product + " @ " + d.location;
         }
         usbSeen = seen;
+        // Câmera ligada ou plugada (visto pelo USB): conta como o aviso de "câmera
+        // conectada" do SDK. Dado de 2026-10-15 (Mac): câmeras religadas ficaram de lado
+        // até reiniciar o app, porque esse aviso do SDK não chegou.
+        if (usbAvailable && usbListed && plugged > 0)
+        {
+            lastAddedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                Clock::now().time_since_epoch()).count();
+            camerasAdded += plugged;
+            LogMessage("USB: Canon camera plugged in or turned on (" + std::to_string(plugged) + ")");
+        }
+        // Leitura do USB que falhou: a próxima não conta tudo como "apareceu agora"
+        usbListed = usbAvailable;
         usb = (usb.empty() ? "none" : usb) + " (" + std::to_string(totalUsb) + " USB devices in total)";
         if (usb != lastUsbDevices)
         {
@@ -1020,6 +1039,9 @@ void CanonController::ResetConnectionHistory()
     sdkScanned = false;
     portRetry.clear();
     queued.clear();
+    // Conexões postas de lado também: o botão "Restart camera connections" tenta tudo
+    // de novo (antes, uma câmera posta de lado só voltava reiniciando o app)
+    suspectPorts.clear();
     lastScan = {};
     lastHealthCheck = {};
 }

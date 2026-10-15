@@ -214,6 +214,14 @@ sozinha, na v2.5.1. Motivo extra: sem menu, o Mac não aceitava ⌘C, ⌘V e ⌘
   MinGW); telas testadas num navegador. Testado pelo dono do projeto no Mac e no Windows
   (2026-10-15), com câmeras, incluindo o cancelamento.
 
+### Correção 2.6.1: câmeras que não reconectavam (2026-10-15)
+
+Dado do dono do projeto (Mac): câmeras desligadas e religadas não voltavam, nem com "Restart
+camera connections"; só reiniciando o app. No código: uma câmera que cai (ou falha 3 vezes) fica
+"posta de lado" até o SDK avisar que uma câmera foi conectada; se o aviso não chega, ela fica de
+lado para sempre, e o botão não limpava essa lista. Correção: o botão limpa a lista, e uma câmera
+Canon que aparece de novo no USB conta como esse aviso. Só o app de janela usa essa parte.
+
 ## Futuro (não planejado ainda)
 
 - **Outras marcas (Sony, Nikon).** Viável marca a marca, com câmera para testar.
