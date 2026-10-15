@@ -31,8 +31,8 @@ namespace ColorMatch
         const int x0 = frame.width / 4, x1 = frame.width - frame.width / 4;
         const int y0 = frame.height / 4, y1 = frame.height - frame.height / 4;
         const int step = std::max(1, std::max(x1 - x0, y1 - y0) / 400);
-        double sumR = 0, sumG = 0, sumB = 0;
-        long colorCount = 0, total = 0;
+        double sumR = 0, sumG = 0, sumB = 0, sumSat = 0;
+        long colorCount = 0, total = 0, satCount = 0;
         std::vector<double> luma;
         luma.reserve(static_cast<size_t>((x1 - x0) / step + 1) * ((y1 - y0) / step + 1));
         for (int y = y0; y < y1; y += step)
@@ -46,17 +46,28 @@ namespace ColorMatch
                 // Cor: sem o estourado (algum canal no máximo) e sem o quase preto
                 if (p[0] >= 250 || p[1] >= 250 || p[2] >= 250 || y709 < 0.004)
                     continue;
+                // Saturação como se vê (valores da foto, não luz linear), sem os quase pretos
+                const int hi = std::max({ p[0], p[1], p[2] }), lo = std::min({ p[0], p[1], p[2] });
+                if (hi >= 20)
+                {
+                    sumSat += static_cast<double>(hi - lo) / hi;
+                    ++satCount;
+                }
                 sumR += r; sumG += g; sumB += b;
                 ++colorCount;
             }
         if (total == 0 || colorCount < total / 50 || sumR <= 0 || sumG <= 0 || sumB <= 0)
             return out;
-        std::nth_element(luma.begin(), luma.begin() + static_cast<long>(luma.size() / 2), luma.end());
+        std::sort(luma.begin(), luma.end());
         const double median = std::max(1e-6, luma[luma.size() / 2]);
+        const double dark = std::max(1e-4, luma[luma.size() / 10]);
+        const double bright = std::max(dark, luma[luma.size() * 9 / 10]);
 
         out.rb = std::log(sumR / sumB);
         out.g = std::log(sumG / std::sqrt(sumR * sumB));
         out.ev = std::log2(median);
+        out.contrast = std::log2(bright / dark);
+        out.sat = std::log(std::max(1e-3, satCount ? sumSat / satCount : 0.0));
         out.ok = true;
         return out;
     }
@@ -69,12 +80,12 @@ namespace ColorMatch
         {
             if (!s.ok)
                 continue;
-            avg.rb += s.rb; avg.g += s.g; avg.ev += s.ev;
+            avg.rb += s.rb; avg.g += s.g; avg.ev += s.ev; avg.contrast += s.contrast; avg.sat += s.sat;
             ++n;
         }
         if (n == 0)
             return avg;
-        avg.rb /= n; avg.g /= n; avg.ev /= n;
+        avg.rb /= n; avg.g /= n; avg.ev /= n; avg.contrast /= n; avg.sat /= n;
         avg.ok = true;
         return avg;
     }

@@ -247,6 +247,15 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       fine-tune) e ver no menu WB Shift/BKT da câmera se aparece G5. Anotar o modelo e o
       resultado em "Observações" abaixo; se aparecer M5, o modelo é invertido.
 - [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
+
+## 17. Match colors (etapa 13)
+- [ ] Picture Style: o botão "±" abre Contrast, Saturation e Color tone da câmera. Mudar um valor
+      muda na câmera (conferir no menu Picture Style da câmera, botão INFO). Conferir na SL3 e na T7.
+- [ ] "±" da linha All cameras: muda em todas; valor diferente entre câmeras aparece como "—".
+- [ ] Esc ou clicar fora fecha a caixa do "±" (sem fechar a janela).
+- [ ] Match automatically com uma câmera de contraste +3 e a outra 0: no resumo aparece Contrast
+      mudando; as fotos finais ficam mais parecidas em contraste e cores.
+- [ ] Ajuste fino diferente entre câmeras não deixa mais a célula âmbar nem "Settings differ".
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.

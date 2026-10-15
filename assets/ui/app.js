@@ -2307,7 +2307,7 @@
     const ref = {};
     const cams = camSettings.filter((c) => c.adjustable);
     CS_COLS.forEach(([k]) => {
-      if (k === "focus") return;
+      if (k === "focus" || k === "shift") return;  // ajuste fino: correção por câmera, diferente de propósito
       const counts = new Map();
       cams.forEach((c) => { const l = csLabel(c, k); if (l !== null) counts.set(l, (counts.get(l) || 0) + 1); });
       let best = null, n = 0;
@@ -2358,7 +2358,66 @@
   function csIsPending(camera, keys) {
     return keys.some((k) => csPending.has(camera + "|" + k) || csPending.has("*|" + k));
   }
-  const COL_KEYS = { wb: ["wb", "kelvin"], shift: ["shiftab", "shiftgm"] };
+  const COL_KEYS = { wb: ["wb", "kelvin"], shift: ["shiftab", "shiftgm"], style: ["style", "contrast", "saturation", "colortone"] };
+
+  // ----- Ajustes do Picture Style (contraste, saturação, tom de cor), como o INFO da
+  // câmera: um botão na célula abre uma caixa com os três -----
+  const STYLE_DETAILS = [["contrast", "Contrast", "contrast"], ["saturation", "Saturation", "saturation"], ["colortone", "Color tone", "colorTone"]];
+  let csStylePop = null;  // { camera } aberto ("*" = All cameras)
+  const signed = (v) => (v > 0 ? "+" + v : String(v));
+  function csStyleButton(camera, differs) {
+    const b = document.createElement("button");
+    b.className = "cs-more" + (differs ? " diff" : "") + (csStylePop && csStylePop.camera === camera ? " open" : "");
+    b.textContent = "±";
+    b.title = "Contrast, saturation and color tone";
+    b.dataset.styleCam = camera;
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      csStylePop = csStylePop && csStylePop.camera === camera ? null : { camera };
+      renderStylePop();
+    });
+    return b;
+  }
+  function renderStylePop() {
+    let pop = $("csStylePop");
+    document.querySelectorAll(".cs-more.open").forEach((b) => b.classList.remove("open"));
+    const anchor = csStylePop && document.querySelector('.cs-more[data-style-cam="' + csStylePop.camera + '"]');
+    if (!csStylePop || !anchor || $("camSettingsOverlay").classList.contains("hidden")) {
+      if (pop) pop.remove();
+      csStylePop = anchor ? csStylePop : null;
+      return;
+    }
+    anchor.classList.add("open");
+    if (!pop) {
+      pop = el("div", "cs-pop");
+      pop.id = "csStylePop";
+      pop.addEventListener("click", (e) => e.stopPropagation());
+      pop.addEventListener("focusout", () => { if (csRenderLater) setTimeout(csRender, 0); });
+      $("camSettingsOverlay").appendChild(pop);
+    }
+    const all = csStylePop.camera === "*";
+    const cams = all ? camSettings.filter((c) => c.adjustable && c.styleDetail) : camSettings.filter((c) => c.camera === csStylePop.camera);
+    pop.innerHTML = "";
+    pop.appendChild(el("div", "cs-pop-title", (all ? "All cameras" : csStylePop.camera) + " · Picture Style"));
+    const range = [];
+    for (let v = -4; v <= 4; v++) range.push(v);
+    STYLE_DETAILS.forEach(([key, label, field]) => {
+      const values = new Set(cams.map((c) => c[field]));
+      const current = values.size === 1 ? [...values][0] : null;
+      const options = range.map((v) => [String(v), signed(v)]);
+      if (current === null) options.unshift(["", "—", true]);
+      const row = el("label", "cs-pop-row" + (csIsPending(csStylePop.camera, [key]) ? " applying" : ""));
+      row.appendChild(el("span", "", label));
+      row.appendChild(csSelect(options, current === null ? "" : String(current), (v) => csSet(csStylePop.camera, key, +v), "small" + (current === null ? " diff" : "")));
+      pop.appendChild(row);
+    });
+    pop.appendChild(el("div", "cs-pop-note", "Color tone: − redder, + more yellow (skin tones)."));
+    const r = anchor.getBoundingClientRect();
+    const w = 230;
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+    pop.style.top = Math.min(window.innerHeight - 190, r.bottom + 6) + "px";
+  }
+  document.addEventListener("click", () => { if (csStylePop) { csStylePop = null; renderStylePop(); } });
 
   // ab ou gm null: câmeras com valores diferentes ("—" na lista; qualquer valor, até 0, aplica)
   // flip: modelo que o app mediu com o sentido invertido (troca os rótulos daquele eixo)
@@ -2415,6 +2474,7 @@
       if (k === "wb" && v.startsWith("k")) csSet(c.camera, "kelvin", +v.slice(1));
       else csSet(c.camera, k, +v);
     }, diff ? "diff" : ""));
+    if (k === "style" && c.styleDetail) td.appendChild(csStyleButton(c.camera, false));
     return td;
   }
 
@@ -2480,13 +2540,15 @@
     }
     if (!current) options.unshift(["", same ? [...labels][0] : "Different", true]);
     td.appendChild(csSelect(options, current, (v) => csSet("*", k, +v), same ? "" : "diff"));
+    if (k === "style" && cams.some((c) => c.styleDetail)) td.appendChild(csStyleButton("*", false));
     return td;
   }
 
   // Redesenha, mas não com uma lista aberta (a lista fecharia sozinha): espera sair dela
   function csRender() {
     const a = document.activeElement;
-    if (a && a.tagName === "SELECT" && $("csBody").contains(a)) { csRenderLater = true; return; }
+    const pop = $("csStylePop");
+    if (a && a.tagName === "SELECT" && ($("csBody").contains(a) || (pop && pop.contains(a)))) { csRenderLater = true; return; }
     csRenderLater = false;
     renderCamSettings();
   }
@@ -2552,6 +2614,7 @@
     });
     body.appendChild(table);
     body.scrollTop = scroll;
+    renderStylePop();
 
     copy.disabled = adjustable.length < 2;
     copy.appendChild(new Option("Choose…", ""));
@@ -2646,6 +2709,8 @@
   }
   function closeCamSettings() {
     $("camSettingsOverlay").classList.add("hidden");
+    csStylePop = null;
+    renderStylePop();
     clearInterval(csPoll);
     csPoll = 0;
     csDiscardTest();
@@ -2687,7 +2752,8 @@
     }
     if (open) {
       if (e.key === "Escape") {
-        if (open === "camSettingsOverlay" && csZoom) csSetZoom(false);  // primeiro fecha a foto grande
+        if (open === "camSettingsOverlay" && csStylePop) { csStylePop = null; renderStylePop(); }
+        else if (open === "camSettingsOverlay" && csZoom) csSetZoom(false);  // primeiro fecha a foto grande
         else if (open === "camSettingsOverlay") closeCamSettings();
         else $(open).classList.add("hidden");
       }

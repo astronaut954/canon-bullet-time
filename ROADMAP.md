@@ -34,7 +34,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
-| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. Candidatos anotados em 2026-10-15: igualar contraste e saturação pelo Picture Style (conferir antes se a SL3 e a T7 aceitam pelo computador) e medir um cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | em andamento |
+| 13 | Match colors | Igualar mais o visual das câmeras: contraste e saturação pelo Picture Style e cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -302,7 +302,32 @@ fixo, só a lista rola, e arrastar para reordenar.
   teste com câmeras no Windows. Desligar as câmeras com o app aberto: testado pelo dono do
   projeto em 2026-10-15, o app não fecha mais.
 
+### Etapa 13: Match colors (iniciada em 2026-10-15)
+
+Decisões do dono do projeto (2026-10-15): primeiro o Picture Style, depois o cartão cinza; os
+ajustes do Picture Style ficam dentro da coluna Picture Style (botão "±"); o cartão cinza é
+achado sozinho pelo app e a pessoa pode corrigir clicando. Ajustar as fotos (em vez da câmera)
+saiu da etapa: fica como ideia futura (serviria para câmeras que não aceitam mudanças pelo
+computador e para outras marcas).
+
+- Picture Style: dado verificado na documentação do EDSDK 13.20.10 (5.2.40): os ajustes do estilo
+  atual (contraste, saturação, tom de cor: −4 a +4) são de leitura e escrita, sem restrição por
+  modelo. Na SL3 e na T7: falta conferir.
+- Tabela: botão "±" ao lado do Picture Style abre contraste, saturação e tom de cor da câmera (ou
+  de todas, na linha All cameras).
+- Match automatically: também iguala contraste (stops entre os 10% mais escuros e os 10% mais
+  claros do centro) e saturação (média da força das cores) à média das câmeras. Medidas conferidas
+  em cópias editadas de uma foto (contraste ×1,2: +0,33 stop; saturação ×1,2 e ×0,8: +0,13 e
+  −0,15). O tom de cor não é ajustado sozinho (a cor fica com o ajuste fino). Simulação: diferença
+  de contraste entre câmeras caiu de ~0,5 para ~0,1 stop; de saturação, de ~0,34 para ~0,11.
+- O ajuste fino do balanço de branco deixou de contar como "configuração diferente" (âmbar e
+  "Settings differ"): depois do ajuste automático ele é diferente de propósito em cada câmera.
+
 ## Futuro (não planejado ainda)
+
+- **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos
+  salvas, sem mexer nos originais. Útil para câmeras que não deixam mudar as configurações pelo
+  computador e para outras marcas. Em RAW não tem efeito.
 
 - **Outras marcas (Sony, Nikon).** Viável marca a marca, com câmera para testar.
   Sony (site oficial, conferido em 2026-10-15): SDK gratuito, Windows 11 x64 e macOS 14.1+,

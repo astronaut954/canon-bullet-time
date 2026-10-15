@@ -14,6 +14,8 @@ namespace ColorMatch
         double rb = 0;   // ln(R/B): mais alto = mais quente (âmbar), mais baixo = mais frio (azul)
         double g = 0;    // ln(G / √(R·B)): mais alto = mais verde, mais baixo = mais magenta
         double ev = 0;   // brilho em stops (log2 da luminância mediana)
+        double contrast = 0;   // stops entre os 10% mais escuros e os 10% mais claros
+        double sat = 0;        // ln da saturação média (força das cores)
     };
 
     // Centro da foto (metade da largura e da altura), em luz linear. Para a cor, ignora

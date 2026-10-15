@@ -515,6 +515,8 @@ namespace
                 .Add("mode", s.mode).Add("manual", s.manualMode).Add("kelvin", s.kelvin)
                 .Add("kelvinAvailable", s.kelvinAvailable).Add("shiftAvailable", s.shiftAvailable)
                 .Add("shiftAB", s.shiftAB).Add("shiftGM", s.shiftGM).Add("focusManual", s.focusManual)
+                .Add("styleDetail", s.styleDetailAvailable).Add("contrast", s.contrast)
+                .Add("saturation", s.saturation).Add("colorTone", s.colorTone)
                 .Raw("settings", settings).Str();
         }
         return list + "]";

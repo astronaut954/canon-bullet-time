@@ -24,6 +24,11 @@ namespace
     constexpr double kGPerMired = 0.0014;
     // Verde/magenta por passo do ajuste fino (ponto de partida)
     constexpr double kStartGainGM = 0.05;
+    // Picture Style: quanto 1 passo de contraste muda a foto (stops entre escuros e claros) e
+    // 1 passo de saturação (ln da saturação média). Ponto de partida, conferido em cópias
+    // editadas de uma foto; o app corrige pelo que mede depois de mudar.
+    constexpr double kStartGainContrast = 0.12;
+    constexpr double kStartGainSat = 0.05;
     // Canon: 1 passo do ajuste fino azul/âmbar ≈ 5 mireds
     constexpr double kMiredsPerStep = 5.0;
     // Na conferência final, diferença que ainda vale avisar (menor que isso não se nota)
@@ -169,6 +174,12 @@ namespace
         if (s.shiftAvailable)
             out.push_back({ "WB fine-tune", ShiftText(s.shiftAB, s.shiftGM) });
         add("Picture Style", "style");
+        if (s.styleDetailAvailable)
+        {
+            auto signedText = [](int v) { return v > 0 ? "+" + std::to_string(v) : std::to_string(v); };
+            out.push_back({ "Contrast", signedText(s.contrast) });
+            out.push_back({ "Saturation", signedText(s.saturation) });
+        }
         return out;
     }
 
@@ -316,6 +327,9 @@ namespace
         double rbPerMired = kRbPerMired;
         double gainGM = kStartGainGM;
         double evGain = 1.0;
+        int contrast = 0, saturation = 0;       // ajustes do Picture Style na hora da foto
+        std::string style;                      // Picture Style na hora da foto
+        double contrastGain = kStartGainContrast, satGain = kStartGainSat;
         // Sentido do ajuste fino nesta câmera (1 = o esperado: + âmbar, + verde). A
         // documentação do SDK errou o verde/magenta na T7; então o app confere pela foto e,
         // se a cor andou para o lado contrário, inverte (vale para qualquer modelo).
@@ -334,6 +348,10 @@ namespace
             c.baseMired = 0;
         c.ab = s.shiftAB;
         c.gm = s.shiftGM;
+        c.contrast = s.contrast;
+        c.saturation = s.saturation;
+        const CameraSetting* style = Get(s, "style");
+        c.style = style ? std::to_string(style->value) : "";
         c.lightKey = BrightnessKey(s);
         const CameraSetting* e = Get(s, c.lightKey);
         c.lightKnown = e && LightUnits(c.lightKey, e->value, c.lightUnits);
@@ -392,6 +410,23 @@ namespace
                 const double g = c.gmSign * (now.g - c.last.g) / (s.shiftGM - c.gm);
                 if (g > 0.01)
                     c.gainGM = std::clamp(g, 0.015, 0.12);
+            }
+            // Contraste e saturação: quanto 1 passo mudou a medida
+            const CameraSetting* style = Get(s, "style");
+            if (s.styleDetailAvailable && style && std::to_string(style->value) == c.style)
+            {
+                if (s.contrast != c.contrast)
+                {
+                    const double g = (now.contrast - c.last.contrast) / (s.contrast - c.contrast);
+                    if (g > 0.02)
+                        c.contrastGain = std::clamp(g, 0.03, 0.5);
+                }
+                if (s.saturation != c.saturation)
+                {
+                    const double g = (now.sat - c.last.sat) / (s.saturation - c.saturation);
+                    if (g > 0.01)
+                        c.satGain = std::clamp(g, 0.01, 0.25);
+                }
             }
             const std::string key = BrightnessKey(s);
             const CameraSetting* e = Get(s, key);
@@ -468,6 +503,33 @@ namespace
                     }
                 }
             }
+        }
+
+        // Contraste e saturação (Picture Style). Mudar o contraste também mexe na saturação
+        // medida: com o contraste longe do alvo, a saturação espera a próxima foto.
+        if (s.styleDetailAvailable)
+        {
+            const double tolerance = apply ? ColorMatch::kStepTolerance : kFinalStepTolerance;
+            const double conWant = c.contrast + (target.contrast - c.last.contrast) / c.contrastGain;
+            const double satWant = c.saturation + (target.sat - c.last.sat) / c.satGain;
+            const bool conOff = std::abs(conWant - s.contrast) >= tolerance;
+            const bool satOff = std::abs(satWant - s.saturation) >= tolerance;
+            auto adjust = [&](const char* key, double want, int now, const char* what)
+            {
+                const int v = std::clamp(static_cast<int>(std::lround(want)), -4, 4);
+                if (std::abs(want) > 4.5)
+                    notes.push_back(c.name + ": its " + what + " is more different than the Picture Style can correct.");
+                if (v == now)
+                    return;
+                wanted = true;
+                if (apply)
+                    changed = CameraSettingsCanon::Write(*ctx, key, v, error) || changed;
+            };
+            if (conOff)
+                adjust("contrast", conWant, s.contrast, "contrast");
+            // Saturação junto quando o contraste muda pouco (até 1 passo); senão espera
+            if (satOff && std::abs(conWant - s.contrast) < 1.5)
+                adjust("saturation", satWant, s.saturation, "saturation");
         }
 
         // Brilho
@@ -908,6 +970,15 @@ namespace AutoMatch
                         CameraSettingsCanon::Write(*ctx, "kelvin", was.kelvin, error);
                     else
                         CameraSettingsCanon::Write(*ctx, "wb", wbWas->value, error);
+                }
+                if (was.styleDetailAvailable && now.styleDetailAvailable)
+                {
+                    if (now.contrast != was.contrast)
+                        CameraSettingsCanon::Write(*ctx, "contrast", was.contrast, error);
+                    if (now.saturation != was.saturation)
+                        CameraSettingsCanon::Write(*ctx, "saturation", was.saturation, error);
+                    if (now.colorTone != was.colorTone)
+                        CameraSettingsCanon::Write(*ctx, "colortone", was.colorTone, error);
                 }
                 if (was.shiftAvailable && now.shiftAB != was.shiftAB)
                     CameraSettingsCanon::Write(*ctx, "shiftab", was.shiftAB, error);

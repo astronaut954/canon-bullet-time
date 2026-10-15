@@ -762,6 +762,18 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-cell.applying { opacity: .5; pointer-events: none; }
 .cs-cell.applying::after { content: " …"; color: var(--noct-pending); }
 .cs-pair { display: inline-flex; gap: 4px; }
+/* Ajustes do Picture Style: botão na célula e a caixa que ele abre */
+.cs-more { box-sizing: border-box; width: 26px; height: 28px; margin-left: 4px; padding: 0; vertical-align: top; cursor: pointer;
+  border: 1px solid var(--noct-border); background: var(--noct-surface); color: var(--noct-primary); font: 700 13px var(--noct-font-mono); }
+.cs-more:hover, .cs-more.open { border-color: var(--noct-primary); }
+.cs-more.open { background: var(--noct-primary); color: var(--noct-on-primary); }
+.cs-pop { position: fixed; z-index: 7; width: 230px; box-sizing: border-box; padding: 10px 12px 12px; background: var(--noct-surface);
+  border: 1px solid var(--noct-border-strong); box-shadow: 0 12px 32px rgba(0, 0, 0, .55); }
+.cs-pop-title { font: 700 11px var(--noct-font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--noct-primary); margin-bottom: 8px; }
+.cs-pop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0;
+  font: 12px var(--noct-font-mono); color: var(--noct-text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.cs-pop-row.applying { opacity: .5; pointer-events: none; }
+.cs-pop-note { margin-top: 6px; font: 11px var(--noct-font-sans); color: var(--noct-text-dim); }
 .cs-foot { display: flex; gap: 10px; align-items: center; padding: 12px 22px; border-top: 1px solid var(--noct-border); }
 .cs-auto { margin-left: 4px; }
 .cs-sheet.capturing .cs-auto { opacity: .5; pointer-events: none; }
