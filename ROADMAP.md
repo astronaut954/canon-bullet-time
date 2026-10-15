@@ -262,7 +262,8 @@ fixo, só a lista rola, e arrastar para reordenar.
      Tungsten 3200, Fluorescent 4000; troca de predefinido uma vez, se a foto seguinte mostrar
      que outro fica mais perto);
   4. cor pelo ajuste fino do balanço (Canon: 1 passo azul/âmbar ≈ 5 mireds; no SDK, AB −
-     azul/+ âmbar e GM − verde/+ magenta) e brilho pelo ISO (em M) ou pela compensação (outros
+     azul/+ âmbar; GM: a documentação diz − verde/+ magenta, mas na T7 +5 aparece como G5 no
+     menu da câmera — conferido em 2026-10-15, então o app usa − magenta/+ verde) e brilho pelo ISO (em M) ou pela compensação (outros
      modos); foto de novo e corrige pelo quanto a câmera respondeu. No máximo 5 fotos.
   Mostra as últimas fotos e um resumo do que mudou em cada câmera. Medida conferida aqui com
   cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido; +1/3 de stop esperado, +0,35

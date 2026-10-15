@@ -2356,7 +2356,7 @@
       if (current === null) options.unshift(["", "—", true]);
       return csSelect(options, current === null ? "" : String(current), (v) => onPick(+v), "small" + (differs ? " diff" : ""));
     };
-    box.append(list(ab, "B", "A", onAB, diff || ab === null), list(gm, "G", "M", onGM, diff || gm === null));
+    box.append(list(ab, "B", "A", onAB, diff || ab === null), list(gm, "M", "G", onGM, diff || gm === null));  // no SDK: + = verde (conferido na T7)
     box.title = "Blue (B) ↔ amber (A) and green (G) ↔ magenta (M)";
     return box;
   }

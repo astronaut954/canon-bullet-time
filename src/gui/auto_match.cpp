@@ -141,7 +141,7 @@ namespace
     {
         auto part = [](int v, const char* neg, const char* pos)
         { return v == 0 ? std::string("0") : std::string(v < 0 ? neg : pos) + std::to_string(std::abs(v)); };
-        return part(ab, "B", "A") + " " + part(gm, "G", "M");
+        return part(ab, "B", "A") + " " + part(gm, "M", "G");
     }
 
     // O que aparece no resumo, na ordem da tabela
@@ -350,7 +350,7 @@ namespace
             }
             if (sameBase && s.shiftGM != c.gm)
             {
-                const double g = -(now.g - c.last.g) / (s.shiftGM - c.gm);
+                const double g = (now.g - c.last.g) / (s.shiftGM - c.gm);  // + = mais verde
                 if (g > 0.01)
                     c.gainGM = std::clamp(g, 0.015, 0.12);
             }
@@ -396,7 +396,7 @@ namespace
             const double eWant = eLast - (target.rb - c.last.rb) / c.rbPerMired;
             const double abWant = (base - eWant) / kMiredsPerStep;
             const double gNow = c.last.g - (sameBase ? 0.0 : kGPerMired * (base - c.baseMired));
-            const double gmWant = c.gm + (gNow - target.g) / c.gainGM;
+            const double gmWant = c.gm + (target.g - gNow) / c.gainGM;  // + = mais verde
             const double tolerance = apply ? ColorMatch::kStepTolerance : kFinalStepTolerance;
             const bool abOff = std::abs(abWant - s.shiftAB) >= tolerance;
             const bool gmOff = std::abs(gmWant - s.shiftGM) >= tolerance;

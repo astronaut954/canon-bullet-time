@@ -232,7 +232,7 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       parecer mais iguais entre si do que antes (cor e brilho).
 - [ ] Rodar o Test shot de novo logo depois: muda pouco ou nada ("Nothing to change").
 - [ ] Câmera com o disco fora do M durante o ajuste: ela aparece no resumo como não ajustada.
-- [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu.
+- [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu (SL3 e T7).
 - [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
