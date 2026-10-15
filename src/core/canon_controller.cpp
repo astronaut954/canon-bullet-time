@@ -392,12 +392,6 @@ CanonController::~CanonController()
     }
 }
 
-EdsError EDSCALLBACK CanonController::HandlePropertyEvent(EdsPropertyEvent, EdsPropertyID, EdsUInt32, EdsVoid* context)
-{
-    static_cast<CanonController*>(context)->settingsChanged = true;
-    return EDS_ERR_OK;
-}
-
 EdsError EDSCALLBACK CanonController::HandleCameraAdded(EdsVoid* context)
 {
     // Chega pelo SDK (no Mac, na thread da janela): só anota
@@ -1236,8 +1230,6 @@ void CanonController::RegisterEventHandlers()
         );
 
         LogMessage("SetObjectEventHandler return [" + cam.shortName + "]: " + std::to_string(err));
-        // Configurações mudadas (só marca; a tela de configurações lê de novo)
-        EdsSetPropertyEventHandler(cam.camera, kEdsPropertyEvent_All, HandlePropertyEvent, this);
 
         if (err == EDS_ERR_OK)
             LogMessage("Callback registered: " + cam.shortName);

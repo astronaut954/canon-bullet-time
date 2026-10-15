@@ -114,6 +114,8 @@
   let camSettings = [];          // configurações de cada câmera (evento cameraSettings)
   const csPending = new Set();   // "câmera|chave" enviados e ainda sem resposta ("*" = todas)
   const csTest = { capturing: false, has: false };  // teste rápido do Camera settings
+  let csPoll = 0;                // releitura a cada 3 s com a janela aberta
+  let csRenderLater = false;     // chegou leitura nova com uma lista aberta: redesenha ao sair dela
   let cameras = [];              // última lista recebida (inclui as que estão conectando)
   let sessions = [];
   let currentSession = null;
@@ -741,7 +743,6 @@
     ui.orderBtn.disabled = busy || connected === 0 || sdkBusy;
     $("camSettingsBtn").disabled = busy || connected === 0;
     $("csTest").disabled = busy || connected === 0;
-    $("csMatch").disabled = busy || connected < 2;
     document.querySelectorAll("#cameraList li[data-placed='1']").forEach((li) => li.classList.toggle("can-drag", !busy));
     ui.shootNote.classList.toggle("hidden", !sdkBusy || connected === 0);
     ui.shootNote.textContent = "Available when " + connectingNames.join(" and ") + (connectingNames.length === 1 ? " finishes" : " finish") + " connecting.";
@@ -1847,21 +1848,28 @@
     },
 
     // Reordenar por foto
+    // Test shot com "Match automatically"
     autoMatchProgress(e) {
-      csGallery.setHead("Auto match", "Photo " + e.round + " of up to " + e.rounds + " · " + (e.step === "measuring" ? "measuring" : "taking photos"));
-      if (e.step === "measuring") csGallery.message("Measuring color and brightness");
+      csGallery.setHead("Test shot · matching", "Photo " + e.shot + " of up to " + e.shots + " · " + e.stage);
+      csGallery.message(e.stage);
     },
     autoMatchResult(e) {
-      if (!e.ok) {
-        dialog("Auto match did not finish", e.error || "Try again.", [{ label: "OK", primary: true }]);
+      const notes = e.notes || [];
+      if (!e.matched) {
+        if (!e.ok) toast(e.error || "The photos could not be taken.", 8000);
+        if (notes.length) dialog("Not matched automatically", notes.join("\n"), [{ label: "OK", primary: true }]);
         return;
       }
-      const lines = (e.changes || []).map((c) => c.camera + ":  " + c.from + "  →  " + c.to);
-      const text = (lines.length ? lines.join("\n") : "The cameras already match. Nothing was changed.") +
-        ((e.notes || []).length ? "\n\n" + e.notes.join("\n") : "") +
-        "\n\nThe photos show the result. Use ← → to compare.";
-      dialog(lines.length ? "Auto match done" : "Auto match: nothing to change", text, [{ label: "OK", primary: true }]);
-      log("Auto match: " + (lines.length ? plural(lines.length, "camera", "cameras") + " adjusted" : "no change"), "ok");
+      const changes = e.changes || [];
+      const blocks = changes.map((c) => c.camera + "\n" + c.items.map(([what, from, to]) => "   " + what + ":  " + from + "  →  " + to).join("\n"));
+      const parts = [];
+      if (!e.ok) parts.push(e.error || "Try again.");
+      parts.push(blocks.length ? blocks.join("\n\n") : (e.ok ? "The cameras already look alike. Nothing was changed." : "Nothing was changed."));
+      if (notes.length) parts.push(notes.join("\n"));
+      if (e.ok) parts.push("The photos show the result. Use ← → to compare.");
+      const title = !e.ok ? "Matching did not finish" : blocks.length ? "Cameras matched" : "Nothing to change";
+      dialog(title, parts.join("\n\n"), [{ label: "OK", primary: true }]);
+      log("Match automatically: " + (blocks.length ? plural(blocks.length, "camera", "cameras") + " changed" : "no change"), e.ok ? "ok" : "warn");
     },
     orderPhotos(e) {
       if (csTest.capturing) showCsTest(e.sessions);
@@ -1946,9 +1954,12 @@
 
     // Configurações das câmeras (lidas quando as câmeras mudam ou depois de uma mudança)
     cameraSettings(e) {
-      camSettings = e.cameras || [];
+      const next = e.cameras || [];
+      const same = JSON.stringify(next) === JSON.stringify(camSettings);
+      camSettings = next;
+      if (same) return;  // releitura sem mudança: nada a redesenhar
       renderCameras();
-      if (!$("camSettingsOverlay").classList.contains("hidden")) renderCamSettings();
+      if (!$("camSettingsOverlay").classList.contains("hidden")) csRender();
     },
     cameraSettingResult(e) {
       const keys = e.key === "kelvin" || e.key === "wb" ? ["wb", "kelvin"] : [e.key];
@@ -2372,12 +2383,29 @@
       return td;
     }
     if (k === "wb") {
-      // Atalho só de Kelvin: põe todas as câmeras em temperatura de cor
-      const kelvinOk = cams.every((c) => c.settings.wb && c.settings.wb.choices.some(([v]) => v === 9));
-      if (!kelvinOk) { td.appendChild(csText("—", "na", "Not every camera accepts a Kelvin value")); return td; }
-      const allKelvin = cams.every((c) => c.settings.wb.value === 9) && same;
-      const options = (allKelvin ? [] : [["", same ? csLabel(cams[0], "wb") : "Different", true]]).concat(KELVINS.map((kv) => ["k" + kv, kv + " K"]));
-      td.appendChild(csSelect(options, allKelvin ? "k" + cams[0].kelvin : "", (v) => csSet("*", "kelvin", +v.slice(1)), same ? "" : "diff"));
+      // Os predefinidos que todas aceitam e, se todas aceitarem, o atalho de Kelvin
+      // (a SL3 e a T7, por exemplo, não têm Kelvin)
+      const wbs = cams.map((c) => c.settings.wb).filter((w) => w && w.available);
+      const wbText = (c) => (c.settings.wb.value === 9 ? c.kelvin + " K" : c.settings.wb.label);
+      if (!wbs.length || wbs.some((w) => !w.choices.length)) {
+        td.appendChild(csText(same && wbs.length ? wbText(cams.find((c) => c.settings.wb && c.settings.wb.available)) : "—", same ? "" : "na", "Not changeable on every camera"));
+        return td;
+      }
+      const accepted = (v) => wbs.every((w) => w.choices.some(([x]) => x === v));
+      let options = wbs[0].choices.filter(([v]) => v !== 9 && accepted(v)).map(([v, l]) => [String(v), l]);
+      if (accepted(9)) options = options.concat(KELVINS.map((kv) => ["k" + kv, kv + " K"]));
+      if (!options.length) { td.appendChild(csText("—", "na", "The cameras have no white balance in common")); return td; }
+      let current = "";
+      const first = cams.find((c) => c.settings.wb && c.settings.wb.available);
+      if (same) {
+        current = first.settings.wb.value === 9 ? "k" + first.kelvin : String(first.settings.wb.value);
+        if (!options.some(([x]) => x === current)) current = "";
+      }
+      if (!current) options.unshift(["", same ? wbText(first) : "Different", true]);
+      td.appendChild(csSelect(options, current, (v) => {
+        if (v.startsWith("k")) csSet("*", "kelvin", +v.slice(1));
+        else csSet("*", "wb", +v);
+      }, same ? "" : "diff"));
       return td;
     }
     const lists = cams.filter((c) => c.settings[k] && c.settings[k].available).map((c) => c.settings[k].choices);
@@ -2394,6 +2422,15 @@
     td.appendChild(csSelect(options, current, (v) => csSet("*", k, +v), same ? "" : "diff"));
     return td;
   }
+
+  // Redesenha, mas não com uma lista aberta (a lista fecharia sozinha): espera sair dela
+  function csRender() {
+    const a = document.activeElement;
+    if (a && a.tagName === "SELECT" && $("csBody").contains(a)) { csRenderLater = true; return; }
+    csRenderLater = false;
+    renderCamSettings();
+  }
+  $("csBody").addEventListener("focusout", () => { if (csRenderLater) setTimeout(csRender, 0); });
 
   function renderCamSettings() {
     const body = $("csBody");
@@ -2479,33 +2516,23 @@
     toast("Copying the settings of " + name + " to the other cameras");
   }
 
-  // ----- Teste rápido: dispara todas as câmeras uma vez (fotos temporárias, como no
-  // "Reorder by photo"), para conferir as fotos lado a lado e ajustar de novo -----
+  // ----- Test shot: dispara todas as câmeras (fotos temporárias, como no "Reorder by
+  // photo") para conferir lado a lado. Com "Match automatically", o app também muda as
+  // câmeras para ficarem parecidas (até 5 fotos) e mostra as últimas. -----
   function csTakeTest() {
-    if (busy || csTest.capturing || !cameras.some((c) => c.connected)) return;
+    const connected = cameras.filter((c) => c.connected).length;
+    if (busy || csTest.capturing || !connected) return;
+    const match = $("csAuto").checked && connected >= 2;
     csTest.capturing = true;
     csTest.has = false;
-    csTest.mode = "test";
+    csTest.mode = match ? "match" : "test";
     $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
     $("csTestBox").classList.remove("hidden");
     csGallery.setItems([]);
-    csGallery.setHead("Test shot", "");
+    csGallery.setHead(match ? "Test shot · matching" : "Test shot", "");
     csGallery.message("Taking a photo with each camera");
-    window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
-  }
-  // Auto match: fotos de teste, mede e iguala cor (ajuste fino) e brilho (ISO) à média
-  // de todas as câmeras; até 3 fotos (o app confere depois de mudar)
-  function csAutoMatch() {
-    if (busy || csTest.capturing || cameras.filter((c) => c.connected).length < 2) return;
-    csTest.capturing = true;
-    csTest.has = false;
-    $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
-    $("csTestBox").classList.remove("hidden");
-    csGallery.setItems([]);
-    csTest.mode = "match";
-    csGallery.setHead("Auto match", "Taking test photos");
-    csGallery.message("Taking a photo with each camera");
-    window.autoMatch(intValue(ui.downloadWait, 1, 10));
+    if (match) window.autoMatch(intValue(ui.downloadWait, 1, 10));
+    else window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
   }
   function showCsTest(list) {
     csTest.capturing = false;
@@ -2522,7 +2549,7 @@
     });
     csGallery.setItems(items, 0);
     const missing = items.filter((i) => !i.file).length;
-    csGallery.setHead(csTest.mode === "match" ? "Auto match · result" : "Test shot",
+    csGallery.setHead(csTest.mode === "match" ? "Test shot · matched" : "Test shot",
       (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · ← → to compare");
   }
   function csDiscardTest() {
@@ -2535,16 +2562,26 @@
   }
   function closeCamSettings() {
     $("camSettingsOverlay").classList.add("hidden");
+    clearInterval(csPoll);
+    csPoll = 0;
     csDiscardTest();
+  }
+  // Com a janela aberta, lê as câmeras de novo a cada 3 s (mudanças feitas na própria
+  // câmera aparecem sozinhas). Não lê durante fotos, mudanças ou com o app ocupado.
+  function csPollTick() {
+    if ($("camSettingsOverlay").classList.contains("hidden")) return;
+    if (busy || csTest.capturing || csPending.size || !cameras.some((c) => c.connected)) return;
+    window.readCameraSettings();
   }
 
   $("camSettingsBtn").addEventListener("click", () => {
     renderCamSettings();
     $("camSettingsOverlay").classList.remove("hidden");
     window.readCameraSettings();
+    clearInterval(csPoll);
+    csPoll = setInterval(csPollTick, 3000);
   });
   $("csTest").addEventListener("click", csTakeTest);
-  $("csMatch").addEventListener("click", csAutoMatch);
   $("csDone").addEventListener("click", closeCamSettings);
   $("csRead").addEventListener("click", () => window.readCameraSettings());
   $("csCopy").addEventListener("change", (e) => { if (e.target.value) copyFromCamera(e.target.value); });

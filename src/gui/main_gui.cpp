@@ -33,6 +33,7 @@
 #include "photo_store.h"
 #include "exporter.h"
 #include "camera_settings.h"
+#include "auto_match.h"
 #include "color_match.h"
 #include "platform/media.h"
 
@@ -423,35 +424,8 @@ namespace
     // Disparo único silencioso também vale (uma foto).
     bool IsSingleShot(long long drive) { return drive == 0x00 || drive == 0x06 || drive == 0x13; }
 
-    void EnsureSingleShot(CanonController& controller, std::map<std::string, bool>& warned)
-    {
-        for (const auto& cam : controller.GetCameras())
-        {
-            if (!cam.sessionOpen || cam.camera == nullptr)
-                continue;
-            const CameraSettings s = CameraSettingsCanon::Read(cam);
-            const auto drive = std::find_if(s.settings.begin(), s.settings.end(), [](const CameraSetting& c) { return c.key == "drive"; });
-            if (drive == s.settings.end() || !drive->available || IsSingleShot(drive->value))
-            {
-                warned.erase(cam.shortName);
-                continue;
-            }
-            std::string error;
-            if (CameraSettingsCanon::Write(cam, "drive", 0x00, error))
-            {
-                Log(cam.shortName + " was set to single shooting (it was on " + drive->label + ")");
-                warned.erase(cam.shortName);
-            }
-            else if (!warned[cam.shortName])
-            {
-                warned[cam.shortName] = true;
-                Log(cam.shortName + " is on " + drive->label + " and could not be set to single shooting: " + error);
-            }
-        }
-    }
-
-    // Configurações de todas as câmeras conectadas, na ordem do app (tela Camera settings)
-    std::string CameraSettingsJson(CanonController& controller)
+    // Configurações de todas as câmeras conectadas, na ordem do app
+    std::vector<CameraSettings> ReadAllSettings(CanonController& controller)
     {
         std::vector<const CameraContext*> ordered;
         for (const auto& cam : controller.GetCameras())
@@ -459,10 +433,60 @@ namespace
                 ordered.push_back(&cam);
         std::sort(ordered.begin(), ordered.end(),
             [](const CameraContext* a, const CameraContext* b) { return a->orderPrefix < b->orderPrefix; });
-        std::string list = "[";
-        for (size_t i = 0; i < ordered.size(); ++i)
+        std::vector<CameraSettings> all;
+        for (const CameraContext* cam : ordered)
+            all.push_back(CameraSettingsCanon::Read(*cam));
+        return all;
+    }
+
+    // Põe em disparo único as câmeras que não estão (all: leitura atual, atualizada
+    // nas que mudaram). Avisa uma vez por câmera se não der.
+    void EnsureSingleShot(CanonController& controller, std::vector<CameraSettings>& all, std::map<std::string, bool>& warned)
+    {
+        for (auto& s : all)
         {
-            const CameraSettings s = CameraSettingsCanon::Read(*ordered[i]);
+            const auto drive = std::find_if(s.settings.begin(), s.settings.end(), [](const CameraSetting& c) { return c.key == "drive"; });
+            if (drive == s.settings.end() || !drive->available || IsSingleShot(drive->value))
+            {
+                warned.erase(s.camera);
+                continue;
+            }
+            const auto cam = std::find_if(controller.GetCameras().begin(), controller.GetCameras().end(),
+                [&](const CameraContext& c) { return c.shortName == s.camera && c.sessionOpen; });
+            if (cam == controller.GetCameras().end())
+                continue;
+            std::string error;
+            if (CameraSettingsCanon::Write(*cam, "drive", 0x00, error))
+            {
+                Log(s.camera + " was set to single shooting (it was on " + drive->label + ")");
+                warned.erase(s.camera);
+                s = CameraSettingsCanon::Read(*cam);
+            }
+            else if (!warned[s.camera])
+            {
+                warned[s.camera] = true;
+                Log(s.camera + " is on " + drive->label + " and could not be set to single shooting: " + error);
+            }
+        }
+    }
+
+    void EnsureSingleShot(CanonController& controller, std::map<std::string, bool>& warned)
+    {
+        auto all = ReadAllSettings(controller);
+        EnsureSingleShot(controller, all, warned);
+    }
+
+    // Configurações para a tela Camera settings (JSON)
+    std::string CameraSettingsJson(CanonController& controller, const std::vector<CameraSettings>& all)
+    {
+        std::string list = "[";
+        for (size_t i = 0; i < all.size(); ++i)
+        {
+            const CameraSettings& s = all[i];
+            int order = 0;
+            for (const auto& cam : controller.GetCameras())
+                if (cam.shortName == s.camera)
+                    order = cam.orderPrefix;
             std::string settings = "{";
             for (size_t k = 0; k < s.settings.size(); ++k)
             {
@@ -478,13 +502,21 @@ namespace
             }
             settings += "}";
             list += (i ? "," : "") + Json("camera").Add("camera", s.camera).Add("model", s.model)
-                .Add("order", ordered[i]->orderPrefix).Add("adjustable", s.adjustable).Add("reason", s.reason)
+                .Add("order", order).Add("adjustable", s.adjustable).Add("reason", s.reason)
                 .Add("mode", s.mode).Add("manual", s.manualMode).Add("kelvin", s.kelvin)
                 .Add("kelvinAvailable", s.kelvinAvailable).Add("shiftAvailable", s.shiftAvailable)
                 .Add("shiftAB", s.shiftAB).Add("shiftGM", s.shiftGM).Add("focusManual", s.focusManual)
                 .Raw("settings", settings).Str();
         }
         return list + "]";
+    }
+
+    // Lê tudo uma vez, confere o disparo único e manda para a página
+    void EmitCameraSettings(CanonController& controller, GuiListener& listener, std::map<std::string, bool>& warned)
+    {
+        auto all = ReadAllSettings(controller);
+        EnsureSingleShot(controller, all, warned);
+        listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller, all)));
     }
 
     Json CamerasSnapshot(CanonController& controller)
@@ -841,19 +873,19 @@ namespace
                 listener.Emit(CamerasSnapshot(controller));
 
             // Configurações (avisos no painel e tela Camera settings): lidas de novo quando
-            // as câmeras conectadas mudam ou quando uma câmera avisa que algo mudou
+            // as câmeras conectadas mudam (com a janela aberta, a página pede a cada 3 s).
+            // Out/2026, Mac: com o aviso de "configuração mudada" do SDK ligado, o app fechou ao
+            // desligar as câmeras (falha dentro do EdsGetEvent). Suspeita: esse aviso; saiu.
             if (controller.HasPendingConnections())
                 return;
             std::string connected;
             for (const auto& cam : controller.GetCameras())
                 if (cam.sessionOpen)
                     connected += cam.shortName + "@" + cam.portName + ";";
-            const bool changed = controller.TakeSettingsChanged();
-            if (connected != settingsCameras || changed)
+            if (connected != settingsCameras)
             {
                 settingsCameras = connected;
-                EnsureSingleShot(controller, singleShotWarned);
-                listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
+                EmitCameraSettings(controller, listener, singleShotWarned);
             }
         });
 
@@ -1052,6 +1084,7 @@ namespace
             {
                 if (cameraConnecting())
                     return;
+                EnsureSingleShot(controller, singleShotWarned);  // uma foto por câmera
                 bulletTime.RunSequence(settings);
                 emitSessions();
             });
@@ -1073,8 +1106,7 @@ namespace
             {
                 if (busy || controller.HasPendingConnections())
                     return;
-                EnsureSingleShot(controller, singleShotWarned);
-                listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
+                EmitCameraSettings(controller, listener, singleShotWarned);
             });
             return "null";
         });
@@ -1114,9 +1146,7 @@ namespace
                     text += (text.empty() ? "" : " ") + e;
                 listener.Emit(result.Add("ok", errors.empty()).Add("error", text));
                 EdsGetEvent();
-                controller.TakeSettingsChanged();
-                EnsureSingleShot(controller, singleShotWarned);
-                listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
+                EmitCameraSettings(controller, listener, singleShotWarned);
             });
             return "null";
         });
@@ -1198,6 +1228,7 @@ namespace
                 if (cameraConnecting())
                     return;
                 orderStore.DeleteAll();
+                EnsureSingleShot(controller, singleShotWarned);  // uma foto por câmera
                 const std::string previous = controller.GetOutputFolder();
                 controller.SetOutputFolder(orderStore.Root().string());
                 bulletTime.RunSequence(settings);
@@ -1207,10 +1238,11 @@ namespace
             return "null";
         });
 
-        // autoMatch(espera): "Auto match" do Camera settings. Tira fotos de teste (as mesmas
-        // temporárias do "Reorder by photo"), mede cor e brilho do centro de cada foto e
-        // iguala todas as câmeras à média: cor pelo ajuste fino do balanço de branco, brilho
-        // pelo ISO. Mede de novo depois de mudar (até 3 fotos) e corrige pelo que mediu.
+        // autoMatch(espera): "Test shot" do Camera settings com "Match automatically".
+        // Tira as fotos de teste (as mesmas temporárias do "Reorder by photo") e deixa as
+        // câmeras o mais parecidas possível (auto_match.h). Avisa o andamento
+        // (autoMatchProgress), mostra as últimas fotos (orderPhotos) e o resumo do que
+        // mudou (autoMatchResult).
         window.bind("autoMatch", [&](const std::string& request) -> std::string
         {
             const auto values = ParseIntArgs(request);
@@ -1221,217 +1253,56 @@ namespace
             settings.playSounds = false;
             run("orderPhotos", [&, settings]
             {
-                auto finish = [&](bool ok, const std::string& error, const std::string& changes, const std::string& notes)
+                if (cameraConnecting())
+                    return;
+                auto shoot = [&](int shot, int shots, const std::string& stage,
+                                 std::map<std::string, ColorMatch::Stats>& measured) -> bool
                 {
-                    listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
-                    listener.Emit(Json("autoMatchResult").Add("ok", ok).Add("error", error)
-                                      .Raw("changes", changes).Raw("notes", notes));
-                    controller.TakeSettingsChanged();
-                    listener.Emit(Json("cameraSettings").Raw("cameras", CameraSettingsJson(controller)));
-                };
-                if (controller.HasPendingConnections())
-                    return finish(false, "A camera is connecting. Try again when it is ready.", "[]", "[]");
-
-                // Câmeras que dá para ajustar, com o mesmo balanço de branco (o ajuste fino
-                // vale sobre ele; no Auto a cor muda a cada foto)
-                struct Cam { std::string name; CameraSettings s; ColorMatch::Stats last; int stepAB = 0, stepGM = 0;
-                             double gainAB = ColorMatch::kStartGainAB, gainGM = ColorMatch::kStartGainGM;
-                             std::string startText; };
-                std::vector<Cam> cams;
-                std::string wbLabel;
-                bool sameWb = true;
-                auto wbOf = [](const CameraSettings& s)
-                {
-                    for (const auto& c : s.settings)
-                        if (c.key == "wb" && c.available)
-                            return c.value == 9 ? std::to_string(s.kelvin) + " K" : c.label;
-                    return std::string();
-                };
-                auto isoOf = [](const CameraSettings& s) -> const CameraSetting*
-                {
-                    for (const auto& c : s.settings)
-                        if (c.key == "iso" && c.available)
-                            return &c;
-                    return nullptr;
-                };
-                auto shiftText = [](int ab, int gm)
-                {
-                    auto part = [](int v, const char* neg, const char* pos)
-                    { return v == 0 ? std::string("0") : std::string(v < 0 ? neg : pos) + std::to_string(std::abs(v)); };
-                    return part(ab, "B", "A") + " " + part(gm, "G", "M");
-                };
-                for (const auto& cam : controller.GetCameras())
-                {
-                    if (!cam.sessionOpen)
-                        continue;
-                    CameraSettings s = CameraSettingsCanon::Read(cam);
-                    if (!s.adjustable || !s.shiftAvailable)
-                        continue;
-                    const std::string wb = wbOf(s);
-                    if (wbLabel.empty())
-                        wbLabel = wb;
-                    sameWb = sameWb && wb == wbLabel;
-                    const CameraSetting* iso = isoOf(s);
-                    Cam c;
-                    c.name = cam.shortName;
-                    c.startText = "WB " + shiftText(s.shiftAB, s.shiftGM) + (iso ? " · " + iso->label : "");
-                    c.s = s;
-                    cams.push_back(c);
-                }
-                if (cams.size() < 2)
-                    return finish(false, "Auto match needs at least two cameras that can be adjusted.", "[]", "[]");
-                if (!sameWb || wbLabel == "Auto" || wbLabel == "Auto (white)" || wbLabel.empty())
-                    return finish(false, "Set the same white balance on all cameras first (for example a Kelvin value in All cameras), not Auto.", "[]", "[]");
-
-                std::vector<std::string> notes;
-                const int kRounds = 3;
-                bool converged = false;
-                for (int round = 1; round <= kRounds && !converged; ++round)
-                {
-                    listener.Emit(Json("autoMatchProgress").Add("round", round).Add("rounds", kRounds).Add("step", "photos"));
+                    listener.Emit(Json("autoMatchProgress").Add("shot", shot).Add("shots", shots).Add("stage", stage));
                     orderStore.DeleteAll();
+                    EnsureSingleShot(controller, singleShotWarned);
                     const std::string previous = controller.GetOutputFolder();
                     controller.SetOutputFolder(orderStore.Root().string());
                     bulletTime.RunSequence(settings);
                     controller.SetOutputFolder(previous);
-
-                    listener.Emit(Json("autoMatchProgress").Add("round", round).Add("rounds", kRounds).Add("step", "measuring"));
                     const auto sessions = orderStore.ListSessions();
                     if (sessions.empty())
-                        return finish(false, "The test photos did not arrive.", "[]", "[]");
+                        return false;
+                    // Uma foto por câmera (JPEG quando houver RAW + JPEG)
                     const StoredSession& session = sessions.back();
-                    std::vector<ColorMatch::Stats> measured;
-                    for (auto& c : cams)
-                    {
-                        // Uma foto por câmera (JPEG quando houver RAW + JPEG)
-                        const StoredPhoto* pick = nullptr;
-                        for (const auto& p : session.photos)
-                            if (p.camera == c.name && (!pick || IsJpegPhoto(p.file)))
-                                pick = &p;
-                        ColorMatch::Stats st;
-                        if (pick && pick->previewable)
-                            st = ColorMatch::Measure(orderStore.Root() / session.name / pick->file);
-                        // Depois de mudar: quanto a medida andou por passo (corrige o ponto de partida)
-                        if (st.ok && c.last.ok)
-                        {
-                            if (c.stepAB != 0)
-                            {
-                                const double g = (st.rb - c.last.rb) / c.stepAB;
-                                if (g > 0.004) c.gainAB = std::clamp(g, 0.006, 0.08);
-                            }
-                            if (c.stepGM != 0)
-                            {
-                                const double g = -(st.g - c.last.g) / c.stepGM;
-                                if (g > 0.004) c.gainGM = std::clamp(g, 0.006, 0.08);
-                            }
-                        }
-                        c.last = st;
-                        c.stepAB = c.stepGM = 0;
-                        measured.push_back(st);
-                    }
-                    const ColorMatch::Stats target = ColorMatch::Average(measured);
-                    if (!target.ok)
-                        return finish(false, "The test photos could not be measured.", "[]", "[]");
+                    std::map<std::string, const StoredPhoto*> picks;
+                    for (const auto& p : session.photos)
+                        if (!picks.count(p.camera) || IsJpegPhoto(p.file))
+                            picks[p.camera] = &p;
+                    for (const auto& [camera, photo] : picks)
+                        if (photo->previewable)
+                            measured[camera] = ColorMatch::Measure(orderStore.Root() / session.name / photo->file);
+                    return true;
+                };
+                const AutoMatch::Result result = AutoMatch::Run(controller, shoot);
 
-                    // Última foto: só confere (não muda mais nada)
-                    const bool lastRound = round == kRounds;
-                    bool changedAny = false;
-                    for (auto& c : cams)
-                    {
-                        if (!c.last.ok)
-                            continue;
-                        const CameraContext* ctx = nullptr;
-                        for (const auto& cam : controller.GetCameras())
-                            if (cam.shortName == c.name && cam.sessionOpen)
-                                ctx = &cam;
-                        if (!ctx)
-                            continue;
-                        c.s = CameraSettingsCanon::Read(*ctx);
-                        // Cor: âmbar (+) sobe ln(R/B); magenta (+) desce ln(G/√RB)
-                        const double wantAB = (target.rb - c.last.rb) / c.gainAB;
-                        const double wantGM = (c.last.g - target.g) / c.gainGM;
-                        const double wantEv = target.ev - c.last.ev;
-                        const bool colorOk = std::abs(wantAB) < ColorMatch::kStepTolerance && std::abs(wantGM) < ColorMatch::kStepTolerance;
-                        const bool evOk = std::abs(wantEv) < ColorMatch::kEvTolerance;
-                        if (colorOk && evOk)
-                            continue;
-                        if (lastRound)
-                            continue;
-                        std::string error;
-                        if (!colorOk)
-                        {
-                            const int ab = std::clamp(c.s.shiftAB + static_cast<int>(std::lround(wantAB)), -9, 9);
-                            const int gm = std::clamp(c.s.shiftGM + static_cast<int>(std::lround(wantGM)), -9, 9);
-                            if (ab != c.s.shiftAB && CameraSettingsCanon::Write(*ctx, "shiftab", ab, error))
-                            { c.stepAB = ab - c.s.shiftAB; changedAny = true; }
-                            if (gm != c.s.shiftGM && CameraSettingsCanon::Write(*ctx, "shiftgm", gm, error))
-                            { c.stepGM = gm - c.s.shiftGM; changedAny = true; }
-                            if (std::abs(c.s.shiftAB + static_cast<int>(std::lround(wantAB))) > 9
-                                || std::abs(c.s.shiftGM + static_cast<int>(std::lround(wantGM))) > 9)
-                                notes.push_back(c.name + ": the color difference is bigger than the fine-tune range. Adjust its white balance (Kelvin).");
-                        }
-                        if (!evOk)
-                        {
-                            // Brilho pelo ISO: o valor aceito mais perto do que falta
-                            const CameraSetting* iso = isoOf(c.s);
-                            auto isoNumber = [](const std::string& label) -> double
-                            {
-                                try { return std::stod(label.substr(label.find(' ') + 1)); } catch (...) { return 0; }
-                            };
-                            const double current = iso ? isoNumber(iso->label) : 0;
-                            if (!iso || current <= 0 || iso->choices.empty())
-                                notes.push_back(c.name + ": brightness differs, but its ISO cannot be changed (ISO Auto?).");
-                            else
-                            {
-                                long long best = iso->value;
-                                double bestError = std::abs(wantEv);
-                                for (const auto& choice : iso->choices)
-                                {
-                                    const double n = isoNumber(choice.label);
-                                    if (n <= 0)
-                                        continue;
-                                    const double err = std::abs(std::log2(n / current) - wantEv);
-                                    if (err < bestError - 1e-6) { bestError = err; best = choice.value; }
-                                }
-                                if (best != iso->value && CameraSettingsCanon::Write(*ctx, "iso", best, error))
-                                    changedAny = true;
-                            }
-                        }
-                        if (!error.empty())
-                            notes.push_back(c.name + ": " + error);
-                    }
-                    EdsGetEvent();
-                    converged = !changedAny;
-                }
-
-                // Resumo: o que mudou em cada câmera
                 std::string changes = "[";
-                bool first = true;
-                for (const auto& c : cams)
+                for (size_t i = 0; i < result.changes.size(); ++i)
                 {
-                    for (const auto& cam : controller.GetCameras())
+                    std::string items = "[";
+                    for (size_t j = 0; j < result.changes[i].items.size(); ++j)
                     {
-                        if (cam.shortName != c.name || !cam.sessionOpen)
-                            continue;
-                        const CameraSettings now = CameraSettingsCanon::Read(cam);
-                        const CameraSetting* iso = isoOf(now);
-                        const std::string endText = "WB " + shiftText(now.shiftAB, now.shiftGM) + (iso ? " · " + iso->label : "");
-                        if (endText == c.startText)
-                            continue;
-                        changes += (first ? "" : ",") + Json("change").Add("camera", c.name).Add("from", c.startText)
-                                                            .Add("to", endText).Str();
-                        first = false;
+                        const auto& item = result.changes[i].items[j];
+                        items += (j ? "," : "") + std::string("[") + JsonString(item[0]) + "," + JsonString(item[1]) + ","
+                                 + JsonString(item[2]) + "]";
                     }
+                    changes += (i ? "," : "") + Json("change").Add("camera", result.changes[i].camera).Raw("items", items + "]").Str();
                 }
                 changes += "]";
-                // Avisos sem repetir
-                std::sort(notes.begin(), notes.end());
-                notes.erase(std::unique(notes.begin(), notes.end()), notes.end());
-                std::string notesJson = "[";
-                for (size_t i = 0; i < notes.size(); ++i)
-                    notesJson += (i ? "," : "") + JsonString(notes[i]);
-                notesJson += "]";
-                finish(true, "", changes, notesJson);
+                std::string notes = "[";
+                for (size_t i = 0; i < result.notes.size(); ++i)
+                    notes += (i ? "," : "") + JsonString(result.notes[i]);
+                notes += "]";
+
+                listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
+                listener.Emit(Json("autoMatchResult").Add("ok", result.ok).Add("matched", result.matched)
+                                  .Add("error", result.error).Raw("changes", changes).Raw("notes", notes));
+                EmitCameraSettings(controller, listener, singleShotWarned);
             });
             return "null";
         });

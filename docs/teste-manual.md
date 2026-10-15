@@ -207,25 +207,33 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Ponha uma câmera em disparo contínuo (ou timer) na própria câmera: o app volta ela para
       disparo único sozinho (Activity: "... was set to single shooting"). Se não conseguir, o
       painel mostra "Not on single shot".
-- [ ] "All cameras": mudar um valor muda em todas; White balance em Kelvin põe todas em K.
+- [ ] "All cameras": mudar um valor muda em todas. White balance: lista os predefinidos que todas
+      aceitam (Daylight, Cloudy...); os valores em Kelvin só aparecem se todas aceitarem Kelvin
+      (a SL3 e a T7 não aceitam).
 - [ ] WB fine-tune (B/A e M/G) muda na câmera.
 - [ ] Copy from camera: todas ficam iguais à escolhida.
 - [ ] Câmera com o disco fora do M (ex.: Auto): linha com o aviso para girar para M; no painel,
       "Settings on the camera only". Girando para M, a linha volta a ter as opções sozinha.
 - [ ] Câmera com valor diferente: âmbar na tabela e "Settings differ" no painel.
 - [ ] Lente em AF: Focus em âmbar; em MF: "MF".
-- [ ] Mudar algo direto na câmera: a tabela atualiza sozinha (ou com "Read again").
-- [ ] Test shot: dispara todas as câmeras (sem contagem e sem som), mostra uma foto de cada uma
-      na ordem; ← → passam de uma câmera para outra; a tabela fica bloqueada enquanto fotografa.
-      As fotos do teste não viram sessão e somem ao fechar a janela.
-- [ ] Auto match (câmeras com o mesmo balanço de branco em Kelvin): tira até 3 fotos sozinho,
-      muda o WB fine-tune e/ou o ISO das câmeras e mostra o resumo ("T7_1: WB 0 0 · ISO 400 →
-      WB A1 0 · ISO 500"); as fotos finais ficam lado a lado para conferir com ← →.
-- [ ] Auto match com o balanço de branco em Auto ou diferente entre câmeras: aviso pedindo o mesmo
-      balanço de branco, sem mudar nada.
+- [ ] Mudar algo direto na câmera com a janela aberta: a tabela atualiza sozinha em até ~3 s
+      (ou com "Read again").
+- [ ] Test shot com "Match automatically" desligado: dispara todas as câmeras (sem contagem e sem
+      som), mostra uma foto de cada uma na ordem; ← → passam de uma câmera para outra; a tabela
+      fica bloqueada enquanto fotografa. As fotos do teste não viram sessão e somem ao fechar a janela.
+- [ ] Test shot com "Match automatically" ligado (padrão), câmeras com balanço de branco em Auto e
+      valores diferentes (ex.: velocidade 1/200 numa e 1/250 na outra): tira até 5 fotos sozinho
+      ("Photo 2 of up to 5 · Finding a common white balance"...), e no fim mostra as fotos e o
+      resumo do que mudou em cada câmera (velocidade, ISO, White balance, WB fine-tune, Picture
+      Style). Confira na tela de cada câmera que os valores mudaram. As fotos finais devem
+      parecer mais iguais entre si do que antes (cor e brilho).
+- [ ] Rodar o Test shot de novo logo depois: muda pouco ou nada ("Nothing to change").
+- [ ] Câmera com o disco fora do M durante o ajuste: ela aparece no resumo como não ajustada.
 - [ ] WB fine-tune: "G" (verde) e "M" (magenta) batem com o que a câmera mostra no menu.
 - [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
+- [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
+      não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.
 
 ## Resultado
 

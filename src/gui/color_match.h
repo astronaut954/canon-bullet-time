@@ -1,8 +1,7 @@
 #pragma once
 
-// "Auto match" do Camera settings: mede cor e brilho do centro da foto de cada câmera,
-// para igualar todas à média pelo ajuste fino do balanço de branco e pelo ISO.
-// Só contas; quem dispara e muda as câmeras é o main_gui.cpp.
+// "Match automatically" do Camera settings: mede cor e brilho do centro da foto de cada
+// câmera. Só a medida; as decisões ficam em auto_match.cpp.
 
 #include <filesystem>
 #include <vector>
@@ -23,11 +22,6 @@ namespace ColorMatch
 
     // Média de várias medidas (só as ok)
     Stats Average(const std::vector<Stats>& all);
-
-    // Quanto cada passo do ajuste fino muda a medida (ponto de partida; o app corrige
-    // pelo que mediu depois de mudar). Canon: 1 passo azul/âmbar ≈ 5 mireds.
-    constexpr double kStartGainAB = 0.022;  // ln(R/B) por passo
-    constexpr double kStartGainGM = 0.020;  // ln(G/√(R·B)) por passo
 
     // Diferenças pequenas demais para corrigir
     constexpr double kEvTolerance = 0.17;   // ~1/6 de stop

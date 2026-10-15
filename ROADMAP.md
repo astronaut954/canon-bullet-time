@@ -238,7 +238,8 @@ Modo de foco: só leitura (MF vem da chave da lente; mudar o modo AF só foi tes
 EOS R5). Compensação de exposição não vale no modo M (fica sem opções).
 
 Tela aprovada em 2026-10-15: botão "Camera settings" no painel Cameras; tabela com uma linha por
-câmera e a linha "All cameras" (balanço de branco nela só em Kelvin); colunas ISO, Shutter, Aperture,
+câmera e a linha "All cameras" (balanço de branco nela: os predefinidos que todas aceitam e, se
+todas aceitarem, os valores em Kelvin; a SL3 e a T7 não oferecem Kelvin); colunas ISO, Shutter, Aperture,
 Exp. comp., White balance, WB fine-tune, Picture Style, Quality e Focus (só leitura, âmbar
 com AF ligado); Drive saiu da tabela (decisão de 2026-10-15): o app põe toda câmera em disparo único
 sozinho (único silencioso também vale) e, se a câmera não aceitar, avisa ("Not on single shot"); mudanças vão para a câmera na hora; legenda num ícone (?); "Copy from camera";
@@ -247,16 +248,34 @@ fixo, só a lista rola, e arrastar para reordenar.
 - Teste rápido (pedido em 2026-10-15): botão "Test shot" no Camera settings dispara todas as
   câmeras uma vez e mostra as fotos lado a lado (← → para comparar). São fotos temporárias, as
   mesmas do "Reorder by photo": apagadas ao fechar a janela ou no próximo teste.
-- Auto match (decidido em 2026-10-15: igualar à média de todas, cor e brilho): tira fotos de
-  teste, mede o centro de cada foto (`src/gui/color_match.cpp`) e iguala cada câmera à média: cor
-  pelo ajuste fino do balanço de branco (Canon: 1 passo azul/âmbar ≈ 5 mireds; no SDK, AB −
-  azul/+ âmbar e GM − verde/+ magenta) e brilho pelo ISO. Até 3 fotos: depois de mudar, mede de
-  novo e corrige pelo quanto a câmera respondeu. Exige o mesmo balanço de branco em todas (não Auto).
-  Medida conferida aqui com cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido;
-  +1/3 de stop esperado, +0,35 medido).
+- Ajuste automático (decidido em 2026-10-15: igualar à média de todas, cor e brilho; refeito no
+  mesmo dia: é o próprio Test shot que ajusta, e mexe em tudo que faz as câmeras ficarem
+  parecidas). Caixa "Match automatically" ao lado do Test shot (ligada por padrão; não há mais
+  botão "Auto match"). Com ela, o Test shot (`src/gui/auto_match.cpp`):
+  1. sem foto, põe a mesma velocidade, abertura, ISO e compensação em todas (o valor mais perto
+     da média que todas aceitam) e o mesmo Picture Style (o mais comum; nunca Auto, que muda a
+     cada cena; só Auto vira Standard);
+  2. foto 1, como estão: a média da cor e do brilho de todas é o alvo;
+  3. se o balanço de branco está em Auto ou diferente entre elas: todas em Daylight sem ajuste
+     fino, foto 2, e daí um balanço comum que deixa a cor perto do alvo (Kelvin se todas
+     aceitarem; senão o predefinido mais perto: Daylight 5200 K, Shade 7000, Cloudy 6000,
+     Tungsten 3200, Fluorescent 4000; troca de predefinido uma vez, se a foto seguinte mostrar
+     que outro fica mais perto);
+  4. cor pelo ajuste fino do balanço (Canon: 1 passo azul/âmbar ≈ 5 mireds; no SDK, AB −
+     azul/+ âmbar e GM − verde/+ magenta) e brilho pelo ISO (em M) ou pela compensação (outros
+     modos); foto de novo e corrige pelo quanto a câmera respondeu. No máximo 5 fotos.
+  Mostra as últimas fotos e um resumo do que mudou em cada câmera. Medida conferida aqui com
+  cópias tingidas de uma foto (âmbar +0,100 esperado, +0,107 medido; +1/3 de stop esperado, +0,35
+  medido). Simulação aqui com câmeras falsas (300 cenários sorteados: sensores, luz de 2900 a
+  7000 K, balanço em Auto ou Daylight): diferença típica entre câmeras caiu de ~6 para ~0,8
+  passo em azul/âmbar e de ~1 para ~0,2 stop no brilho. Isso é a conta, não câmera de verdade.
+  Limite: ISO anda de 1/3 de stop, então sobra até ~1/6 de stop de diferença.
 - Núcleo: `include/camera_settings.h` (dados iguais para qualquer marca) e
-  `src/core/camera_settings_canon.cpp` (Canon). Aviso do SDK de configuração mudada
-  (`TakeSettingsChanged`): a tela lê de novo sozinha quando algo muda na câmera.
+  `src/core/camera_settings_canon.cpp` (Canon). Com a janela aberta, a página lê as câmeras de
+  novo a cada 3 s (mudanças feitas na própria câmera aparecem sozinhas). O aviso do SDK de
+  "configuração mudada" foi tirado: no Mac, o app fechou ao desligar as câmeras com ele ligado
+  (falha dentro do EdsGetEvent; a causa é suspeita, não confirmada). O app confere o disparo
+  único antes de cada bullet time e de cada Test shot.
 - Verificado aqui: código compila (cabeçalhos simulados do SDK); telas testadas num navegador com
   dados simulados (5 e 16 câmeras). Falta: testar com câmeras de verdade no Mac e no Windows.
 

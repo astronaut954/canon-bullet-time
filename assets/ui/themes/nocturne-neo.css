@@ -763,6 +763,8 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-cell.applying::after { content: " …"; color: var(--noct-pending); }
 .cs-pair { display: inline-flex; gap: 4px; }
 .cs-foot { display: flex; gap: 10px; align-items: center; padding: 12px 22px; border-top: 1px solid var(--noct-border); }
+.cs-auto { margin-left: 4px; }
+.cs-sheet.capturing .cs-auto { opacity: .5; pointer-events: none; }
 .cs-copy { display: inline-flex; align-items: center; gap: 8px; font: 700 11px var(--noct-font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--noct-text-muted); }
 .cs-copy select { height: 36px; line-height: 34px; max-width: 170px; }
 .info-tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid var(--noct-border-strong);
@@ -781,4 +783,4 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-test { flex: none; height: 44vh; min-height: 240px; display: flex; padding: 12px 22px; border-bottom: 1px solid var(--noct-border); }
 .cs-test .gallery-title { font-size: 18px; }
 .cs-sheet.capturing .cs-body { opacity: .5; pointer-events: none; }
-#dialogText { white-space: pre-line; }  /* avisos com várias linhas (ex.: resultado do Auto match) */
+#dialogText { white-space: pre-line; max-height: 60vh; overflow: auto; }  /* avisos com várias linhas (ex.: resumo do Match automatically) */

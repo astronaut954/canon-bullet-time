@@ -102,10 +102,6 @@ public:
     int GetCompletedDownloads() const;
 
     void RefreshCameraConnectionStatus();
-
-    // Alguma câmera avisou que uma configuração mudou (ISO, abertura... mexidos na
-    // câmera ou pelo app). Devolve o aviso e o apaga.
-    bool TakeSettingsChanged() { return settingsChanged.exchange(false); }
     bool PrepareSessionFolder(int sessionIndex, int totalSessions, const std::string& shotId);
 
 private:
@@ -148,9 +144,6 @@ private:
     };
     std::map<std::string, Suspect> suspectPorts;
     std::atomic<int> camerasAdded{ 0 };            // avisos de "câmera conectada" do SDK
-    std::atomic<bool> settingsChanged{ false };    // aviso de configuração mudada (TakeSettingsChanged)
-    static EdsError EDSCALLBACK HandlePropertyEvent(EdsPropertyEvent event, EdsPropertyID property,
-                                                    EdsUInt32 param, EdsVoid* context);
     std::atomic<long long> lastAddedMs{ 0 };       // quando chegou o último (ms desde o início)
     bool addedHandlerSet = false;
     int loggedAdded = 0;            // diagnóstico (Activity, detalhes técnicos)
