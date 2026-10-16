@@ -140,7 +140,7 @@ o app fechado:
 - Mac: `mkdir -p ~/Library/Application\ Support/Stillpoint/Photos && cp -R docs/test-session/* ~/Library/Application\ Support/Stillpoint/Photos/`
 - Windows (PowerShell): `New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\Stillpoint\Photos" | Out-Null; Copy-Item -Recurse -Force docs\test-session\* "$env:LOCALAPPDATA\Stillpoint\Photos\"`
 
-Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from app) ou mantém (Keep in app); descartando, copie de novo para testar outra vez.
+Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from app) ou mantém até fechar (Keep until I close); nos dois casos elas saem do app, então copie de novo para testar outra vez.
 
 - [ ] "Save sessions" pergunta Photos ou Sequence.
 - [ ] Photos: Original move as fotos como antes; PNG, JPG, WEBP, TIFF e HEIC criam os arquivos
