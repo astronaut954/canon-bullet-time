@@ -390,6 +390,20 @@ computador e para outras marcas).
 
 ## Futuro (não planejado ainda)
 
+- **Disparo com intervalos (PRIORIDADE, pedido do dono do projeto em 2026-10-16).** Escolher como as
+  câmeras disparam em cada sessão: todas ao mesmo tempo (como hoje); uma depois da outra com um
+  intervalo (ex.: 1 s); em grupos (metade junto, a outra metade 1 s depois); e assim por diante.
+  Pelo USB a precisão é de dezenas de ms, suficiente para intervalos de 0,2 s para cima; com uma
+  caixa de disparo por cabo (abaixo) o intervalo fica exato.
+- **Sincronia do disparo (explorado em 2026-10-16).** Hoje o app manda "apertar" para uma câmera
+  por vez, em fila, e depois "soltar" uma por vez: a última recebe a ordem depois de todas as
+  outras, e cada modelo ainda tem o próprio atraso até abrir o obturador. Caminhos, em ordem:
+  (1) medir no modo debug o instante em que cada câmera recebeu a ordem; (2) mandar as ordens em
+  paralelo (uma thread por câmera, todas soltas no mesmo instante), se o SDK aceitar; (3) caixa de
+  disparo por cabo na entrada de controle remoto (RS-60E3 na SL3 e na T7), controlada pelo app
+  pela porta serial: sincronia de fração de ms e intervalos exatos; o USB continua cuidando das
+  configurações e das fotos. Os dois modos podem conviver no app (escolha em Settings).
+
 - **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos
   salvas, sem mexer nos originais. Útil para câmeras que não deixam mudar as configurações pelo
   computador e para outras marcas. Em RAW não tem efeito.
