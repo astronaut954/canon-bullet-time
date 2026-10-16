@@ -55,6 +55,7 @@ namespace
 
     // Registro do que o ajuste mediu e decidiu (modo debug); quem chama Run define
     std::function<void(const std::string&)> g_trace;
+    bool g_grayCard = false;  // medindo o cartão cinza (muda o aviso de foto sem medida)
     void Trace(const std::string& line)
     {
         if (g_trace)
@@ -492,7 +493,8 @@ namespace
     {
         if (!c.last.ok)
         {
-            notes.push_back(c.name + ": its photo could not be measured, so it was not matched.");
+            notes.push_back(c.name + (g_grayCard ? ": the gray card was not marked on its photo, so it was not matched."
+                                                 : ": its photo could not be measured, so it was not matched."));
             return false;
         }
         const CameraContext* ctx = Find(controller, c.name);
@@ -838,11 +840,13 @@ namespace AutoMatch
     }
 
     Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile,
-               const std::function<bool()>& cancelled, const std::function<void(const std::string&)>& trace)
+               const std::function<bool()>& cancelled, const Options& options,
+               const std::function<void(const std::string&)>& trace)
     {
         Result result;
-        struct TraceGuard { ~TraceGuard() { g_trace = nullptr; } } traceGuard;
+        struct TraceGuard { ~TraceGuard() { g_trace = nullptr; g_grayCard = false; } } traceGuard;
         g_trace = trace;
+        g_grayCard = options.grayCard;
 
         // Câmeras que dá para ajustar, na ordem do app
         std::vector<std::pair<int, std::string>> ordered;
@@ -911,7 +915,9 @@ namespace AutoMatch
                 firstWb = id;
             sameFixed = sameFixed && id == firstWb && !IsAutoWb(wb->value);
         }
-        const bool commonWb = !sameFixed && !wbCams.empty();
+        // Com o cartão cinza o alvo é o cinza neutro, que pode estar longe do balanço atual
+        // (o ajuste fino só alcança um pouco): procura o balanço comum mesmo se já é igual
+        const bool commonWb = (!sameFixed || options.grayCard) && !wbCams.empty();
         if (!sameFixed && wbCams.empty())
             notes.push_back("The white balance cannot be changed from the app on these cameras. Set the same white balance on each camera.");
 
@@ -1028,8 +1034,6 @@ namespace AutoMatch
                         CameraSettingsCanon::Write(*ctx, "saturation", was.saturation, error);
                     if (now.colorTone != was.colorTone)
                         CameraSettingsCanon::Write(*ctx, "colortone", was.colorTone, error);
-                    if (now.colorTone != was.colorTone)
-                        CameraSettingsCanon::Write(*ctx, "colortone", was.colorTone, error);
                 }
                 if (was.shiftAvailable && now.shiftAB != was.shiftAB)
                     CameraSettingsCanon::Write(*ctx, "shiftab", was.shiftAB, error);
@@ -1051,8 +1055,16 @@ namespace AutoMatch
                 all.push_back(c.last);
         if (all.size() < 2)
             return finish("The test photos could not be measured. Check that every camera sent a photo.");
-        const Stats target = ColorMatch::Average(all);
-        Trace("Target (average of all cameras): " + MeasureText(target));
+        Stats target = ColorMatch::Average(all);
+        if (options.grayCard)
+        {
+            // Cartão cinza: a cor certa é o cinza sem cor nenhuma; o brilho fica na média
+            target.rb = 0;
+            target.g = 0;
+            Trace("Target (gray card neutral, average brightness): " + MeasureText(target));
+        }
+        else
+            Trace("Target (average of all cameras): " + MeasureText(target));
 
         // 3. Balanço de branco comum
         if (commonWb)

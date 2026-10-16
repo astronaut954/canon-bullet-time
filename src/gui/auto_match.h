@@ -13,6 +13,8 @@
 //     extremo de cada eixo, para medir o sentido e a força dele naquela câmera.
 //  4. Cor pelo ajuste fino do balanço de branco e brilho pelo ISO (em M) ou pela
 //     compensação (outros modos); foto de novo para conferir, até ficarem perto do alvo.
+// Com o cartão cinza (Options::grayCard), quem chama mede só o cartão; o alvo da cor passa
+// a ser o cinza neutro (balanço de branco certo) e o balanço comum é procurado sempre.
 // Quem dispara e mede é quem chama (função Shoot); aqui ficam as decisões.
 
 #include "color_match.h"
@@ -61,11 +63,17 @@ namespace AutoMatch
     // Arquivo de texto, uma linha por modelo. Sem arquivo: lista vazia.
     std::map<std::string, Calibration> LoadCalibration(const std::filesystem::path& file);
 
+    struct Options
+    {
+        bool grayCard = false;  // as medidas são do cartão cinza: cor certa = cinza neutro
+    };
+
     // Chamar na thread das câmeras, sem conexão em andamento. calibrationFile: onde ficam
     // as calibrações por modelo (lidas e atualizadas).
     // cancelled: a pessoa pediu para parar (conferido entre as fotos; Shoot também deve
     // devolver false). Ao parar, as câmeras voltam às configurações de antes.
     // trace: recebe, linha a linha, o que foi medido e decidido (modo debug; pode ser vazio).
     Result Run(CanonController& controller, const Shoot& shoot, const std::filesystem::path& calibrationFile,
-               const std::function<bool()>& cancelled, const std::function<void(const std::string&)>& trace = nullptr);
+               const std::function<bool()>& cancelled, const Options& options = {},
+               const std::function<void(const std::string&)>& trace = nullptr);
 }

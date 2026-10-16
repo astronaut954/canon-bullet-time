@@ -338,8 +338,26 @@ computador e para outras marcas).
   - **Foto quase toda preta (≥ 70%) ou estourada (≥ 50%):** o app não usa para brilho
     daquela câmera e avisa.
 
+- **Cartão cinza** ("Use gray card", ao lado de Match automatically; 2026-10-16): a pessoa põe
+  um cartão cinza onde todas as câmeras veem. Depois da primeira foto o app acha o cartão em cada
+  foto (maior área lisa, de tom médio e cor quase neutra, de preferência perto do centro) e mostra
+  as fotos com o cartão marcado; a pessoa confere ou clica no cartão para corrigir e continua
+  (Continue precisa de pelo menos 2 câmeras com o cartão). Daí em diante o app mede só o cartão
+  (a mesma área em todas as fotos; as câmeras não se mexem). Muda o alvo da cor: o cartão deve
+  sair cinza neutro (balanço de branco certo), e não a média das câmeras; o brilho continua na
+  média. O fundo de cada câmera não engana mais a cor nem o brilho. Ajusta as mesmas configurações
+  do Match sem cartão (balanço de branco, ajuste fino, ISO/compensação). Conferido: em 5 fotos de
+  teste com um cartão desenhado (tinta, degradê e ruído), achou o cartão nas 5; sem cartão, marca
+  outra área lisa (por isso a conferência). Simulação (300 cenas): o cinza termina a ~0,6 passo do
+  neutro (sem cartão: ~4,8), câmeras tão parecidas quanto antes, ~6,4 fotos em média.
+
 ## Futuro (não planejado ainda)
 
+- **Cartela de vários tons e cores (registrado em 2026-10-16).** Uma folha impressa (faixas do
+  branco ao preto e quadrados coloridos) que todas as câmeras fotografam uma vez: o app mede quanto
+  cada modelo desenha diferente o contraste e a saturação e guarda uma correção por modelo, que o
+  Match aplica depois sem a folha. Só ajuda com modelos misturados e se a diferença chegar a 1 passo
+  do Picture Style; antes de construir, um teste com SL3 + T7 vendo a mesma folha.
 - **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos
   salvas, sem mexer nos originais. Útil para câmeras que não deixam mudar as configurações pelo
   computador e para outras marcas. Em RAW não tem efeito.

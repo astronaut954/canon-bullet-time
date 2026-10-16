@@ -1,8 +1,8 @@
 #pragma once
 
 // "Match automatically" do Camera settings: mede cor, contraste e saturação do centro da
-// foto de cada câmera e o brilho da foto inteira. Só a medida; as decisões ficam em
-// auto_match.cpp.
+// foto de cada câmera e o brilho da foto inteira; ou, com o cartão cinza, só o cartão.
+// Só a medida; as decisões ficam em auto_match.cpp.
 
 #include <filesystem>
 #include <vector>
@@ -24,9 +24,24 @@ namespace ColorMatch
         bool exposureOk = true;
     };
 
+    // Parte da foto, de 0 a 1 (0,0 = canto superior esquerdo)
+    struct Region
+    {
+        bool found = false;
+        double x0 = 0, y0 = 0, x1 = 1, y1 = 1;
+    };
+
     // Centro da foto (metade da largura e da altura), em luz linear. Para a cor, ignora
     // o que está estourado ou quase preto. ok = false se não der para ler a foto.
-    Stats Measure(const std::filesystem::path& photo);
+    // Com region: só aquela parte (o cartão cinza): cor e brilho médios dela.
+    Stats Measure(const std::filesystem::path& photo, const Region* region = nullptr);
+
+    // Cartão cinza: a maior área lisa (sem textura), de cor quase neutra e tom médio,
+    // de preferência perto do centro. found = false se não achar.
+    Region FindGrayCard(const std::filesystem::path& photo);
+    // A área lisa em volta de um ponto clicado (x, y de 0 a 1). Se o ponto não estiver
+    // numa área lisa, um quadradinho em volta dele.
+    Region GrayCardAt(const std::filesystem::path& photo, double x, double y);
 
     // Média de várias medidas (só as ok; brilho e contraste só das com exposureOk, se houver)
     Stats Average(const std::vector<Stats>& all);

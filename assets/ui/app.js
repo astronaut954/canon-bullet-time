@@ -1896,7 +1896,10 @@
       csGallery.setHead("Test shot · matching", "Photo " + e.shot + " of up to " + e.shots + " · " + e.stage);
       csGallery.message(e.stage);
     },
+    // Cartão cinza: depois da primeira foto, conferir onde está o cartão
+    grayCardPick(e) { csCardShow(e.sessions, e.regions || []); },
     autoMatchResult(e) {
+      csCardHide();
       const notes = e.notes || [];
       if (e.cancelled) {
         toast("Test shot cancelled. The cameras are back to how they were.");
@@ -1923,6 +1926,7 @@
       log("Match automatically: " + (blocks.length ? plural(blocks.length, "camera", "cameras") + " changed" : "no change"), e.ok ? "ok" : "warn");
     },
     orderPhotos(e) {
+      csCardHide();
       if (csTest.capturing && csTest.cancelling) return;  // cancelado: as fotos não são mostradas
       if (csTest.capturing) showCsTest(e.sessions);
       else if (order.open) showOrderPhotos(e.sessions);
@@ -2738,9 +2742,86 @@
     csGallery.setItems([]);
     csGallery.setHead(match ? "Test shot · matching" : "Test shot", "");
     csGallery.message("Taking a photo with each camera");
-    if (match) window.autoMatch(intValue(ui.downloadWait, 1, 10));
+    if (match) window.autoMatch(intValue(ui.downloadWait, 1, 10), $("csCard").checked ? 1 : 0);
     else window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
   }
+  // ----- Cartão cinza: o app achou o cartão em cada foto; a pessoa confere ou clica nele -----
+  const csCard = { regions: {} };
+  function csCardHide() { $("csCardPick").classList.add("hidden"); }
+  function csCardOpen() { return !$("csCardPick").classList.contains("hidden"); }
+  function csCardBox(tile, r) {
+    const box = tile.querySelector(".cs-card-box");
+    const label = tile.querySelector(".cs-card-label");
+    const found = r && r.found;
+    box.style.display = found ? "" : "none";
+    if (found) {
+      box.style.left = (r.x0 * 100) + "%";
+      box.style.top = (r.y0 * 100) + "%";
+      box.style.width = ((r.x1 - r.x0) * 100) + "%";
+      box.style.height = ((r.y1 - r.y0) * 100) + "%";
+    }
+    label.textContent = tile.dataset.title + (found ? "" : " · not found, click the card");
+    label.classList.toggle("missing", !found);
+  }
+  function csCardStatus() {
+    const all = Object.keys(csCard.regions);
+    const found = all.filter((k) => csCard.regions[k] && csCard.regions[k].found).length;
+    $("csCardStatus").textContent = found + " of " + all.length + " cameras with the card marked";
+    $("csCardContinue").disabled = found < 2;
+  }
+  function csCardShow(list, regions) {
+    const session = (list || [])[0];
+    csCard.regions = {};
+    regions.forEach((r) => { csCard.regions[r.camera] = r; });
+    const grid = $("csCardGrid");
+    grid.innerHTML = "";
+    placedCameras().filter((c) => c.connected && csCard.regions[c.name]).forEach((cam) => {
+      const photos = session ? session.photos.filter((p) => p.camera === cam.name) : [];
+      const pick = photos.find((p) => /\.jpe?g$/i.test(p.file)) || photos.find((p) => p.previewable);
+      const tile = document.createElement("div");
+      tile.className = "cs-card-tile";
+      tile.dataset.title = shortModel(cam.model) + " · " + cam.name;
+      tile.innerHTML = '<div class="cs-card-photo"><img alt=""><div class="cs-card-box"></div></div><div class="cs-card-label"></div>';
+      const img = tile.querySelector("img");
+      if (session && pick) orderPhoto(session.name, pick.file, 900).then((url) => { if (url) img.src = url; });
+      tile.querySelector(".cs-card-photo").addEventListener("click", (e) => {
+        const rect = img.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const x = Math.round(Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * 1000);
+        const y = Math.round(Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)) * 1000);
+        Promise.resolve(window.grayCardFind(cam.name, String(x), String(y))).then((r) => {
+          if (!r) return;
+          csCard.regions[cam.name] = r;
+          csCardBox(tile, r);
+          csCardStatus();
+        });
+      });
+      grid.appendChild(tile);
+      csCardBox(tile, csCard.regions[cam.name]);
+    });
+    csCardStatus();
+    csSetZoom(false);
+    $("csCardPick").classList.remove("hidden");
+    csGallery.message("Waiting for you to check the gray card");
+  }
+  $("csCardContinue").addEventListener("click", () => {
+    csCardHide();
+    csGallery.message("Matching with the gray card");
+    window.grayCardConfirm();
+  });
+  $("csCardCancel").addEventListener("click", () => {
+    csCardHide();
+    if (csTest.capturing) csTakeTest();  // o mesmo que o botão Cancel do Test shot
+  });
+  // "Use gray card" só vale com "Match automatically"
+  function csCardOption() {
+    const on = $("csAuto").checked;
+    $("csCard").disabled = !on;
+    document.querySelector(".cs-card-option").classList.toggle("off", !on);
+  }
+  $("csAuto").addEventListener("change", csCardOption);
+  csCardOption();
+
   function showCsTest(list) {
     csTest.capturing = false;
     csTest.cancelling = false;
@@ -2772,6 +2853,8 @@
     Object.keys(photoCache).filter((k) => k.startsWith("order/")).forEach((k) => delete photoCache[k]);
   }
   function closeCamSettings() {
+    // Fechar esperando o cartão cinza: cancela (senão o Match ficaria esperando)
+    if (csCardOpen()) $("csCardCancel").click();
     $("camSettingsOverlay").classList.add("hidden");
     csStylePop = null;
     renderStylePop();
@@ -2816,7 +2899,8 @@
     }
     if (open) {
       if (e.key === "Escape") {
-        if (open === "camSettingsOverlay" && csStylePop) { csStylePop = null; renderStylePop(); }
+        if (open === "camSettingsOverlay" && csCardOpen()) $("csCardCancel").click();  // cartão cinza: Esc = Cancel
+        else if (open === "camSettingsOverlay" && csStylePop) { csStylePop = null; renderStylePop(); }
         else if (open === "camSettingsOverlay" && csZoom) csSetZoom(false);  // primeiro fecha a foto grande
         else if (open === "camSettingsOverlay") closeCamSettings();
         else $(open).classList.add("hidden");

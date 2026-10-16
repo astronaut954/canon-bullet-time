@@ -814,3 +814,19 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-test.zoom .stage-caption { left: 24px; bottom: 20px; }
 .cs-sheet.capturing .cs-body { opacity: .5; pointer-events: none; }
 #dialogText { white-space: pre-line; max-height: 60vh; overflow: auto; }  /* avisos com várias linhas (ex.: resumo do Match automatically) */
+
+/* Cartão cinza: conferir onde está o cartão em cada foto (por cima da janela) */
+.cs-card-option.off { opacity: .45; pointer-events: none; }
+.cs-card-pick { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; background: var(--noct-surface); }
+.cs-card-pick.hidden { display: none; }
+.cs-card-head { padding: 18px 22px 10px; border-bottom: 1px solid var(--noct-border); }
+.cs-card-head p { margin: 6px 0 0; color: var(--noct-text-muted); }
+.cs-card-grid { flex: 1; min-height: 0; overflow: auto; padding: 16px 22px; display: flex; flex-wrap: wrap; gap: 16px; align-content: flex-start; }
+.cs-card-tile { display: flex; flex-direction: column; gap: 6px; }
+.cs-card-photo { position: relative; display: inline-block; cursor: crosshair; line-height: 0; border: 1px solid var(--noct-border); }
+.cs-card-photo img { display: block; height: 300px; width: auto; max-width: 100%; }
+.cs-card-box { position: absolute; border: 2px solid var(--noct-primary); box-shadow: 0 0 0 1px rgba(0, 0, 0, .8), var(--noct-glow-primary-soft); pointer-events: none; }
+.cs-card-label { font: 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--noct-text-muted); }
+.cs-card-label.missing { color: var(--noct-pending); }
+.cs-card-foot { display: flex; align-items: center; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--noct-border); }
+.cs-card-status { font: 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--noct-text-muted); }

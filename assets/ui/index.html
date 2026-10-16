@@ -187,9 +187,24 @@
       <!-- Teste rápido: uma foto de cada câmera, só para conferir (não é salva) -->
       <div id="csTestBox" class="cs-test hidden"><div id="csGallery" class="gallery"></div></div>
       <div id="csBody" class="cs-body"></div>
+      <!-- Cartão cinza: conferir (ou clicar para corrigir) onde está o cartão em cada foto -->
+      <div id="csCardPick" class="cs-card-pick hidden">
+        <div class="cs-card-head">
+          <h3>Gray card</h3>
+          <p>Check that the box is on the gray card in every photo. If it is wrong or missing, click the card in that photo.</p>
+        </div>
+        <div id="csCardGrid" class="cs-card-grid"></div>
+        <div class="cs-card-foot">
+          <span id="csCardStatus" class="cs-card-status"></span>
+          <span class="spacer"></span>
+          <button id="csCardCancel" class="btn btn-secondary">Cancel</button>
+          <button id="csCardContinue" class="btn btn-primary">Continue</button>
+        </div>
+      </div>
       <div class="cs-foot">
         <button id="csTest" class="btn btn-secondary" title="Fires all cameras to check the photos. The photos are not saved.">Test shot</button>
         <label class="log-option cs-auto" title="Sets the same shutter, aperture, ISO and Picture Style, a common white balance, and matches the color (white balance fine-tune) and brightness (ISO) of every camera to the average of all. Takes up to 5 photos."><input id="csAuto" type="checkbox" checked> Match automatically</label>
+        <label class="log-option cs-auto cs-card-option" title="Put a gray card where every camera sees it. The app measures only the card (not the rest of the scene) and sets the white balance so the card comes out neutral gray in every camera. After the first photo, you check where the card is."><input id="csCard" type="checkbox"> Use gray card</label>
         <button id="csRead" class="btn btn-link btn-small">Read again</button>
         <span class="spacer"></span>
         <label class="cs-copy"><span>Copy from camera</span><select id="csCopy" class="cs-sel"></select></label>

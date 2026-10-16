@@ -1362,10 +1362,26 @@ namespace
         // cancelTest(): para o Test shot (com ou sem ajuste) entre uma foto e outra ou
         // esperando as fotos; com ajuste, as câmeras voltam como estavam.
         std::atomic<bool> testCancel{ false };
+        // Cartão cinza: depois da primeira foto, o Match espera a pessoa conferir (ou
+        // corrigir com um clique) onde está o cartão em cada foto
+        struct CardPick
+        {
+            std::mutex mutex;
+            std::condition_variable wake;
+            bool confirmed = false;
+            std::map<std::string, ColorMatch::Region> regions;      // por câmera
+            std::map<std::string, std::filesystem::path> files;     // a foto 1 de cada câmera
+        } cardPick;
+        auto regionJson = [](const std::string& camera, const ColorMatch::Region& r)
+        {
+            return Json("region").Add("camera", camera).Add("found", r.found)
+                .Add("x0", r.x0).Add("y0", r.y0).Add("x1", r.x1).Add("y1", r.y1).Str();
+        };
         window.bind("cancelTest", [&](const std::string&) -> std::string
         {
             testCancel = true;
             bulletTime.RequestCancel();
+            cardPick.wake.notify_all();
             return "null";
         });
 
@@ -1374,22 +1390,62 @@ namespace
         // câmeras o mais parecidas possível (auto_match.h). Avisa o andamento
         // (autoMatchProgress), mostra as últimas fotos (orderPhotos) e o resumo do que
         // mudou (autoMatchResult).
+        // grayCardFind("câmera", "x", "y"): a pessoa clicou no cartão (x, y de 0 a 1000)
+        window.bind("grayCardFind", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 3)
+                return "null";
+            std::filesystem::path file;
+            {
+                std::lock_guard<std::mutex> lock(cardPick.mutex);
+                const auto it = cardPick.files.find(args[0]);
+                if (it == cardPick.files.end())
+                    return "null";
+                file = it->second;
+            }
+            int x = 500, y = 500;
+            try { x = std::stoi(args[1]); y = std::stoi(args[2]); } catch (...) {}
+            const ColorMatch::Region region = ColorMatch::GrayCardAt(file, x / 1000.0, y / 1000.0);
+            std::lock_guard<std::mutex> lock(cardPick.mutex);
+            cardPick.regions[args[0]] = region;
+            return regionJson(args[0], region);
+        });
+
+        // grayCardConfirm(): o cartão está certo em todas; o Match continua
+        window.bind("grayCardConfirm", [&](const std::string&) -> std::string
+        {
+            {
+                std::lock_guard<std::mutex> lock(cardPick.mutex);
+                cardPick.confirmed = true;
+            }
+            cardPick.wake.notify_all();
+            return "null";
+        });
+
         window.bind("autoMatch", [&](const std::string& request) -> std::string
         {
             const auto values = ParseIntArgs(request);
+            const bool grayCard = values.size() > 1 && values[1] != 0;
             SequenceSettings settings;
             settings.countdownSeconds = 0;
             settings.sessionCount = 1;
             settings.downloadWaitSeconds = values.empty() ? 10 : std::max(1, values[0]);
             settings.playSounds = false;
-            run("orderPhotos", [&, settings]
+            run("orderPhotos", [&, settings, grayCard]
             {
                 if (cameraConnecting())
                     return;
                 testCancel = false;
+                {
+                    std::lock_guard<std::mutex> lock(cardPick.mutex);
+                    cardPick.confirmed = false;
+                    cardPick.regions.clear();
+                    cardPick.files.clear();
+                }
                 MatchDebug debug;
                 if (debugMode)
-                    debug.Begin(DebugRoot(), "match");
+                    debug.Begin(DebugRoot(), grayCard ? "match-graycard" : "match");
                 auto shoot = [&](int shot, int shots, const std::string& stage,
                                  std::map<std::string, ColorMatch::Stats>& measured) -> bool
                 {
@@ -1411,9 +1467,51 @@ namespace
                     for (const auto& p : session.photos)
                         if (!picks.count(p.camera) || IsJpegPhoto(p.file))
                             picks[p.camera] = &p;
+                    if (grayCard && shot == 1)
+                    {
+                        // Acha o cartão em cada foto e espera a pessoa conferir
+                        std::string regions = "[";
+                        {
+                            std::lock_guard<std::mutex> lock(cardPick.mutex);
+                            for (const auto& [camera, photo] : picks)
+                                if (photo->previewable)
+                                {
+                                    const auto file = orderStore.Root() / session.name / photo->file;
+                                    cardPick.files[camera] = file;
+                                    cardPick.regions[camera] = ColorMatch::FindGrayCard(file);
+                                    regions += (regions.size() > 1 ? "," : "") + regionJson(camera, cardPick.regions[camera]);
+                                }
+                        }
+                        listener.Emit(Json("grayCardPick").Raw("sessions", SessionsJson(orderStore)).Raw("regions", regions + "]"));
+                        std::unique_lock<std::mutex> lock(cardPick.mutex);
+                        while (!cardPick.confirmed && !testCancel)
+                        {
+                            cardPick.wake.wait_for(lock, std::chrono::milliseconds(200));
+                            lock.unlock();
+                            EdsGetEvent();  // as câmeras continuam respondendo enquanto espera
+                            lock.lock();
+                        }
+                        if (testCancel)
+                            return false;
+                        for (const auto& [camera, r] : cardPick.regions)
+                            debug.Line("Gray card " + camera + ": " + (r.found ? std::to_string(r.x0).substr(0, 5) + "," + std::to_string(r.y0).substr(0, 5)
+                                                                        + " to " + std::to_string(r.x1).substr(0, 5) + "," + std::to_string(r.y1).substr(0, 5)
+                                                                      : std::string("not marked")));
+                    }
                     for (const auto& [camera, photo] : picks)
                         if (photo->previewable)
-                            measured[camera] = ColorMatch::Measure(orderStore.Root() / session.name / photo->file);
+                        {
+                            const auto file = orderStore.Root() / session.name / photo->file;
+                            if (!grayCard)
+                                measured[camera] = ColorMatch::Measure(file);
+                            else
+                            {
+                                std::lock_guard<std::mutex> lock(cardPick.mutex);
+                                const auto it = cardPick.regions.find(camera);
+                                if (it != cardPick.regions.end())
+                                    measured[camera] = ColorMatch::Measure(file, &it->second);
+                            }
+                        }
                     if (debug.Active())
                         debug.Shot(shot, stage, DebugPhotos(controller, orderStore, session, &measured));
                     return true;
@@ -1423,7 +1521,9 @@ namespace
                     debug.Line(line);
                     Log("[match] " + line);
                 };
-                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); },
+                AutoMatch::Options options;
+                options.grayCard = grayCard;
+                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); }, options,
                                                                 debug.Active() ? std::function<void(const std::string&)>(trace) : nullptr);
                 if (debug.Active())
                 {
