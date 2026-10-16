@@ -34,7 +34,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
-| 13 | Match colors | Igualar mais o visual das câmeras: contraste e saturação pelo Picture Style e cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | em andamento |
+| 13 | Match colors | Picture Style pelo app (botão "±": contraste, saturação, tom de cor) e igualado pelo Match; brilho medido como o olho vê; "Use gray card" (acha o cartão, a pessoa confere, cinza neutro); "Calibrate with chart" (cartela impressa, diferença por modelo); modo debug; perguntar se descarta as sessões depois de salvar. Testado no Mac com SL3 + T7 até o cartão cinza (2026-10-16); a cartela ainda não foi testada com câmeras. Versão 2.8.0. | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -302,7 +302,7 @@ fixo, só a lista rola, e arrastar para reordenar.
   teste com câmeras no Windows. Desligar as câmeras com o app aberto: testado pelo dono do
   projeto em 2026-10-15, o app não fecha mais.
 
-### Etapa 13: Match colors (iniciada em 2026-10-15)
+### Etapa 13: Match colors (iniciada em 2026-10-15, concluída em 2026-10-16, versão 2.8.0)
 
 Decisões do dono do projeto (2026-10-15): primeiro o Picture Style, depois o cartão cinza; os
 ajustes do Picture Style ficam dentro da coluna Picture Style (botão "±"); o cartão cinza é
