@@ -2011,11 +2011,16 @@
       // Salvo: a janela de salvar fecha. Com erro, continua aberta com o que faltou
       exp.waiting = false;
       if (!e.error) closeExport();
+      const saved = (e.sessions || []).filter((name) => sessions.some((s) => s.name === name));
       if (exp.closeWhenDone) {
+        // Fechando o app: as salvas saem do app sem perguntar (já estão na pasta escolhida)
         const how = exp.closeWhenDone;
         exp.closeWhenDone = "";
+        saved.forEach((name) => window.deleteSession(name));
+        const left = sessions.length - saved.length;
         if (how === "stop" || !e.error)
-          setTimeout(() => { if (how === "stop" || !sessions.length) window.exitApp(false); else confirmExit(sessions.length); }, 500);
+          setTimeout(() => { if (how === "stop" || !left) window.exitApp(false); else confirmExit(left); }, 500);
+        saved.length = 0;
       }
       if (e.error) {
         toast(e.error, 8000);
@@ -2024,6 +2029,19 @@
         const text = "Saved " + plural(e.count, "session", "sessions") + " to " + e.folder;
         toast(text);
         log(text, "ok");
+      }
+      // Salvas (sem fechar o app): descartar do app ou manter
+      if (saved.length) {
+        const one = saved.length === 1;
+        dialog(one ? "Discard the saved session?" : "Discard the " + saved.length + " saved sessions?",
+          (one ? "The session was saved to " : "The sessions were saved to ") + e.folder + ". Discard " + (one ? "it" : "them") +
+          " from Stillpoint to free up space, or keep " + (one ? "it" : "them") + " in the app. The saved copies are not touched.", [
+          { label: "Keep in app" },
+          { label: "Discard from app", primary: true, onClick: () => {
+            saved.forEach((name) => window.deleteSession(name));
+            log("Discarded " + plural(saved.length, "saved session", "saved sessions") + " from the app", "tech");
+          } },
+        ]);
       }
     },
     confirmExit(e) { confirmExit(e.unsavedSessions); },

@@ -1856,7 +1856,7 @@ namespace
                 namespace fs = std::filesystem;
                 std::string error;
                 std::vector<fs::path> savedTo;
-                std::vector<std::string> names;
+                std::vector<std::string> names, savedNames;
                 const auto stored = store.ListSessions();
                 int done = 0;
                 static const std::regex shortName(R"(^(\d+_[^_]+_\d+)_.+$)");
@@ -1995,8 +1995,12 @@ namespace
                         if (!error.empty())
                             break;
                     }
-                    // Tudo salvo: a sessão sai do app
-                    store.DeleteSession(job.session);
+                    // Tudo salvo. Fechando o app, a sessão sai do app; senão a pessoa escolhe
+                    // depois se descarta ou mantém (pergunta na tela)
+                    if (exitAfter)
+                        store.DeleteSession(job.session);
+                    else
+                        savedNames.push_back(job.session);
                     savedTo.push_back(target);
                     ++done;
                     report(1.0, "done");
@@ -2011,7 +2015,10 @@ namespace
                             store.DeleteSession(session.name);
                 if (!error.empty())
                     Log("Save sessions: " + error);
-                listener.Emit(Json("saved").Add("count", done).Add("folder", folder).Add("error", error));
+                std::string saved = "[";
+                for (const auto& name : savedNames)
+                    saved += (saved.size() > 1 ? "," : "") + JsonString(name);
+                listener.Emit(Json("saved").Add("count", done).Add("folder", folder).Add("error", error).Raw("sessions", saved + "]"));
                 emitSessions();
                 if (exitAfter && error.empty())
                     window.dispatch([&] { closeNow(); });

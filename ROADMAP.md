@@ -377,6 +377,11 @@ computador e para outras marcas).
   Match deixou a T7 com −1 / −1 / +1 em relação às SL3. Picture Style vale para JPEG e para a
   prévia do RAW (o que o Stillpoint mostra e exporta); Lightroom e afins ignoram.
 
+- **Depois de salvar** (pedido do dono do projeto, 2026-10-16): as sessões salvas não saem mais do
+  app sozinhas; o app pergunta "Discard from app" (botão em destaque) ou "Keep in app". Salvando
+  para fechar o app (ou "Close when done"), não pergunta e as salvas saem como antes. Uma sessão
+  mantida conta como "não salva" no aviso ao fechar o app.
+
 ## Futuro (não planejado ainda)
 
 - **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos

@@ -140,7 +140,7 @@ o app fechado:
 - Mac: `mkdir -p ~/Library/Application\ Support/Stillpoint/Photos && cp -R docs/test-session/* ~/Library/Application\ Support/Stillpoint/Photos/`
 - Windows (PowerShell): `New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\Stillpoint\Photos" | Out-Null; Copy-Item -Recurse -Force docs\test-session\* "$env:LOCALAPPDATA\Stillpoint\Photos\"`
 
-Salvar tira a sessão do app; copie de novo para testar outra vez.
+Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from app) ou mantém (Keep in app); descartando, copie de novo para testar outra vez.
 
 - [ ] "Save sessions" pergunta Photos ou Sequence.
 - [ ] Photos: Original move as fotos como antes; PNG, JPG, WEBP, TIFF e HEIC criam os arquivos
@@ -295,6 +295,11 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       não fica âmbar por isso; o texto de ajuda do "±" mostra "calibrated with the chart".
 - [ ] Cancel, Esc ou Done na tela Chart: cancela e as câmeras voltam como estavam.
 - [ ] Com Debug: pasta "_chart" com as fotos e o trace.txt (medidas de cada foto).
+- [ ] Salvar 1 ou mais sessões (sem fechar o app): no fim aparece "Discard the saved session(s)?"
+      com "Discard from app" em destaque. Discard: as sessões salvas somem do app (a pasta salva
+      fica intacta). Keep in app: continuam no app. Com erro no meio, pergunta só pelas que salvou.
+- [ ] Fechar o app durante o salvamento ("Close when done") e salvar ao fechar: não pergunta; as
+      salvas saem do app como antes.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.
