@@ -354,13 +354,31 @@ computador e para outras marcas).
   outra área lisa (por isso a conferência). Simulação (300 cenas): o cinza termina a ~0,6 passo do
   neutro (sem cartão: ~4,8), câmeras tão parecidas quanto antes, ~6,4 fotos em média.
 
+- **Calibrate with chart** (2026-10-16, pedido do dono do projeto): cartela impressa
+  (`assets/chart/stillpoint-chart.pdf`, gerada por `scripts/make_chart.py`, A4 deitado, vetorial):
+  11 tons de cinza (contraste), cinza médio (cor), 16 cores com 2 tons de pele (saturação e tom de
+  cor) e 4 marcas nos cantos com uma bolinha de orientação. Botão em Camera settings → instruções
+  → "Open chart" (abre o PDF para imprimir) → Start. O app acha as 4 marcas (padrão 1:1:2:1:1 na
+  horizontal e na vertical, depois a volta certa pela bolinha e pelo cinza do claro ao escuro) e
+  corrige o ângulo; a pessoa confere os 4 cantos (arrasta ou clica) e continua. 4 fotos: como estão
+  (mesmo Picture Style, ajustes em 0, mesmo balanço fixo, sem ajuste fino), Contrast +2,
+  Saturation +2, Color tone +2; depois tudo volta como estava. Por modelo: quanto cada ajuste mexe
+  em cada medida (3×3, então um ajuste que também mexe em outra medida entra na conta) e a
+  diferença para o modelo mais comum, em passos; guardado em `chart-calibration.txt` (dados do
+  app) por modelo e Picture Style. Um modelo já calibrado antes mantém o valor (dá para calibrar
+  SL3+T7 hoje e T7+R50 depois). O Match automatically usa: o modelo mais comum fica com o valor
+  comum e os outros andam a diferença arredondada; a tabela não marca essa diferença como
+  "diferente" e o "±" mostra no texto de ajuda. Precisa de 2 modelos diferentes. Instruções no
+  README ("Calibrate with chart"). Conferido: em 25 fotos montadas (de frente, inclinada, de
+  cabeça para baixo, pequena, com luz desigual) achou a cartela em todas, com os cantos a ~0,1% do
+  lugar certo; +2 de contraste/saturação/tom mediu +9,7 / +0,14 / +11° em todas as posições (luz
+  desigual muda o contraste medido em ~1 passo: por isso "luz por igual" nas instruções).
+  Simulação: diferença escondida de −0,7 / −1,3 / +1,0 passo medida como −0,68 / −1,34 / +0,99; o
+  Match deixou a T7 com −1 / −1 / +1 em relação às SL3. Picture Style vale para JPEG e para a
+  prévia do RAW (o que o Stillpoint mostra e exporta); Lightroom e afins ignoram.
+
 ## Futuro (não planejado ainda)
 
-- **Cartela de vários tons e cores (registrado em 2026-10-16).** Uma folha impressa (faixas do
-  branco ao preto e quadrados coloridos) que todas as câmeras fotografam uma vez: o app mede quanto
-  cada modelo desenha diferente o contraste e a saturação e guarda uma correção por modelo, que o
-  Match aplica depois sem a folha. Só ajuda com modelos misturados e se a diferença chegar a 1 passo
-  do Picture Style; antes de construir, um teste com SL3 + T7 vendo a mesma folha.
 - **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos
   salvas, sem mexer nos originais. Útil para câmeras que não deixam mudar as configurações pelo
   computador e para outras marcas. Em RAW não tem efeito.

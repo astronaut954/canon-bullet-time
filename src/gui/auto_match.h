@@ -17,6 +17,7 @@
 // a ser o cinza neutro (balanço de branco certo) e o balanço comum é procurado sempre.
 // Quem dispara e mede é quem chama (função Shoot); aqui ficam as decisões.
 
+#include "chart.h"
 #include "color_match.h"
 
 #include <array>
@@ -66,7 +67,39 @@ namespace AutoMatch
     struct Options
     {
         bool grayCard = false;  // as medidas são do cartão cinza: cor certa = cinza neutro
+        // Calibração com a cartela (LoadChartCalibration): com modelos misturados, cada modelo
+        // recebe o Contrast/Saturation/Color tone que o deixa parecido com os outros
+        std::filesystem::path chartFile;
     };
+
+    // ---- Cartela de cores ----
+    // Quanto cada modelo precisa mudar (em passos do Picture Style) para ficar parecido com
+    // os outros, medido com a cartela. Só a diferença entre modelos importa.
+    struct ChartOffsets
+    {
+        double contrast = 0, saturation = 0, colorTone = 0;
+    };
+    // Chave: "<modelo>|<código do Picture Style>"
+    std::map<std::string, ChartOffsets> LoadChartCalibration(const std::filesystem::path& file);
+    std::string ChartKey(const std::string& model, long long style);
+
+    // Tira uma foto com todas as câmeras e devolve a medida da cartela de cada uma
+    using ChartShoot = std::function<bool(int shot, int shots, const std::string& stage,
+                                          std::map<std::string, Chart::Reading>& measured)>;
+    struct ChartResult
+    {
+        bool ok = false;
+        bool cancelled = false;
+        std::string error;
+        std::vector<std::string> models;  // uma linha por modelo, para a tela
+        std::vector<std::string> notes;
+    };
+    // 4 fotos (como estão; Contrast +2; Saturation +2; Color tone +2), sempre com o mesmo
+    // Picture Style e o mesmo balanço de branco em todas; depois tudo volta como estava.
+    // Precisa de pelo menos 2 modelos diferentes. Guarda o resultado em chartFile.
+    ChartResult CalibrateChart(CanonController& controller, const ChartShoot& shoot, const std::filesystem::path& chartFile,
+                               const std::function<bool()>& cancelled,
+                               const std::function<void(const std::string&)>& trace = nullptr);
 
     // Chamar na thread das câmeras, sem conexão em andamento. calibrationFile: onde ficam
     // as calibrações por modelo (lidas e atualizadas).

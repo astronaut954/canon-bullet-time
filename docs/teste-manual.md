@@ -280,6 +280,19 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] Na tela Gray card: Cancel, Esc ou Done cancelam o Test shot e as câmeras voltam como estavam.
 - [ ] Com Debug ligado e cartão cinza: a pasta termina em "_match-graycard" e o trace.txt tem a
       área do cartão de cada câmera.
+- [ ] Calibrate with chart com câmeras do mesmo modelo: avisa que precisa de 2 modelos diferentes.
+- [ ] Calibrate with chart (SL3 + T7): "Open chart" abre o PDF; impresso em 100%, as medidas
+      batem (as marcas dos cantos têm 22 mm).
+- [ ] Cartela onde todas veem, Start: depois da 1ª foto, a tela Chart mostra os 4 pontos nos
+      centros das marcas (ponto 1 na marca da bolinha). Arrastar um ponto move; clicar na foto
+      leva o ponto mais perto até ali. Continue precisa de 2 câmeras marcadas.
+- [ ] No fim: 4 fotos tiradas, todas as configurações de volta como estavam (Picture Style,
+      Contrast, Saturation, Color tone, balanço de branco, ajuste fino). O resumo mostra cada
+      modelo com a diferença medida e o que vai usar.
+- [ ] Depois: Match automatically deixa a T7 com a diferença medida (ex.: Saturation −1) e o "±"
+      não fica âmbar por isso; o texto de ajuda do "±" mostra "calibrated with the chart".
+- [ ] Cancel, Esc ou Done na tela Chart: cancela e as câmeras voltam como estavam.
+- [ ] Com Debug: pasta "_chart" com as fotos e o trace.txt (medidas de cada foto).
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.

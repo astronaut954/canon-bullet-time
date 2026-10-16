@@ -1898,6 +1898,33 @@
     },
     // Cartão cinza: depois da primeira foto, conferir onde está o cartão
     grayCardPick(e) { csCardShow(e.sessions, e.regions || []); },
+    // Cartela de cores
+    chartPick(e) { csChartShow(e.sessions, e.quads || []); },
+    chartProgress(e) {
+      csGallery.setHead("Chart calibration", "Photo " + e.shot + " of " + e.shots + " · " + e.stage);
+      csGallery.message(e.stage);
+    },
+    chartResult(e) {
+      csCardHide();
+      const notes = e.notes || [];
+      if (e.cancelled) {
+        toast("Chart calibration cancelled. The cameras are back to how they were.");
+        log("Chart calibration cancelled; camera settings restored", "warn");
+        return;
+      }
+      const actions = [{ label: "OK", primary: true }];
+      if (e.debugFolder) actions.unshift({ label: "Open debug folder", link: true, onClick: () => window.openDebugFolder() });
+      if (!e.ok) {
+        dialog("Chart calibration did not finish", [e.error || "Try again."].concat(notes).join("\n\n"), actions);
+        log("Chart calibration did not finish", "warn", e.error);
+        return;
+      }
+      const parts = [(e.models || []).join("\n\n"),
+        "Saved. From now on, Match automatically gives each model these Contrast, Saturation and Color tone differences. Differences under half a step are not changed. All camera settings are back to how they were."];
+      if (notes.length) parts.push(notes.join("\n"));
+      dialog("Cameras calibrated", parts.join("\n\n"), actions);
+      log("Chart calibration saved", "ok");
+    },
     autoMatchResult(e) {
       csCardHide();
       const notes = e.notes || [];
@@ -2372,23 +2399,27 @@
     return ref;
   }
   // Ajustes do Picture Style (contraste, saturação, tom): diferente do mais comum entre as câmeras
-  const styleKey = (c) => (c.styleDetail ? c.contrast + "/" + c.saturation + "/" + c.colorTone : null);
-  function csStyleDetailRef() {
-    const counts = new Map();
-    camSettings.filter((c) => c.adjustable && c.styleDetail).forEach((c) => counts.set(styleKey(c), (counts.get(styleKey(c)) || 0) + 1));
-    if (counts.size < 2) return null;
-    let best = null, n = 0;
-    counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
-    return best;
-  }
   // Cada opção do ± (Contrast, Saturation, Color tone): o valor mais comum, ou null se é
   // igual em todas as câmeras
+  // Calibração com a cartela: quantos passos este modelo anda de propósito em relação ao
+  // modelo mais comum (essa diferença não conta como "diferente")
+  function csChartAdjust(c, f) {
+    if (!c.chart) return 0;
+    const cams = camSettings.filter((x) => x.adjustable && x.styleDetail);
+    const count = {};
+    cams.forEach((x) => { count[x.model] = (count[x.model] || 0) + 1; });
+    let common = null;
+    cams.forEach((x) => { if (x.chart && (!common || count[x.model] > count[common.model])) common = x; });
+    if (!common || common.model === c.model) return 0;
+    return Math.round(c.chart[f] - common.chart[f]);
+  }
+  const csStyleValue = (c, f) => c[f] - csChartAdjust(c, f);
   function csStyleDetailRefs() {
     const cams = camSettings.filter((c) => c.adjustable && c.styleDetail);
     const out = {};
     STYLE_DETAILS.forEach(([, , f]) => {
       const counts = new Map();
-      cams.forEach((c) => counts.set(c[f], (counts.get(c[f]) || 0) + 1));
+      cams.forEach((c) => counts.set(csStyleValue(c, f), (counts.get(csStyleValue(c, f)) || 0) + 1));
       let best = null, n = 0;
       counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
       out[f] = counts.size > 1 ? best : null;
@@ -2399,7 +2430,7 @@
   function csStyleDetailLevel(c) {
     if (!c.styleDetail) return "";
     const refs = csStyleDetailRefs();
-    const n = STYLE_DETAILS.filter(([, , f]) => refs[f] !== null && c[f] !== refs[f]).length;
+    const n = STYLE_DETAILS.filter(([, , f]) => refs[f] !== null && csStyleValue(c, f) !== refs[f]).length;
     return n === 0 ? "" : n === STYLE_DETAILS.length ? "diff" : "partial";
   }
   const csStyleDetailDiffers = (c) => csStyleDetailLevel(c) !== "";
@@ -2458,7 +2489,10 @@
     const b = document.createElement("button");
     b.className = "cs-more" + (level ? " " + level : "") + (csStylePop && csStylePop.camera === camera ? " open" : "");
     b.textContent = "±";
-    b.title = (values ? "Contrast " + signed(values.contrast) + " · Saturation " + signed(values.saturation) + " · Color tone " + signed(values.colorTone)
+    const chartNote = values && values.chart && STYLE_DETAILS.some(([, , f]) => csChartAdjust(values, f))
+      ? " · calibrated with the chart: " + STYLE_DETAILS.filter(([, , f]) => csChartAdjust(values, f)).map(([, label, f]) => label + " " + signed(csChartAdjust(values, f))).join(", ") + " for this model"
+      : "";
+    b.title = (values ? "Contrast " + signed(values.contrast) + " · Saturation " + signed(values.saturation) + " · Color tone " + signed(values.colorTone) + chartNote
                       : "Contrast, saturation and color tone") + (level === "partial" ? " (some are different from the other cameras)" : differs ? " (different from the other cameras)" : "");
     b.dataset.styleCam = camera;
     b.addEventListener("click", (e) => {
@@ -2495,7 +2529,7 @@
       const values = new Set(cams.map((c) => c[field]));
       const current = values.size === 1 ? [...values][0] : null;
       const refs = all ? null : csStyleDetailRefs();
-      const off = current === null || (refs && refs[field] !== null && current !== refs[field]);
+      const off = current === null || (refs && refs[field] !== null && current - csChartAdjust(cams[0], field) !== refs[field]);
       const options = range.map((v) => [String(v), signed(v)]);
       if (current === null) options.unshift(["", "—", true]);
       const row = el("label", "cs-pop-row" + (csIsPending(csStylePop.camera, [key]) ? " applying" : ""));
@@ -2774,7 +2808,7 @@
     else window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
   }
   // ----- Cartão cinza: o app achou o cartão em cada foto; a pessoa confere ou clica nele -----
-  const csCard = { regions: {} };
+  const csCard = { regions: {}, mode: "card", quads: {}, moved: {} };
   function csCardHide() { $("csCardPick").classList.add("hidden"); }
   function csCardOpen() { return !$("csCardPick").classList.contains("hidden"); }
   function csCardBox(tile, r) {
@@ -2792,12 +2826,16 @@
     label.classList.toggle("missing", !found);
   }
   function csCardStatus() {
+    if (csCard.mode === "chart") return csChartStatus();
     const all = Object.keys(csCard.regions);
     const found = all.filter((k) => csCard.regions[k] && csCard.regions[k].found).length;
     $("csCardStatus").textContent = found + " of " + all.length + " cameras with the card marked";
     $("csCardContinue").disabled = found < 2;
   }
   function csCardShow(list, regions) {
+    csCard.mode = "card";
+    $("csCardTitle").textContent = "Gray card";
+    $("csCardText").textContent = "Check that the box is on the gray card in every photo. If it is wrong or missing, click the card in that photo, or drag to draw a box over it.";
     const session = (list || [])[0];
     csCard.regions = {};
     regions.forEach((r) => { csCard.regions[r.camera] = r; });
@@ -2869,9 +2907,149 @@
   }
   $("csCardContinue").addEventListener("click", () => {
     csCardHide();
-    csGallery.message("Matching with the gray card");
+    csGallery.message(csCard.mode === "chart" ? "Calibrating with the chart" : "Matching with the gray card");
     window.grayCardConfirm();
   });
+
+  // ----- Cartela de cores: o app achou as 4 marcas; a pessoa confere ou arrasta os cantos -----
+  // Cantos na ordem da cartela: 0 em cima à esquerda (o da bolinha), 1 em cima à direita,
+  // 2 embaixo à direita, 3 embaixo à esquerda
+  function csChartDraw(tile, q) {
+    const svg = tile.querySelector("svg");
+    const pts = [0, 1, 2, 3].map((k) => (q.x[k] * 100) + "," + (q.y[k] * 100)).join(" ");
+    svg.querySelector("polygon").setAttribute("points", pts);
+    tile.querySelectorAll(".cs-chart-handle").forEach((h, k) => {
+      h.style.left = (q.x[k] * 100) + "%";
+      h.style.top = (q.y[k] * 100) + "%";
+    });
+    const marked = q.found || csCard.moved[tile.dataset.camera];
+    const label = tile.querySelector(".cs-card-label");
+    label.textContent = tile.dataset.title + (marked ? "" : " · not found, drag the 4 dots onto the 4 corner marks");
+    label.classList.toggle("missing", !marked);
+    tile.classList.toggle("unmarked", !marked);
+  }
+  function csChartStatus() {
+    const all = Object.keys(csCard.quads);
+    const marked = all.filter((k) => csCard.quads[k].found || csCard.moved[k]).length;
+    $("csCardStatus").textContent = marked + " of " + all.length + " cameras with the chart marked";
+    $("csCardContinue").disabled = marked < 2;
+  }
+  function csChartShow(list, quads) {
+    csCard.mode = "chart";
+    csCard.quads = {};
+    csCard.moved = {};
+    quads.forEach((q) => { csCard.quads[q.camera] = q; });
+    $("csCardTitle").textContent = "Chart";
+    $("csCardText").textContent = "Check that the 4 dots are on the centers of the 4 corner marks in every photo. Dot 1 goes on the mark next to the small black dot. To fix one, drag it (or click where it should go).";
+    const session = (list || [])[0];
+    const grid = $("csCardGrid");
+    grid.innerHTML = "";
+    placedCameras().filter((c) => c.connected && csCard.quads[c.name]).forEach((cam) => {
+      const photos = session ? session.photos.filter((p) => p.camera === cam.name) : [];
+      const pick = photos.find((p) => /\.jpe?g$/i.test(p.file)) || photos.find((p) => p.previewable);
+      const tile = document.createElement("div");
+      tile.className = "cs-card-tile cs-chart-tile";
+      tile.dataset.title = shortModel(cam.model) + " · " + cam.name;
+      tile.dataset.camera = cam.name;
+      tile.innerHTML = '<div class="cs-card-photo"><img alt="">' +
+        '<svg class="cs-chart-lines" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon></polygon></svg>' +
+        [1, 2, 3, 4].map((n) => '<span class="cs-chart-handle' + (n === 1 ? " first" : "") + '">' + n + "</span>").join("") +
+        '</div><div class="cs-card-label"></div>';
+      const img = tile.querySelector("img");
+      img.draggable = false;
+      if (session && pick) orderPhoto(session.name, pick.file, 900).then((url) => { if (url) img.src = url; });
+      const photoEl = tile.querySelector(".cs-card-photo");
+      const at = (e) => {
+        const rect = img.getBoundingClientRect();
+        return { x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+                 y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)), ok: rect.width > 0 && rect.height > 0 };
+      };
+      let drag = -1;
+      photoEl.addEventListener("dragstart", (e) => e.preventDefault());
+      photoEl.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const p = at(e);
+        if (!p.ok) return;
+        const q = csCard.quads[cam.name];
+        // O canto pego (ou o mais perto do clique) vai para onde está o ponteiro
+        const handle = e.target.closest(".cs-chart-handle");
+        drag = handle ? [...tile.querySelectorAll(".cs-chart-handle")].indexOf(handle)
+                      : [0, 1, 2, 3].reduce((best, k) => (Math.hypot(q.x[k] - p.x, q.y[k] - p.y) < Math.hypot(q.x[best] - p.x, q.y[best] - p.y) ? k : best), 0);
+        if (!handle) { q.x[drag] = p.x; q.y[drag] = p.y; csChartDraw(tile, q); }
+        photoEl.setPointerCapture(e.pointerId);
+      });
+      photoEl.addEventListener("pointermove", (e) => {
+        if (drag < 0) return;
+        const p = at(e);
+        const q = csCard.quads[cam.name];
+        q.x[drag] = p.x;
+        q.y[drag] = p.y;
+        csChartDraw(tile, q);
+      });
+      const finish = () => {
+        if (drag < 0) return;
+        drag = -1;
+        const q = csCard.quads[cam.name];
+        csCard.moved[cam.name] = true;
+        const args = [cam.name];
+        for (let k = 0; k < 4; k++) args.push(String(Math.round(q.x[k] * 1000)), String(Math.round(q.y[k] * 1000)));
+        Promise.resolve(window.chartSetQuad(...args)).then(() => { csChartDraw(tile, q); csChartStatus(); });
+      };
+      photoEl.addEventListener("pointerup", finish);
+      photoEl.addEventListener("pointercancel", finish);
+      grid.appendChild(tile);
+      csChartDraw(tile, csCard.quads[cam.name]);
+    });
+    csChartStatus();
+    csSetZoom(false);
+    $("csCardPick").classList.remove("hidden");
+    csGallery.message("Waiting for you to check the chart");
+  }
+
+  // Botão "Calibrate with chart": instruções, abrir a cartela e começar
+  function csChartIntro() {
+    const cams = camSettings.filter((c) => c.adjustable && c.styleDetail && cameras.some((x) => x.name === c.camera && x.connected));
+    const models = new Set(cams.map((c) => c.model));
+    if (models.size < 2) {
+      dialog("Calibrate with chart",
+        "This compares camera models, so it needs at least two different models connected whose Picture Style can be changed from the app (for example, an SL3 and a T7).\n\n" +
+        "Cameras of the same model already look alike: Match automatically is enough for them.",
+        [{ label: "Open chart", link: true, onClick: () => window.openChart() }, { label: "OK", primary: true }]);
+      return;
+    }
+    dialog("Calibrate with chart",
+      "Makes cameras of different models look alike in contrast, saturation and color tone. Do it once for each new camera model; Match automatically then uses the result.\n\n" +
+      "1. Click Open chart and print it at 100% (actual size, no scaling), on matte paper.\n" +
+      "2. Put it where every camera sees the whole chart, including the 4 corner marks: flat, under even light, without glare. It should fill about a quarter of each photo or more.\n" +
+      "3. Set the exposure so the chart looks normal in every camera (tip: run Test shot with Match automatically first).\n" +
+      "4. Click Start. The app takes 4 photos, changing contrast, saturation and color tone, and then puts every setting back as it was.\n\n" +
+      "After the first photo, you check that the chart corners are marked right.",
+      [{ label: "Cancel" },
+       { label: "Open chart", link: true, onClick: () => {
+         Promise.resolve(window.openChart()).then((r) => { if (!r || !r.ok) toast("The chart file was not found. Build the app again."); });
+         csChartIntro();
+       } },
+       { label: "Start", primary: true, onClick: csChartStart }]);
+  }
+  function csChartStart() {
+    const connected = cameras.filter((c) => c.connected).length;
+    if (busy || !connected || csTest.capturing) return;
+    csTest.capturing = true;
+    csTest.cancelling = false;
+    csTest.has = false;
+    csTest.mode = "chart";
+    $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
+    $("csTestBox").classList.remove("hidden", "has-photos");
+    csSetZoom(false);
+    csSetCollapsed(false);
+    csGallery.setItems([]);
+    csGallery.setHead("Chart calibration", "");
+    csGallery.message("Taking a photo with each camera");
+    updateButtons();
+    window.chartCalibrate(intValue(ui.downloadWait, 1, 10));
+  }
+  $("csChart").addEventListener("click", () => { if (!csTest.capturing) csChartIntro(); });
   $("csCardCancel").addEventListener("click", () => {
     csCardHide();
     if (csTest.capturing) csTakeTest();  // o mesmo que o botão Cancel do Test shot
@@ -2902,7 +3080,7 @@
     csGallery.setItems(items, 0);
     $("csTestBox").classList.toggle("has-photos", items.length > 0);
     const missing = items.filter((i) => !i.file).length;
-    csGallery.setHead(csTest.mode === "match" ? "Test shot · matched" : "Test shot",
+    csGallery.setHead(csTest.mode === "chart" ? "Chart calibration" : csTest.mode === "match" ? "Test shot · matched" : "Test shot",
       (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · click a photo to enlarge · ← → to compare");
   }
   function csDiscardTest() {

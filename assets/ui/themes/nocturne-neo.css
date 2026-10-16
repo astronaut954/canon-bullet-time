@@ -834,3 +834,13 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-card-label.missing { color: var(--noct-pending); }
 .cs-card-foot { display: flex; align-items: center; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--noct-border); }
 .cs-card-status { font: 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--noct-text-muted); }
+/* Cartela: contorno pelos centros das 4 marcas e os 4 cantos arrastáveis */
+.cs-chart-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cs-chart-lines polygon { fill: rgba(var(--noct-border-strong-rgb), .12); stroke: var(--noct-primary); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.cs-chart-tile.unmarked .cs-chart-lines polygon { stroke: var(--noct-pending); stroke-dasharray: 6 4; }
+.cs-chart-handle { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; box-sizing: border-box;
+  border: 2px solid var(--noct-primary); background: rgba(0, 0, 0, .55); color: var(--noct-primary);
+  font: 700 11px/18px var(--noct-font-mono); text-align: center; cursor: grab; line-height: 18px; touch-action: none; }
+.cs-chart-handle.first { box-shadow: 0 0 0 3px rgba(0, 0, 0, .6), 0 0 0 5px var(--noct-primary); }
+.cs-chart-tile.unmarked .cs-chart-handle { border-color: var(--noct-pending); color: var(--noct-pending); }
+.cs-sheet.capturing #csChart { opacity: .5; pointer-events: none; }

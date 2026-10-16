@@ -521,11 +521,13 @@ namespace
 
     // Calibração do ajuste fino por modelo (feita pelo "Match automatically")
     std::filesystem::path CalibrationFile() { return Platform::AppDataFolder() / "camera-calibration.txt"; }
+    std::filesystem::path ChartCalibrationFile() { return Platform::AppDataFolder() / "chart-calibration.txt"; }
 
     // Configurações para a tela Camera settings (JSON)
     std::string CameraSettingsJson(CanonController& controller, const std::vector<CameraSettings>& all)
     {
         const auto calibrations = AutoMatch::LoadCalibration(CalibrationFile());
+        const auto charts = AutoMatch::LoadChartCalibration(ChartCalibrationFile());
         std::string list = "[";
         for (size_t i = 0; i < all.size(); ++i)
         {
@@ -552,6 +554,13 @@ namespace
             const auto cal = calibrations.find(s.model);
             const bool abFlip = cal != calibrations.end() && cal->second.abSign < 0;
             const bool gmFlip = cal != calibrations.end() && cal->second.gmSign < 0;
+            // Diferença do modelo medida com a cartela (para o Picture Style atual), ou null
+            std::string chart = "null";
+            for (const auto& c : s.settings)
+                if (c.key == "style")
+                    if (const auto it = charts.find(AutoMatch::ChartKey(s.model, c.value)); it != charts.end())
+                        chart = Json("chart").Add("contrast", it->second.contrast).Add("saturation", it->second.saturation)
+                                    .Add("colorTone", it->second.colorTone).Str();
             list += (i ? "," : "") + Json("camera").Add("camera", s.camera).Add("model", s.model)
                 .Add("abFlip", abFlip).Add("gmFlip", gmFlip)
                 .Add("order", order).Add("adjustable", s.adjustable).Add("reason", s.reason)
@@ -559,7 +568,7 @@ namespace
                 .Add("kelvinAvailable", s.kelvinAvailable).Add("shiftAvailable", s.shiftAvailable)
                 .Add("shiftAB", s.shiftAB).Add("shiftGM", s.shiftGM).Add("focusManual", s.focusManual)
                 .Add("styleDetail", s.styleDetailAvailable).Add("contrast", s.contrast)
-                .Add("saturation", s.saturation).Add("colorTone", s.colorTone)
+                .Add("saturation", s.saturation).Add("colorTone", s.colorTone).Raw("chart", chart)
                 .Raw("settings", settings).Str();
         }
         return list + "]";
@@ -1371,7 +1380,18 @@ namespace
             bool confirmed = false;
             std::map<std::string, ColorMatch::Region> regions;      // por câmera
             std::map<std::string, std::filesystem::path> files;     // a foto 1 de cada câmera
+            std::map<std::string, Chart::Quad> quads;               // cartela: cantos por câmera
         } cardPick;
+        auto quadJson = [](const std::string& camera, const Chart::Quad& q)
+        {
+            std::string xs = "[", ys = "[";
+            for (int k = 0; k < 4; ++k)
+            {
+                xs += (k ? "," : "") + std::to_string(q.x[k]);
+                ys += (k ? "," : "") + std::to_string(q.y[k]);
+            }
+            return Json("quad").Add("camera", camera).Add("found", q.found).Raw("x", xs + "]").Raw("y", ys + "]").Str();
+        };
         auto regionJson = [](const std::string& camera, const ColorMatch::Region& r)
         {
             return Json("region").Add("camera", camera).Add("found", r.found)
@@ -1543,6 +1563,7 @@ namespace
                 };
                 AutoMatch::Options options;
                 options.grayCard = grayCard;
+                options.chartFile = ChartCalibrationFile();
                 const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); }, options,
                                                                 debug.Active() ? std::function<void(const std::string&)>(trace) : nullptr);
                 if (debug.Active())
@@ -1579,6 +1600,165 @@ namespace
                                   .Add("cancelled", result.cancelled)
                                   .Add("debugFolder", debug.Active() ? PathToUtf8(debug.Folder()) : std::string())
                                   .Add("error", result.error).Raw("changes", changes).Raw("notes", notes));
+                EmitCameraSettings(controller, listener, singleShotWarned);
+            });
+            return "null";
+        });
+
+        // openChart(): abre a cartela (PDF) no programa padrão, para imprimir
+        window.bind("openChart", [&](const std::string&) -> std::string
+        {
+            const auto file = Platform::ResourcesDirectory() / "assets" / "chart" / "stillpoint-chart.pdf";
+            std::error_code ec;
+            const bool ok = std::filesystem::exists(file, ec);
+            if (ok)
+                Platform::OpenInFileManager(file);
+            return Json("chart").Add("ok", ok).Str();
+        });
+
+        // chartSetQuad("câmera", x0, y0, x1, y1, x2, y2, x3, y3): a pessoa arrastou os cantos
+        // (centros das marcas, de 0 a 1000, na ordem da cartela)
+        window.bind("chartSetQuad", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 9)
+                return "null";
+            Chart::Quad q;
+            try
+            {
+                for (int k = 0; k < 4; ++k)
+                {
+                    q.x[k] = std::clamp(std::stod(args[1 + 2 * k]), 0.0, 1000.0) / 1000.0;
+                    q.y[k] = std::clamp(std::stod(args[2 + 2 * k]), 0.0, 1000.0) / 1000.0;
+                }
+            }
+            catch (...) { return "null"; }
+            q.found = true;
+            std::lock_guard<std::mutex> lock(cardPick.mutex);
+            if (!cardPick.files.count(args[0]))
+                return "null";
+            cardPick.quads[args[0]] = q;
+            return quadJson(args[0], q);
+        });
+
+        // chartCalibrate(espera): calibra os modelos com a cartela (auto_match.h,
+        // CalibrateChart). Depois da 1ª foto, a pessoa confere os cantos (chartPick).
+        // Avisa o andamento (chartProgress) e o resultado (chartResult).
+        window.bind("chartCalibrate", [&](const std::string& request) -> std::string
+        {
+            const auto values = ParseIntArgs(request);
+            SequenceSettings settings;
+            settings.countdownSeconds = 0;
+            settings.sessionCount = 1;
+            settings.downloadWaitSeconds = values.empty() ? 10 : std::max(1, values[0]);
+            settings.playSounds = false;
+            run("orderPhotos", [&, settings]
+            {
+                if (cameraConnecting())
+                    return;
+                testCancel = false;
+                {
+                    std::lock_guard<std::mutex> lock(cardPick.mutex);
+                    cardPick.confirmed = false;
+                    cardPick.quads.clear();
+                    cardPick.files.clear();
+                }
+                MatchDebug debug;
+                if (debugMode)
+                    debug.Begin(DebugRoot(), "chart");
+                auto shoot = [&](int shot, int shots, const std::string& stage,
+                                 std::map<std::string, Chart::Reading>& measured) -> bool
+                {
+                    if (testCancel)
+                        return false;
+                    listener.Emit(Json("chartProgress").Add("shot", shot).Add("shots", shots).Add("stage", stage));
+                    orderStore.DeleteAll();
+                    EnsureSingleShot(controller, singleShotWarned);
+                    const std::string previous = controller.GetOutputFolder();
+                    controller.SetOutputFolder(orderStore.Root().string());
+                    bulletTime.RunSequence(settings);
+                    controller.SetOutputFolder(previous);
+                    const auto sessions = orderStore.ListSessions();
+                    if (sessions.empty() || testCancel)
+                        return false;
+                    const StoredSession& session = sessions.back();
+                    std::map<std::string, const StoredPhoto*> picks;
+                    for (const auto& p : session.photos)
+                        if (!picks.count(p.camera) || IsJpegPhoto(p.file))
+                            picks[p.camera] = &p;
+                    if (shot == 1)
+                    {
+                        // Acha a cartela em cada foto e espera a pessoa conferir os cantos
+                        std::string quads = "[";
+                        {
+                            std::lock_guard<std::mutex> lock(cardPick.mutex);
+                            for (const auto& [camera, photo] : picks)
+                                if (photo->previewable)
+                                {
+                                    const auto file = orderStore.Root() / session.name / photo->file;
+                                    cardPick.files[camera] = file;
+                                    cardPick.quads[camera] = Chart::Find(file);
+                                    quads += (quads.size() > 1 ? "," : "") + quadJson(camera, cardPick.quads[camera]);
+                                }
+                        }
+                        listener.Emit(Json("chartPick").Raw("sessions", SessionsJson(orderStore)).Raw("quads", quads + "]"));
+                        std::unique_lock<std::mutex> lock(cardPick.mutex);
+                        while (!cardPick.confirmed && !testCancel)
+                        {
+                            cardPick.wake.wait_for(lock, std::chrono::milliseconds(200));
+                            lock.unlock();
+                            EdsGetEvent();  // as câmeras continuam respondendo enquanto espera
+                            lock.lock();
+                        }
+                        if (testCancel)
+                            return false;
+                    }
+                    for (const auto& [camera, photo] : picks)
+                        if (photo->previewable)
+                        {
+                            std::lock_guard<std::mutex> lock(cardPick.mutex);
+                            const auto it = cardPick.quads.find(camera);
+                            if (it == cardPick.quads.end() || !it->second.found)
+                            {
+                                Chart::Reading none;
+                                none.problem = "the chart corners were not marked";
+                                measured[camera] = none;
+                            }
+                            else
+                                measured[camera] = Chart::Measure(orderStore.Root() / session.name / photo->file, it->second);
+                        }
+                    if (debug.Active())
+                        debug.Shot(shot, stage, DebugPhotos(controller, orderStore, session, nullptr));
+                    return true;
+                };
+                auto trace = [&](const std::string& line)
+                {
+                    debug.Line(line);
+                    Log("[chart] " + line);
+                };
+                const AutoMatch::ChartResult result = AutoMatch::CalibrateChart(
+                    controller, shoot, ChartCalibrationFile(), [&] { return testCancel.load(); },
+                    debug.Active() ? std::function<void(const std::string&)>(trace) : nullptr);
+                if (debug.Active())
+                {
+                    debug.Line(result.cancelled ? "Result: cancelled" : result.ok ? "Result: done" : "Result: " + result.error);
+                    for (const auto& line : result.models)
+                        debug.Line("  " + line);
+                    for (const auto& note : result.notes)
+                        debug.Line("  note: " + note);
+                    rememberDebugFolder(debug.Folder());
+                }
+                auto list = [](const std::vector<std::string>& items)
+                {
+                    std::string out = "[";
+                    for (size_t i = 0; i < items.size(); ++i)
+                        out += (i ? "," : "") + JsonString(items[i]);
+                    return out + "]";
+                };
+                listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
+                listener.Emit(Json("chartResult").Add("ok", result.ok).Add("cancelled", result.cancelled)
+                                  .Add("debugFolder", debug.Active() ? PathToUtf8(debug.Folder()) : std::string())
+                                  .Add("error", result.error).Raw("models", list(result.models)).Raw("notes", list(result.notes)));
                 EmitCameraSettings(controller, listener, singleShotWarned);
             });
             return "null";
