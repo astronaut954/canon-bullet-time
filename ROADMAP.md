@@ -390,20 +390,31 @@ computador e para outras marcas).
 
 ## Futuro (não planejado ainda)
 
-- **Disparo com intervalos (PRIORIDADE, pedido do dono do projeto em 2026-10-16).** Escolher como as
-  câmeras disparam em cada sessão: todas ao mesmo tempo (como hoje); uma depois da outra com um
-  intervalo (ex.: 1 s); em grupos (metade junto, a outra metade 1 s depois); e assim por diante.
-  Pelo USB a precisão é de dezenas de ms, suficiente para intervalos de 0,2 s para cima; com uma
-  caixa de disparo por cabo (abaixo) o intervalo fica exato.
-- **Sincronia do disparo (explorado em 2026-10-16).** Hoje o app manda "apertar" para uma câmera
-  por vez, em fila, e depois "soltar" uma por vez: a última recebe a ordem depois de todas as
-  outras, e cada modelo ainda tem o próprio atraso até abrir o obturador. Caminhos, em ordem:
-  (1) medir no modo debug o instante em que cada câmera recebeu a ordem; (2) mandar as ordens em
-  paralelo (uma thread por câmera, todas soltas no mesmo instante), se o SDK aceitar; (3) caixa de
-  disparo por cabo na entrada de controle remoto (RS-60E3 na SL3 e na T7), controlada pelo app
-  pela porta serial: sincronia de fração de ms e intervalos exatos; o USB continua cuidando das
-  configurações e das fotos. Os dois modos podem conviver no app (escolha em Settings).
-
+- **Disparo com intervalos (PRIORIDADE, pedido do dono do projeto em 2026-10-16; etapa 14).**
+  Campo "Timing" no painel Bullet time, com uma linha do tempo que mostra quando cada câmera
+  dispara. Modos: All at once (padrão); One after another (intervalo em s, direção 1→N, N→1 ou
+  ida e volta 1→N→1, em que as câmeras do meio fotografam duas vezes na mesma sessão); Groups
+  (n grupos, intervalo entre eles); Odd/even (ímpares juntas, pares X s depois); Custom (atraso
+  por câmera, numa coluna em Camera settings). Download wait conta a partir do último disparo;
+  cancelar no meio deixa as fotos já tiradas. Pelo USB a precisão é de dezenas de ms, boa para
+  intervalos de 0,2 s para cima; com a caixa de disparo o intervalo fica exato.
+- **Ordens de disparo em paralelo (PRIORIDADE para testar com várias câmeras).** Hoje o app manda
+  "apertar" para uma câmera por vez, em fila; a última recebe a ordem depois de todas as outras.
+  Testar uma thread por câmera, todas soltas no mesmo instante (o SDK pode não aceitar). Medir
+  com todas as câmeras fotografando um cronômetro de milésimos na tela de um celular: a diferença
+  entre os números é a diferença real de disparo. A medição serve para validar o paralelo, não
+  para catalogar modelos.
+- **Caixa de disparo por cabo (decidido em 2026-10-16: primeiro o hardware, depois o software).**
+  Controlador (ESP32) + um canal por câmera com optoacoplador fechando o contato de disparo da
+  entrada de controle remoto (2,5 mm, padrão RS-60E3: ponta = disparo, anel = foco, corpo =
+  comum); 16 canais por placa de expansão (MCP23017 via I2C), expansível além de 12. O app fala
+  com a caixa pela porta USB serial ("dispara canais X em Y ms"). USB continua cuidando das
+  configurações e das fotos. Antes de montar 12 canais, um protótipo de 2 canais confirma: a
+  câmera dispara pelo cabo com a sessão USB aberta e a foto chega ao computador.
+- **Ajustar as fotos em vez da câmera: correções pelo programa e RAW (decidido em 2026-10-16,
+  opção B).** Quando houver câmera corrigida pelo programa e o formato for Original, o Save
+  sessions avisa que o RAW dessas câmeras não inclui a correção, e a pessoa escolhe (RAW sem
+  correção em todas, ou converter). O app nunca mistura RAW de umas e JPEG de outras sem avisar.
 - **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos
   salvas, sem mexer nos originais. Útil para câmeras que não deixam mudar as configurações pelo
   computador e para outras marcas. Em RAW não tem efeito.
