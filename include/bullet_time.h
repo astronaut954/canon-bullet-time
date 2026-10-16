@@ -17,6 +17,10 @@ struct SequenceSettings
     int sessionCount = 1;         // quantos disparos seguidos
     int downloadWaitSeconds = 10; // tempo máximo esperando as fotos
     bool playSounds = true;       // áudio da contagem e do disparo (desligado nas fotos de teste)
+    // Disparo com intervalos (interface gráfica): cada item é uma foto de uma câmera
+    // num instante (ms depois do primeiro disparo), em ordem de tempo. Vazio = todas
+    // ao mesmo tempo, como sempre (a versão de terminal só usa isso).
+    std::vector<CanonController::ScheduledShot> schedule;
 };
 
 // Avisos do núcleo para a interface. Todos têm implementação vazia por padrão.

@@ -188,9 +188,15 @@ EdsError EDSCALLBACK CanonController::HandleObjectEvent(
         fs::create_directories(ctx->currentShotDir);
 
         std::string originalName = dirInfo.szFileName ? dirInfo.szFileName : "file.bin";
+        int prefix = ctx->orderPrefix;
+        if (!ctx->pendingPrefixes.empty())  // disparo com intervalos: número da foto na sessão
+        {
+            prefix = ctx->pendingPrefixes.front();
+            ctx->pendingPrefixes.pop_front();
+        }
         fs::path outPath = BuildUniqueOutputPath(
             ctx->currentShotDir,
-            ctx->orderPrefix,
+            prefix,
             ctx->shortName,
             originalName
         );
@@ -1402,6 +1408,82 @@ bool CanonController::ShootAll()
     }
 
     return anySuccess;
+}
+
+int CanonController::ShootScheduled(const std::vector<ScheduledShot>& shots, const std::atomic<bool>* cancelled)
+{
+    expectedDownloads = 0;
+    completedDownloads = 0;
+
+    fs::path dir = cameras.empty() || cameras.front().currentShotDir.empty()
+                       ? baseOutputDir / MakeTimestamp(false) : cameras.front().currentShotDir;
+    fs::create_directories(dir);
+    for (auto& cam : cameras)
+    {
+        cam.currentShotDir = dir;
+        cam.lastShotError = 0;
+        cam.pendingPrefixes.clear();
+    }
+    Log("\nRound folder: " + dir.string());
+
+    // Quantas fotos esperar e o número de cada uma (posição na lista)
+    for (size_t i = 0; i < shots.size(); ++i)
+        for (auto& cam : cameras)
+            if (cam.sessionOpen && cam.shortName == shots[i].shortName)
+            {
+                cam.pendingPrefixes.push_back(static_cast<int>(i) + 1);
+                expectedDownloads++;
+            }
+    Log("Waiting for downloads from " + std::to_string(expectedDownloads.load()) + " shot(s)");
+
+    int fired = 0;
+    const auto start = std::chrono::steady_clock::now();
+    for (size_t i = 0; i < shots.size(); ++i)
+    {
+        // Espera a hora do item, deixando o SDK entregar as fotos dos anteriores
+        while (true)
+        {
+            if (cancelled && cancelled->load())
+            {
+                // Os que faltam não disparam: não esperar por eles
+                for (size_t j = i; j < shots.size(); ++j)
+                    for (auto& cam : cameras)
+                        if (cam.sessionOpen && cam.shortName == shots[j].shortName && !cam.pendingPrefixes.empty())
+                        {
+                            cam.pendingPrefixes.pop_back();
+                            expectedDownloads--;
+                        }
+                return fired;
+            }
+            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+            if (elapsed >= shots[i].atMs)
+                break;
+            EdsGetEvent();
+            std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(5, shots[i].atMs - elapsed)));
+        }
+        CameraContext* cam = nullptr;
+        for (auto& c : cameras)
+            if (c.sessionOpen && c.shortName == shots[i].shortName)
+                cam = &c;
+        if (!cam)
+            continue;
+        EdsError errDown = EdsSendCommand(cam->camera, kEdsCameraCommand_PressShutterButton, kEdsCameraCommand_ShutterButton_Completely_NonAF);
+        LogMessage("PressShutter DOWN [" + cam->shortName + "] shot " + std::to_string(i + 1) + ": " + std::to_string(errDown));
+        if (errDown == EDS_ERR_OK)
+            ++fired;
+        else
+        {
+            cam->lastShotError = static_cast<long>(errDown);
+            // Esta foto não vem: tira o número dela da fila
+            for (auto it = cam->pendingPrefixes.begin(); it != cam->pendingPrefixes.end(); ++it)
+                if (*it == static_cast<int>(i) + 1) { cam->pendingPrefixes.erase(it); break; }
+            expectedDownloads--;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        EdsError errOff = EdsSendCommand(cam->camera, kEdsCameraCommand_PressShutterButton, kEdsCameraCommand_ShutterButton_OFF);
+        LogMessage("PressShutter OFF [" + cam->shortName + "]: " + std::to_string(errOff));
+    }
+    return fired;
 }
 
 void CanonController::CloseSessions()

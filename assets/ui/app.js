@@ -551,6 +551,7 @@
   }
 
   function renderCameras() {
+    if (typeof renderTiming === "function") setTimeout(renderTiming, 0);
     ui.cameraList.innerHTML = "";
     const placed = placedCameras();
     const empty = cameras.length === 0;
@@ -3210,8 +3211,210 @@
   });
   ui.shootBtn.addEventListener("click", () => {
     if (busy && busyAction === "shoot") return cancelShoot();
-    window.shoot(intValue(ui.countdown, 0, 0), intValue(ui.sessions, 1, 1), intValue(ui.downloadWait, 1, 10));
+    const plan = timingPlan();
+    if (plan.warn && !plan.shots.length) { toast(plan.warn, 6000); return; }
+    const schedule = timing.mode === "all" ? "" : plan.shots.map((s) => s.cam + ":" + s.t).join(",");
+    window.shoot(String(intValue(ui.countdown, 0, 0)), String(intValue(ui.sessions, 1, 1)), String(intValue(ui.downloadWait, 1, 10)), schedule);
   });
+
+  // =================== Timing: como as câmeras disparam ===================
+  // Modos: todas juntas; uma depois da outra (intervalo, direção, loops); grupos;
+  // ímpares/pares; custom (passos: câmeras + tempo depois do passo anterior).
+  // O plano vira "câmera:ms,..." para o app; vazio = todas juntas, como sempre.
+  const TIMING_DEFAULT = { mode: "all", interval: 0.5, direction: "fwd", loops: 1, groups: 2, gap: 1, oeGap: 1, steps: [{ after: 0, cams: [1, 2, 3] }, { after: 1, cams: [4, 5, 6] }] };
+  const TIMING_MODES = [["all", "All at once"], ["seq", "One after another"], ["groups", "Groups"], ["oddeven", "Odd / even"], ["custom", "Custom"]];
+  const TIMING_SHORT = { all: "At once", seq: "Sequence", groups: "Groups", oddeven: "Odd / even", custom: "Custom" };
+  let timing = JSON.parse(JSON.stringify(TIMING_DEFAULT));
+  let timingOpen = false;
+  let timingSaveTimer = 0;
+  function timingLoad(text) {
+    if (!text) return;
+    try {
+      const t = JSON.parse(text);
+      if (t && typeof t === "object") timing = Object.assign(JSON.parse(JSON.stringify(TIMING_DEFAULT)), t);
+      if (!TIMING_MODES.some(([m]) => m === timing.mode)) timing.mode = "all";
+      if (!Array.isArray(timing.steps) || !timing.steps.length) timing.steps = JSON.parse(JSON.stringify(TIMING_DEFAULT.steps));
+    } catch (e) { timing = JSON.parse(JSON.stringify(TIMING_DEFAULT)); }
+  }
+  function timingSave() {
+    clearTimeout(timingSaveTimer);
+    timingSaveTimer = setTimeout(() => { if (typeof window.saveTiming === "function") window.saveTiming(JSON.stringify(timing)); }, 300);
+  }
+  const num = (v, min, max, fallback) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback; };
+  const fmtS = (ms) => (Math.round(ms / 100) / 10) + " s";
+  // Plano: lista de { cam (nome), order, t (ms), pass (0 = primeira foto da câmera) }
+  function timingPlan() {
+    const cams = placedCameras().filter((c) => c.connected).sort((a, b) => a.order - b.order);
+    const N = cams.length;
+    const byOrder = (o) => cams[o - 1];
+    const shots = [];
+    let warn = "";
+    const add = (o, t) => { const c = byOrder(o); if (!c) return; shots.push({ cam: c.name, order: o, t: Math.round(t), pass: shots.filter((s) => s.order === o).length }); };
+    const loops = Math.max(1, Math.round(num(timing.loops, 1, 99, 1)));
+    if (N === 0) return { shots, warn: "", total: "", N };
+    if (timing.mode === "all") {
+      for (let o = 1; o <= N; o++) add(o, 0);
+    } else if (timing.mode === "seq") {
+      const ms = num(timing.interval, 0.05, 600, 0.5) * 1000;
+      let order = [];
+      const fwd = Array.from({ length: N }, (_, i) => i + 1);
+      if (timing.direction === "back") order = fwd.slice().reverse();
+      else if (timing.direction === "pingpong") order = N > 1 ? fwd.concat(fwd.slice(1, -1).reverse()) : fwd;  // 1..N..2 (o 1 final entra no fim)
+      else order = fwd;
+      let k = 0;
+      for (let l = 0; l < loops; l++) order.forEach((o) => add(o, (k++) * ms));
+      if (timing.direction === "pingpong" && N > 1) add(1, (k++) * ms);
+    } else if (timing.mode === "groups") {
+      const g = Math.max(1, Math.min(N, Math.round(num(timing.groups, 1, 99, 2))));
+      const gap = num(timing.gap, 0.05, 600, 1) * 1000;
+      const size = Math.ceil(N / g);
+      for (let l = 0; l < loops; l++)
+        for (let o = 1; o <= N; o++) add(o, (l * g + Math.floor((o - 1) / size)) * gap);
+    } else if (timing.mode === "oddeven") {
+      const gap = num(timing.oeGap, 0.05, 600, 1) * 1000;
+      for (let l = 0; l < loops; l++)
+        for (let o = 1; o <= N; o++) add(o, (l * 2 + (o % 2 === 1 ? 0 : 1)) * gap);
+    } else if (timing.mode === "custom") {
+      let t = 0; const times = [];
+      timing.steps.forEach((st, i) => { t += (i === 0 ? 0 : num(st.after, 0, 600, 1)) * 1000; times.push(t); });
+      const span = t;
+      const period = span + (timing.steps.length > 1 ? num(timing.steps[1].after, 0, 600, 1) * 1000 : 1000);
+      for (let l = 0; l < loops; l++)
+        timing.steps.forEach((st, i) => (st.cams || []).filter((o) => o >= 1 && o <= N).sort((x, y) => x - y).forEach((o) => add(o, l * period + times[i])));
+      const used = new Set(); timing.steps.forEach((st) => (st.cams || []).forEach((o) => used.add(o)));
+      const missing = []; for (let o = 1; o <= N; o++) if (!used.has(o)) missing.push(o);
+      if (missing.length) warn = (missing.length === 1 ? "Camera " + missing[0] + " is" : "Cameras " + missing.join(", ") + " are") + " not in any step and will not fire.";
+      if (!shots.length) warn = "No camera is in any step. Add cameras to the steps.";
+    }
+    shots.sort((a, b) => a.t - b.t || a.order - b.order);
+    const span = shots.length ? shots[shots.length - 1].t : 0;
+    const total = !shots.length ? "" : span === 0 ? shots.length + " shots at once" : shots.length + " shots over " + fmtS(span);
+    return { shots, warn, total, N };
+  }
+  function timingLabel(orders) {
+    if (orders.length === 1) return String(orders[0]);
+    const sorted = orders.slice().sort((a, b) => a - b);
+    if (sorted.every((v, i) => i === 0 || v === sorted[i - 1] + 1)) return sorted[0] + "–" + sorted[sorted.length - 1];
+    if (sorted.every((v) => v % 2 === 1)) return "odd (" + sorted.length + ")";
+    if (sorted.every((v) => v % 2 === 0)) return "even (" + sorted.length + ")";
+    return sorted.length > 6 ? sorted.length + " cams" : sorted.join(",");
+  }
+  function renderTimeline(root, plan, small) {
+    root.innerHTML = "";
+    const axis = el("div", "axis"); root.appendChild(axis);
+    if (!plan.shots.length) return;
+    const tmax = Math.max(1, plan.shots[plan.shots.length - 1].t);
+    const width = root.clientWidth || 500;
+    const X = (t) => 14 + (plan.shots[plan.shots.length - 1].t ? (t / tmax) * (width - 28) : 0);
+    const groups = new Map();
+    plan.shots.forEach((s) => { const k = s.t + "|" + (s.pass ? 1 : 0); if (!groups.has(k)) groups.set(k, { t: s.t, pass: s.pass, orders: [] }); groups.get(k).orders.push(s.order); });
+    groups.forEach((g) => {
+      const d = el("span", "dot" + (g.pass ? " second" : ""), timingLabel(g.orders));
+      d.style.left = X(g.t) + "px";
+      d.title = (g.orders.length === 1 ? "Camera " + g.orders[0] : "Cameras " + g.orders.join(", ")) + " at " + fmtS(g.t);
+      root.appendChild(d);
+    });
+    if (!small) [0, 0.5, 1].forEach((f) => {
+      if (plan.shots[plan.shots.length - 1].t === 0 && f > 0) return;
+      const tick = el("span", "tick", fmtS(f * tmax)); tick.style.left = X(f * tmax) + "px"; root.appendChild(tick);
+    });
+  }
+  function timingSummaryText(plan) {
+    const name = TIMING_MODES.find(([m]) => m === timing.mode)[1];
+    const parts = [name];
+    const loops = Math.round(num(timing.loops, 1, 99, 1));
+    if (timing.mode === "seq") parts.push(num(timing.interval, 0.05, 600, 0.5) + " s", timing.direction === "back" ? plan.N + " → 1" : timing.direction === "pingpong" ? "1 → " + plan.N + " → 1" : "1 → " + plan.N);
+    if (timing.mode === "groups") parts.push(Math.round(num(timing.groups, 1, 99, 2)) + " groups · " + num(timing.gap, 0.05, 600, 1) + " s");
+    if (timing.mode === "oddeven") parts.push("evens " + num(timing.oeGap, 0.05, 600, 1) + " s later");
+    if (timing.mode === "custom") parts.push(timing.steps.length + " steps");
+    if (timing.mode !== "all" && loops > 1) parts.push("×" + loops);
+    return parts.join(" · ");
+  }
+  function field(label, unit, value, onChange, opts) {
+    const o = opts || {};
+    const lab = el("label", "field"); lab.appendChild(el("span", "", label));
+    const wrap = el("span", "input-unit");
+    const input = document.createElement("input"); input.type = "text"; input.inputMode = "decimal"; input.autocomplete = "off"; input.value = String(value);
+    input.addEventListener("change", () => { onChange(input.value); renderTiming(); });
+    wrap.appendChild(input); if (unit) wrap.appendChild(el("em", "", unit)); lab.appendChild(wrap);
+    if (o.title) lab.title = o.title;
+    return lab;
+  }
+  function selectField(label, options, current, onChange) {
+    const lab = el("label", "field"); lab.appendChild(el("span", "", label));
+    lab.appendChild(csSelect(options, current, (v) => { onChange(v); renderTiming(); }));
+    return lab;
+  }
+  function renderTiming() {
+    const plan = timingPlan();
+    const custom = timing.mode !== "all";
+    $("timingText").textContent = timingSummaryText(plan) + (plan.total ? " · " + plan.total : "");
+    $("timingTag").classList.toggle("hidden", !custom);
+    $("timingToggle").textContent = timingOpen ? "Hide" : "Advanced";
+    $("timingAdv").classList.toggle("hidden", !timingOpen);
+    $("timingMini").classList.toggle("hidden", timingOpen || !custom || !plan.shots.length);
+    if (!timingOpen && custom) renderTimeline($("timingMini").querySelector(".tl"), plan, true);
+    if (!timingOpen) return;
+    const modes = $("timingModes"); modes.innerHTML = "";
+    const seg = segmented(TIMING_MODES.map(([m]) => [m, TIMING_SHORT[m]]), timing.mode, (v) => { timing.mode = v; timingSave(); renderTiming(); });
+    while (seg.firstChild) modes.appendChild(seg.firstChild);
+    const f = $("timingFields"); f.innerHTML = "";
+    if (timing.mode === "seq") {
+      f.appendChild(field("Interval", "sec", timing.interval, (v) => { timing.interval = num(v, 0.05, 600, 0.5); timingSave(); }));
+      f.appendChild(selectField("Direction", [["fwd", "1 → " + plan.N], ["back", plan.N + " → 1"], ["pingpong", "1 → " + plan.N + " → 1"]], timing.direction, (v) => { timing.direction = v; timingSave(); }));
+    }
+    if (timing.mode === "groups") {
+      f.appendChild(field("Groups", "", timing.groups, (v) => { timing.groups = Math.round(num(v, 1, 99, 2)); timingSave(); }));
+      f.appendChild(field("Between groups", "sec", timing.gap, (v) => { timing.gap = num(v, 0.05, 600, 1); timingSave(); }));
+    }
+    if (timing.mode === "oddeven") f.appendChild(field("Evens after odds", "sec", timing.oeGap, (v) => { timing.oeGap = num(v, 0.05, 600, 1); timingSave(); }));
+    if (timing.mode !== "all") f.appendChild(field("Loops", "", timing.loops, (v) => { timing.loops = Math.round(num(v, 1, 99, 1)); timingSave(); }, { title: "Repeats the whole pattern this many times." }));
+    const cust = $("timingCustom"); cust.innerHTML = ""; cust.classList.toggle("hidden", timing.mode !== "custom");
+    if (timing.mode === "custom") renderTimingSteps(cust, plan.N);
+    $("timingTotal").textContent = plan.total;
+    renderTimeline($("timingTimeline"), plan, false);
+    $("timingWarn").textContent = plan.warn; $("timingWarn").classList.toggle("hidden", !plan.warn);
+  }
+  function renderTimingSteps(root, N) {
+    const used = new Map(); timing.steps.forEach((st, i) => (st.cams || []).forEach((o) => { if (!used.has(o)) used.set(o, i); }));
+    timing.steps.forEach((st, i) => {
+      const row = el("div", "timing-step");
+      row.appendChild(el("span", "step-n", "Step " + (i + 1)));
+      const after = el("span", "step-after");
+      if (i === 0) after.appendChild(el("span", "", "at start"));
+      else {
+        after.appendChild(el("span", "", "after"));
+        const wrap = el("span", "input-unit");
+        const input = document.createElement("input"); input.type = "text"; input.inputMode = "decimal"; input.autocomplete = "off"; input.value = String(st.after);
+        input.addEventListener("change", () => { st.after = num(input.value, 0, 600, 1); timingSave(); renderTiming(); });
+        wrap.appendChild(input); wrap.appendChild(el("em", "", "s")); after.appendChild(wrap);
+      }
+      row.appendChild(after);
+      const chips = el("span", "step-cams");
+      for (let o = 1; o <= Math.max(N, 1); o++) {
+        const on = (st.cams || []).includes(o);
+        const chip = el("button", "cam-chip" + (on ? " on" : "") + (!on && used.has(o) && used.get(o) !== i ? " used" : ""), String(o));
+        chip.type = "button";
+        chip.title = on ? "Click to take camera " + o + " out of this step" : used.has(o) ? "Camera " + o + " is in step " + (used.get(o) + 1) + "; click to move it here" : "Click to add camera " + o + " to this step";
+        chip.addEventListener("click", () => {
+          if (on) st.cams = st.cams.filter((x) => x !== o);
+          else { timing.steps.forEach((other) => { other.cams = (other.cams || []).filter((x) => x !== o); }); st.cams = (st.cams || []).concat(o); }
+          timingSave(); renderTiming();
+        });
+        chips.appendChild(chip);
+      }
+      row.appendChild(chips);
+      if (timing.steps.length > 1) row.appendChild(button("", () => { timing.steps.splice(i, 1); timingSave(); renderTiming(); }, { icon: "close", title: "Remove this step", kind: "btn-link step-x" }));
+      root.appendChild(row);
+    });
+    root.appendChild(button("Add step", () => { timing.steps.push({ after: 1, cams: [] }); timingSave(); renderTiming(); }, { kind: "btn-link" }));
+  }
+  $("timingToggle").addEventListener("click", () => {
+    timingOpen = !timingOpen;
+    document.body.classList.toggle("timing-open", timingOpen);  // o painel Bullet time cresce
+    renderTiming();
+  });
+  window.addEventListener("resize", () => renderTiming());
 
   // Cancelar o bullet time: botão na contagem, Esc na contagem ou o botão de disparo
   // (que vira "Cancel bullet time" enquanto roda). O que já foi disparado não volta.
@@ -3267,6 +3470,9 @@
     if (info && info.unsavedSessions > 0) offerRecovery(info.unsavedSessions);
     if (info && info.testRestart) { testRestart = true; ui.restartAppBtn.classList.remove("hidden"); }
     upd.info = info || null;
+    timingLoad(info && info.timing);
+    renderTiming();
+    if (info && info.fakeCameras) log("Fake cameras: " + info.fakeCameras + " (STILLPOINT_FAKE_CAMERAS). Shots make test photos.", "warn");
     if (info && info.os === "windows") menuEl.btn.classList.remove("hidden");
     if (info && info.version) {
       $("brandVersion").textContent = "v" + info.version;

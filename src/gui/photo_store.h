@@ -34,6 +34,10 @@ struct RgbFrame
 // Decodifica uma foto (JPEG, ou RAW pela prévia JPEG que a câmera embute nele).
 // jpegBytes (opcional) recebe esse JPEG de origem, com os dados EXIF da câmera.
 bool LoadPhotoRgb(const std::filesystem::path& file, RgbFrame& out, std::string* jpegBytes = nullptr);
+
+// Foto de teste (câmeras simuladas, STILLPOINT_FAKE_CAMERAS): JPEG com o número da
+// câmera em destaque e o número da foto na sessão, numa cor por câmera.
+bool WriteTestPhoto(const std::filesystem::path& file, int cameraNumber, int shotNumber);
 bool IsRawPhoto(const std::string& file);
 bool IsJpegPhoto(const std::string& file);
 

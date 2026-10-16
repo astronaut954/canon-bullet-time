@@ -106,6 +106,24 @@
             <span class="input-unit"><input id="downloadWait" type="text" inputmode="numeric" maxlength="3" autocomplete="off" spellcheck="false" value="10"><em>sec</em></span>
           </label>
         </div>
+        <!-- Timing: como as câmeras disparam (todas juntas, uma depois da outra, grupos...) -->
+        <div id="timingSummary" class="timing-summary">
+          <span id="timingTag" class="timing-tag hidden">Timing</span>
+          <span class="timing-label">Timing:</span>
+          <b id="timingText">All at once</b>
+          <button id="timingToggle" class="btn btn-link btn-small" title="Choose how the cameras fire: all at once, one after another, in groups, odd / even, or a custom plan.">Advanced</button>
+        </div>
+        <div id="timingMini" class="timing-mini hidden"><div class="tl small"></div></div>
+        <div id="timingAdv" class="timing-adv hidden">
+          <div id="timingModes" class="segmented timing-modes"></div>
+          <div id="timingFields" class="fields timing-fields"></div>
+          <div id="timingCustom" class="timing-custom hidden"></div>
+          <div class="timing-box">
+            <div class="timing-head"><b>Timeline</b><span id="timingTotal" class="timing-total"></span></div>
+            <div id="timingTimeline" class="tl"></div>
+            <p id="timingWarn" class="timing-warn hidden"></p>
+          </div>
+        </div>
         <button id="shootBtn" class="btn btn-primary btn-shoot">It's bullet time</button>
         <p id="shootNote" class="shoot-note hidden"></p>
         <button id="restartAppBtn" class="btn btn-secondary btn-small hidden" title="Closes and opens the app again. Photos that are not saved are kept.">Restart app</button>
