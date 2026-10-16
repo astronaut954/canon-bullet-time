@@ -22,7 +22,9 @@
 #if defined(_WIN32) && !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS  // getenv: com /sdl, o aviso do Visual Studio vira erro
 #endif
+#include "audio_player.h"
 #include "bullet_time.h"
+#include "path_utils.h"
 #include "canon_controller.h"
 #include "logger.h"
 #include "path_utils.h"
@@ -1255,6 +1257,8 @@ namespace
                 for (int s = settings.countdownSeconds; s >= 1 && completed; --s)
                 {
                     listener.OnCountdownTick(s);
+                    if (settings.playSounds)
+                        AudioPlayer::PlayWavAsync(GetAssetAudioPath("countdown.wav").string());
                     for (int step = 0; step < 10 && completed; ++step)
                     {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1268,6 +1272,8 @@ namespace
                     break;
                 }
                 listener.OnTrigger();
+                if (settings.playSounds)
+                    AudioPlayer::PlayWavAsync(GetAssetAudioPath("itsbullettime.wav").string());
                 // Plano: vazio = todas ao mesmo tempo, uma foto por câmera
                 std::vector<CanonController::ScheduledShot> plan = settings.schedule;
                 if (plan.empty())
