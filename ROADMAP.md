@@ -320,6 +320,9 @@ computador e para outras marcas).
   real (SL3 + T7) a medida dependia do que cada câmera via e andou ao contrário do ajuste (SL3 em +4
   mediu menos contraste; T7 em −4 mediu mais), o que também bagunçou o ISO. Decisão (2026-10-15):
   mesma curva em todas; a diferença de cada modelo fica para a medição com alvo (cartão cinza).
+- "±" do Picture Style em âmbar tracejado quando só algumas opções (contraste, saturação, tom)
+  diferem entre as câmeras; âmbar cheio quando as três diferem. Na caixa do "±" de uma câmera, a
+  opção diferente fica âmbar. Nova linha na legenda do "?" (pedido do dono do projeto, 2026-10-16).
 - O ajuste fino do balanço de branco deixou de contar como "configuração diferente" (âmbar e
   "Settings differ"): depois do ajuste automático ele é diferente de propósito em cada câmera.
 - ISO errado no teste de 2026-10-15 (Mac, SL3 + T7, mesmo ISO no início): terminou em ISO 800 na

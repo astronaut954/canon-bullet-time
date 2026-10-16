@@ -257,6 +257,10 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       diferentes): todas terminam com o mesmo valor (o mais comum; empate: o da primeira câmera),
       o resumo mostra a mudança e o "±" deixa de ficar âmbar. Cancel volta os valores de antes.
 - [ ] Ajuste fino diferente entre câmeras não deixa mais a célula âmbar nem "Settings differ".
+- [ ] "±" do Picture Style: só uma ou duas opções (Contrast, Saturation, Color tone) diferentes →
+      âmbar tracejado (na câmera diferente e em All cameras), e na caixa do "±" a opção diferente
+      fica âmbar; as três diferentes → âmbar cheio; todas iguais → normal. A legenda do "?" mostra
+      o tracejado âmbar.
 - [ ] Settings → Debug → On. Test shot (com e sem Match automatically): no fim, "Open debug folder"
       (no resumo ou no Settings) abre uma pasta com as fotos, report.csv e trace.txt.
 - [ ] Debug ligado, fechar e abrir o app: volta desligado. Desligado: Test shot não cria pasta.

@@ -770,6 +770,8 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-more.open { background: var(--noct-primary); color: var(--noct-on-primary); }
 .cs-more.diff { border-color: var(--noct-pending); color: var(--noct-pending); }
 .cs-more.diff.open { background: var(--noct-pending); color: var(--noct-on-primary); }
+.cs-more.partial { border-style: dashed; border-color: var(--noct-pending); color: var(--noct-pending); }
+.cs-more.partial.open { background: var(--noct-pending); color: var(--noct-on-primary); }
 .cs-pop { position: fixed; z-index: 7; width: 230px; box-sizing: border-box; padding: 10px 12px 12px; background: var(--noct-surface);
   border: 1px solid var(--noct-border-strong); box-shadow: 0 12px 32px rgba(0, 0, 0, .55); }
 .cs-pop-title { font: 700 11px var(--noct-font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--noct-primary); margin-bottom: 8px; }
@@ -791,6 +793,7 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .info-tip:hover .info-tip-text, .info-tip:focus .info-tip-text { display: block; }
 .cs-key { display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -1px; border: 1px solid; }
 .cs-key-diff { border-color: var(--noct-pending); }
+.cs-key-partial { border-style: dashed; border-color: var(--noct-pending); }
 .cs-key-na { border-style: dashed; border-color: var(--noct-text-dim); }
 .cs-key-warn { border-color: var(--noct-pending); background: rgba(var(--noct-pending-rgb), .25); }
 

@@ -2381,7 +2381,28 @@
     counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
     return best;
   }
-  const csStyleDetailDiffers = (c) => { const ref = csStyleDetailRef(); return ref !== null && c.styleDetail && styleKey(c) !== ref; };
+  // Cada opção do ± (Contrast, Saturation, Color tone): o valor mais comum, ou null se é
+  // igual em todas as câmeras
+  function csStyleDetailRefs() {
+    const cams = camSettings.filter((c) => c.adjustable && c.styleDetail);
+    const out = {};
+    STYLE_DETAILS.forEach(([, , f]) => {
+      const counts = new Map();
+      cams.forEach((c) => counts.set(c[f], (counts.get(c[f]) || 0) + 1));
+      let best = null, n = 0;
+      counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
+      out[f] = counts.size > 1 ? best : null;
+    });
+    return out;
+  }
+  // "" = igual às outras; "partial" = só algumas opções do ± diferentes; "diff" = todas
+  function csStyleDetailLevel(c) {
+    if (!c.styleDetail) return "";
+    const refs = csStyleDetailRefs();
+    const n = STYLE_DETAILS.filter(([, , f]) => refs[f] !== null && c[f] !== refs[f]).length;
+    return n === 0 ? "" : n === STYLE_DETAILS.length ? "diff" : "partial";
+  }
+  const csStyleDetailDiffers = (c) => csStyleDetailLevel(c) !== "";
   const csDiffers = (c, k, ref) => ref[k] !== null && ref[k] !== undefined && csLabel(c, k) !== null && csLabel(c, k) !== ref[k];
 
   // Aviso no painel Cameras
@@ -2431,12 +2452,14 @@
   const STYLE_DETAILS = [["contrast", "Contrast", "contrast"], ["saturation", "Saturation", "saturation"], ["colortone", "Color tone", "colorTone"]];
   let csStylePop = null;  // { camera } aberto ("*" = All cameras)
   const signed = (v) => (v > 0 ? "+" + v : String(v));
-  function csStyleButton(camera, differs, values) {
+  // level: "" igual; "partial" algumas opções diferentes (âmbar tracejado); "diff" todas (âmbar)
+  function csStyleButton(camera, level, values) {
+    const differs = !!level;
     const b = document.createElement("button");
-    b.className = "cs-more" + (differs ? " diff" : "") + (csStylePop && csStylePop.camera === camera ? " open" : "");
+    b.className = "cs-more" + (level ? " " + level : "") + (csStylePop && csStylePop.camera === camera ? " open" : "");
     b.textContent = "±";
     b.title = (values ? "Contrast " + signed(values.contrast) + " · Saturation " + signed(values.saturation) + " · Color tone " + signed(values.colorTone)
-                      : "Contrast, saturation and color tone") + (differs ? " (different from the other cameras)" : "");
+                      : "Contrast, saturation and color tone") + (level === "partial" ? " (some are different from the other cameras)" : differs ? " (different from the other cameras)" : "");
     b.dataset.styleCam = camera;
     b.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -2471,11 +2494,13 @@
     STYLE_DETAILS.forEach(([key, label, field]) => {
       const values = new Set(cams.map((c) => c[field]));
       const current = values.size === 1 ? [...values][0] : null;
+      const refs = all ? null : csStyleDetailRefs();
+      const off = current === null || (refs && refs[field] !== null && current !== refs[field]);
       const options = range.map((v) => [String(v), signed(v)]);
       if (current === null) options.unshift(["", "—", true]);
       const row = el("label", "cs-pop-row" + (csIsPending(csStylePop.camera, [key]) ? " applying" : ""));
       row.appendChild(el("span", "", label));
-      row.appendChild(csSelect(options, current === null ? "" : String(current), (v) => csSet(csStylePop.camera, key, +v), "small" + (current === null ? " diff" : "")));
+      row.appendChild(csSelect(options, current === null ? "" : String(current), (v) => csSet(csStylePop.camera, key, +v), "small" + (off ? " diff" : "")));
       pop.appendChild(row);
     });
     pop.appendChild(el("div", "cs-pop-note", "Color tone: − redder, + more yellow (skin tones)."));
@@ -2541,7 +2566,7 @@
       if (k === "wb" && v.startsWith("k")) csSet(c.camera, "kelvin", +v.slice(1));
       else csSet(c.camera, k, +v);
     }, diff ? "diff" : ""));
-    if (k === "style" && c.styleDetail) td.appendChild(csStyleButton(c.camera, csStyleDetailDiffers(c), c));
+    if (k === "style" && c.styleDetail) td.appendChild(csStyleButton(c.camera, csStyleDetailLevel(c), c));
     return td;
   }
 
@@ -2607,8 +2632,11 @@
     }
     if (!current) options.unshift(["", same ? [...labels][0] : "Different", true]);
     td.appendChild(csSelect(options, current, (v) => csSet("*", k, +v), same ? "" : "diff"));
-    if (k === "style" && cams.some((c) => c.styleDetail))
-      td.appendChild(csStyleButton("*", new Set(cams.filter((c) => c.styleDetail).map(styleKey)).size > 1, null));
+    if (k === "style" && cams.some((c) => c.styleDetail)) {
+      const refs = csStyleDetailRefs();
+      const n = STYLE_DETAILS.filter(([, , f]) => refs[f] !== null).length;
+      td.appendChild(csStyleButton("*", n === 0 ? "" : n === STYLE_DETAILS.length ? "diff" : "partial", null));
+    }
     return td;
   }
 
