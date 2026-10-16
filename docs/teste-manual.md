@@ -313,6 +313,36 @@ Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from ap
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.
 
+## 18. Disparo com intervalos / Timing (etapa 14)
+
+Sem câmeras: feche o app e abra com câmeras simuladas (Mac: `STILLPOINT_FAKE_CAMERAS=9
+./build/macos-arm64/Stillpoint`; Windows, PowerShell: `$env:STILLPOINT_FAKE_CAMERAS=9;
+.\build\windows-x64\Release\Stillpoint.exe`). O painel Cameras mostra 9 câmeras; os disparos
+geram fotos de teste com o número da câmera e "#n" (número da foto na sessão).
+
+- [ ] Painel Bullet time: linha "Timing: All at once" com o botão Advanced. Advanced abre os modos
+      (At once, Sequence, Groups, Odd / even, Custom), os campos do modo e a linha do tempo; o painel
+      cresce enquanto está aberto. Hide fecha.
+- [ ] Sequence 0,5 s, 1 → 9 → 1: resumo "17 shots over 8 s"; a linha do tempo mostra 1…9 e depois
+      8…1 (bolinhas vazadas = segunda foto da câmera). Direction 9 → 1 inverte. Loops 2 dobra.
+- [ ] Groups 3 × 1 s: "1–3", "4–6", "7–9" em 0, 1 e 2 s. Odd / even: "odd (5)" em 0 e "even (4)" em 1 s.
+- [ ] Custom: passos com chips; clicar num chip move a câmera para aquele passo; "Add step" cria um
+      passo; o X remove. Câmera fora dos passos: aviso "Camera 9 is not in any step…".
+- [ ] Advanced fechado com um modo escolhido: etiqueta âmbar "Timing", resumo e linha do tempo
+      pequena com os números (33 fotos ainda legíveis; apertando mais, alterna em duas alturas).
+      Em All at once nada disso aparece. O painel não rola: o botão e o "Done…" ficam à vista.
+- [ ] Advanced aberto: a caixa Timeline fica sempre no mesmo lugar (logo abaixo dos modos) ao trocar
+      de modo; as opções do modo têm caixas do mesmo tamanho e alinhadas.
+- [ ] Fechar e abrir o app: o Timing escolhido continua.
+- [ ] It's bullet time com Sequence 0,5 s 1 → 9 → 1: a sessão fica com 17 fotos, na ordem 1…9, 8…1
+      (olhar o número grande de cada foto e o "#n"); o download conta até 17. Sequence export toca
+      nessa ordem.
+- [ ] Custom (1,2,3 em 0; 4 em 2 s; 5,6,7 em 1 s depois): 7 fotos, tempos certos (ver o log).
+- [ ] Cancelar no meio de uma sequência longa: para de disparar; as fotos já tiradas ficam.
+- [ ] All at once: igual a antes (9 fotos, uma por câmera, prefixo = ordem da câmera).
+- [ ] Com câmeras de verdade (quando houver): Sequence 1 s com 2 câmeras: fotos chegam e a sessão
+      tem a ordem certa; terminal app sem mudança.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

@@ -7,6 +7,7 @@
 #include "photo_store.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <fstream>
 #include <iterator>
@@ -217,6 +218,88 @@ namespace
     {
         static_cast<std::string*>(context)->append(static_cast<const char*>(data), static_cast<size_t>(size));
     }
+}
+
+namespace
+{
+    // Fonte 5×7 só com o que a foto de teste usa: dígitos e '#'
+    const char* Glyph(char c)
+    {
+        static const char* digits[10] = {
+            "01110""10001""10011""10101""11001""10001""01110",
+            "00100""01100""00100""00100""00100""00100""01110",
+            "01110""10001""00001""00010""00100""01000""11111",
+            "11111""00010""00100""00010""00001""10001""01110",
+            "00010""00110""01010""10010""11111""00010""00010",
+            "11111""10000""11110""00001""00001""10001""01110",
+            "00110""01000""10000""11110""10001""10001""01110",
+            "11111""00001""00010""00100""01000""01000""01000",
+            "01110""10001""10001""01110""10001""10001""01110",
+            "01110""10001""10001""01111""00001""00010""01100",
+        };
+        static const char* hash = "01010""01010""11111""01010""11111""01010""01010";
+        if (c >= '0' && c <= '9')
+            return digits[c - '0'];
+        return hash;
+    }
+
+    void DrawText(std::vector<unsigned char>& px, int w, int h, int x, int y, const std::string& text, int scale,
+                  unsigned char r, unsigned char g, unsigned char b)
+    {
+        for (char c : text)
+        {
+            const char* glyph = Glyph(c);
+            for (int row = 0; row < 7; ++row)
+                for (int col = 0; col < 5; ++col)
+                {
+                    if (glyph[row * 5 + col] != '1')
+                        continue;
+                    for (int dy = 0; dy < scale; ++dy)
+                        for (int dx = 0; dx < scale; ++dx)
+                        {
+                            const int X = x + col * scale + dx, Y = y + row * scale + dy;
+                            if (X < 0 || Y < 0 || X >= w || Y >= h)
+                                continue;
+                            unsigned char* p = &px[(static_cast<size_t>(Y) * w + X) * 3];
+                            p[0] = r; p[1] = g; p[2] = b;
+                        }
+                }
+            x += 6 * scale;
+        }
+    }
+}
+
+bool WriteTestPhoto(const fs::path& file, int cameraNumber, int shotNumber)
+{
+    const int w = 900, h = 600;
+    std::vector<unsigned char> px(static_cast<size_t>(w) * h * 3);
+    // Uma cor por câmera (tons escuros, para o número branco ler bem)
+    const int hue = (cameraNumber * 47) % 360;
+    auto channel = [&](int offset)
+    {
+        const double x = std::fmod(hue + offset, 360.0) / 60.0;
+        const double v = std::clamp(2.0 - std::abs(x - 2.0) * 1.0, 0.0, 1.0);  // triângulo simples
+        return static_cast<unsigned char>(40 + v * 90);
+    };
+    const unsigned char r = channel(0), g = channel(240), b = channel(120);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+        {
+            unsigned char* p = &px[(static_cast<size_t>(y) * w + x) * 3];
+            const double shade = 0.75 + 0.25 * (1.0 - static_cast<double>(y) / h);
+            p[0] = static_cast<unsigned char>(r * shade); p[1] = static_cast<unsigned char>(g * shade); p[2] = static_cast<unsigned char>(b * shade);
+        }
+    const std::string big = std::to_string(cameraNumber);
+    const int scale = 40;
+    DrawText(px, w, h, (w - static_cast<int>(big.size()) * 6 * scale + scale) / 2, (h - 7 * scale) / 2, big, scale, 255, 255, 255);
+    DrawText(px, w, h, 30, 30, "#" + std::to_string(shotNumber), 8, 255, 255, 255);
+    std::string jpeg;
+    stbi_write_jpg_to_func(AppendToString, &jpeg, w, h, 3, px.data(), 88);
+    std::error_code ec;
+    fs::create_directories(file.parent_path(), ec);
+    std::ofstream out(file, std::ios::binary);
+    out << jpeg;
+    return static_cast<bool>(out);
 }
 
 bool IsRawPhoto(const std::string& file) { return IsRaw(file); }

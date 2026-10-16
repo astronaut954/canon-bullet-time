@@ -22,7 +22,9 @@
 #if defined(_WIN32) && !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS  // getenv: com /sdl, o aviso do Visual Studio vira erro
 #endif
+#include "audio_player.h"
 #include "bullet_time.h"
+#include "path_utils.h"
 #include "canon_controller.h"
 #include "logger.h"
 #include "path_utils.h"
@@ -918,6 +920,12 @@ namespace
 
         bool sdkReady = false;
         std::atomic<bool> busy{ false };
+        // STILLPOINT_FAKE_CAMERAS=9: câmeras simuladas (sem SDK) para testar a interface
+        // sem câmeras. Disparos geram fotos de teste com o número da câmera.
+        int fakeCount = 0;
+        if (const char* fake = std::getenv("STILLPOINT_FAKE_CAMERAS"))
+            try { fakeCount = std::clamp(std::stoi(fake), 1, 64); } catch (...) { fakeCount = 0; }
+        std::atomic<bool> fakeCancel{ false };
         std::atomic<bool> allowClose{ false };
         std::atomic<bool> shuttingDown{ false };
 
@@ -928,7 +936,7 @@ namespace
         std::map<std::string, bool> singleShotWarned;  // câmeras que não aceitaram disparo único (já avisadas)
         CameraThread cameras([&]
         {
-            if (!sdkReady || busy || shuttingDown)
+            if (!sdkReady || busy || shuttingDown || fakeCount)
                 return;
             if (!controller.HasPendingConnections())
                 EdsGetEvent();  // com uma câmera conectando, o SDK está ocupado
@@ -1046,6 +1054,28 @@ namespace
 
         auto startSdk = [&]
         {
+            if (fakeCount)
+            {
+                // Câmeras simuladas: SL3 e T7 alternadas, todas "conectadas", sem SDK
+                auto& list = controller.GetCameras();
+                if (list.empty())
+                    for (int i = 0; i < fakeCount; ++i)
+                    {
+                        CameraContext cam;
+                        const bool sl3 = i % 2 == 0;
+                        cam.modelName = sl3 ? "Canon EOS Rebel SL3" : "Canon EOS Rebel T7";
+                        cam.shortName = (sl3 ? "SL3_" : "T7_") + std::to_string(i / 2 + 1);
+                        cam.baseShortName = cam.shortName;
+                        cam.portName = "fake" + std::to_string(i + 1);
+                        cam.orderPrefix = i + 1;
+                        cam.sessionOpen = true;
+                        list.push_back(cam);
+                    }
+                controller.SetOutputFolder(store.Root().string());
+                sdkReady = true;
+                Log("Fake cameras: " + std::to_string(fakeCount) + " (STILLPOINT_FAKE_CAMERAS)");
+                return;
+            }
             sdkReady = controller.InitializeSdk();
             if (!sdkReady)
             {
@@ -1108,7 +1138,9 @@ namespace
                 .Add("theme", theme)
                 .Raw("languages", ChoicesJson(kLanguages))
                 .Add("language", language)
-                .Add("debug", debugMode.load()).Str();
+                .Add("debug", debugMode.load())
+                .Add("timing", settings.count("timing") ? settings.at("timing") : std::string())
+                .Add("fakeCameras", fakeCount).Str();
         });
 
         // setDebugMode(true/false): liga ou desliga o modo debug (Settings). Não é gravado:
@@ -1159,6 +1191,18 @@ namespace
 
         // saveSettings(tema, idioma): grava no settings.txt. restart: true quando o que
         // foi escolhido é diferente do que está em uso (vale ao abrir de novo).
+        // saveTiming(texto): como as câmeras disparam (Timing do painel Bullet time), guardado
+        // como a página mandou (JSON numa linha)
+        window.bind("saveTiming", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.empty() || args[0].find('\n') != std::string::npos)
+                return Json("settings").Add("ok", false).Str();
+            auto current = LoadSettings();
+            current["timing"] = args[0];
+            return Json("settings").Add("ok", SaveSettings(current)).Str();
+        });
+
         window.bind("saveSettings", [&](const std::string& request) -> std::string
         {
             const auto args = ParseStringArgs(request);
@@ -1193,18 +1237,119 @@ namespace
             return "null";
         });
 
+        // Câmeras simuladas: faz o que RunSequence faz (mesmos avisos para a página),
+        // mas em vez de disparar, grava uma foto de teste por item do plano
+        auto fakeRun = [&](const SequenceSettings& settings)
+        {
+            fakeCancel = false;
+            bool completed = true;
+            for (int sessionIndex = 1; sessionIndex <= settings.sessionCount && completed; ++sessionIndex)
+            {
+                listener.OnSessionStarted(sessionIndex, settings.sessionCount);
+                if (!controller.PrepareSessionFolder(sessionIndex, settings.sessionCount, "FAKE"))
+                {
+                    listener.OnSessionFolderFailed();
+                    return;
+                }
+                const std::filesystem::path dir = controller.GetCameras().front().currentShotDir;
+                std::error_code ec;
+                listener.OnCountdownStarted(settings.countdownSeconds);
+                for (int s = settings.countdownSeconds; s >= 1 && completed; --s)
+                {
+                    listener.OnCountdownTick(s);
+                    if (settings.playSounds)
+                        AudioPlayer::PlayWavAsync(GetAssetAudioPath("countdown.wav").string());
+                    for (int step = 0; step < 10 && completed; ++step)
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        if (fakeCancel)
+                            completed = false;
+                    }
+                }
+                if (!completed)
+                {
+                    std::filesystem::remove(dir, ec);
+                    break;
+                }
+                listener.OnTrigger();
+                if (settings.playSounds)
+                    AudioPlayer::PlayWavAsync(GetAssetAudioPath("itsbullettime.wav").string());
+                // Plano: vazio = todas ao mesmo tempo, uma foto por câmera
+                std::vector<CanonController::ScheduledShot> plan = settings.schedule;
+                if (plan.empty())
+                    for (const auto& cam : controller.GetCameras())
+                        plan.push_back({ cam.shortName, 0 });
+                listener.OnWaitingForDownloads();
+                const auto start = std::chrono::steady_clock::now();
+                int done = 0;
+                for (size_t i = 0; i < plan.size(); ++i)
+                {
+                    while (true)
+                    {
+                        if (fakeCancel) { completed = false; break; }
+                        const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+                        if (elapsed >= plan[i].atMs)
+                            break;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(20, plan[i].atMs - elapsed)));
+                    }
+                    if (!completed)
+                        break;
+                    int number = 0;
+                    for (const auto& cam : controller.GetCameras())
+                        if (cam.shortName == plan[i].shortName)
+                            number = cam.orderPrefix;
+                    char prefix[8];
+                    std::snprintf(prefix, sizeof(prefix), "%02d", static_cast<int>(i) + 1);
+                    WriteTestPhoto(dir / (std::string(prefix) + "_" + plan[i].shortName + "_IMG_" + std::to_string(1000 + i) + ".jpg"), number, static_cast<int>(i) + 1);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(120));  // "download"
+                    listener.OnDownloadProgress(++done, static_cast<int>(plan.size()));
+                }
+                if (completed)
+                    listener.OnSessionCompleted();
+                if (completed && sessionIndex < settings.sessionCount)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+            }
+            if (!completed)
+                listener.OnSequenceCancelled();
+            listener.OnSequenceFinished(completed);
+        };
+
+        // Plano do disparo com intervalos: "câmera:ms,câmera:ms,..." em ordem de tempo
+        auto parseSchedule = [](const std::string& text)
+        {
+            std::vector<CanonController::ScheduledShot> plan;
+            std::stringstream ss(text);
+            std::string part;
+            while (std::getline(ss, part, ','))
+            {
+                const auto colon = part.rfind(':');
+                if (colon == std::string::npos || colon == 0)
+                    continue;
+                try { plan.push_back({ part.substr(0, colon), std::max(0, std::stoi(part.substr(colon + 1))) }); }
+                catch (...) {}
+            }
+            std::stable_sort(plan.begin(), plan.end(), [](const auto& a, const auto& b) { return a.atMs < b.atMs; });
+            return plan;
+        };
+
+        // shoot(contagem, sessões, espera, plano): plano vazio = todas ao mesmo tempo
         window.bind("shoot", [&](const std::string& request) -> std::string
         {
-            const auto values = ParseIntArgs(request);
+            // A página manda os quatro como texto: "3", "1", "10", "SL3_1:0,T7_1:500"
+            const auto args = ParseStringArgs(request);
             SequenceSettings settings;
-            if (values.size() >= 3)
+            auto number = [&](size_t i, int fallback) { try { return std::stoi(args.at(i)); } catch (...) { return fallback; } };
+            if (args.size() >= 3)
             {
-                settings.countdownSeconds = std::max(0, values[0]);
-                settings.sessionCount = std::max(1, values[1]);
-                settings.downloadWaitSeconds = std::max(1, values[2]);
+                settings.countdownSeconds = std::max(0, number(0, 0));
+                settings.sessionCount = std::max(1, number(1, 1));
+                settings.downloadWaitSeconds = std::max(1, number(2, 10));
             }
+            if (args.size() > 3)
+                settings.schedule = parseSchedule(args[3]);
             run("shoot", [&, settings]
             {
+                if (fakeCount) { fakeRun(settings); emitSessions(); return; }
                 if (cameraConnecting())
                     return;
                 EnsureSingleShot(controller, singleShotWarned);  // uma foto por câmera
@@ -1218,6 +1363,7 @@ namespace
         // esperando as fotos). Só avisa o núcleo; ele para no próximo décimo de segundo.
         window.bind("cancelShoot", [&](const std::string&) -> std::string
         {
+            fakeCancel = true;
             bulletTime.RequestCancel();
             return "null";
         });
@@ -1354,7 +1500,10 @@ namespace
                 EnsureSingleShot(controller, singleShotWarned);  // uma foto por câmera
                 const std::string previous = controller.GetOutputFolder();
                 controller.SetOutputFolder(orderStore.Root().string());
-                bulletTime.RunSequence(settings);
+                if (fakeCount)
+                    fakeRun(settings);
+                else
+                    bulletTime.RunSequence(settings);
                 controller.SetOutputFolder(previous);
                 if (debugMode)
                 {

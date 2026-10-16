@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EDSDK.h"
+#include <deque>
 #include <string>
 #include <filesystem>
 
@@ -28,4 +29,7 @@ struct CameraContext
     int lastError = 0;
 
     fs::path currentShotDir;
+    // Disparo com intervalos (interface gráfica): número de cada foto desta câmera na
+    // sessão, na ordem em que vão chegar. Vazio = usa orderPrefix (o normal).
+    std::deque<int> pendingPrefixes;
 };
