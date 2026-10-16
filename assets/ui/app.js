@@ -879,6 +879,15 @@
     else { currentSession = current; renderSessionList(); }
   }
 
+  // Etiqueta de sessão já salva (lista de sessões e janela Save sessions)
+  function savedTag() {
+    const t = document.createElement("span");
+    t.className = "saved-tag";
+    t.textContent = "✓ Saved";
+    t.title = "Already saved. It stays in the app until you delete it.";
+    return t;
+  }
+
   function renderSessionList() {
     ui.sessionList.innerHTML = "";
     ui.noSessions.classList.toggle("hidden", sessions.length > 0);
@@ -889,8 +898,11 @@
       li.className = "folder" + (currentSession && currentSession.name === s.name ? " active" : "");
       li.innerHTML = icon("folder", 16) + '<div><div class="folder-date"></div><div class="folder-meta"></div></div>';
       li.querySelector(".folder-date").textContent = label.date;
-      li.querySelector(".folder-meta").textContent = [plural(count, "photo", "photos"), label.detail, s.saved ? "Saved" : ""].filter(Boolean).join(" · ");
-      if (s.saved) li.title = "Already saved. It stays in the app until you delete it.";
+      li.querySelector(".folder-meta").textContent = [plural(count, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
+      if (s.saved) {
+        li.querySelector(".folder-meta").after(savedTag());
+        li.title = "Already saved. It stays in the app until you delete it.";
+      }
       li.addEventListener("click", () => showSession(s));
       ui.sessionList.appendChild(li);
     });
@@ -1327,6 +1339,7 @@
       li.querySelector(".export-check").addEventListener("click", (e) => e.stopPropagation());
       li.querySelector(".folder-date").textContent = label.date;
       li.querySelector(".folder-meta").textContent = [plural(sessionItems(s).length, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
+      if (s.saved) li.querySelector(".folder-meta").after(savedTag());
       li.querySelector(".export-summary").textContent = summaryText(s);
       li.classList.toggle("different", !exp.sameForAll && s.name !== exp.active && !sameAsActive(s.name));
       const first = sessionItems(s).find((i) => i.previewable);

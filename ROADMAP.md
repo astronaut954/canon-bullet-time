@@ -380,8 +380,8 @@ computador e para outras marcas).
 - **Depois de salvar** (pedido do dono do projeto, 2026-10-16): as sessões salvas não saem mais do
   app sozinhas; o app pergunta "Discard from app" (botão em destaque) ou "Keep in app". Salvando
   para fechar o app (ou "Close when done"), não pergunta e as salvas saem como antes. Depois da
-  2.8.0: a sessão salva e mantida fica marcada (arquivo `.saved` na pasta dela; "Saved" na lista de
-  sessões) e não conta como "não salva" no aviso ao fechar nem no aviso ao abrir; "Delete and
+  2.8.0: a sessão salva e mantida fica marcada (arquivo `.saved` na pasta dela; etiqueta verde "✓ Saved" na lista de
+  sessões e na janela Save sessions) e não conta como "não salva" no aviso ao fechar nem no aviso ao abrir; "Delete and
   close" apaga só as não salvas; "Save and close" já vem só com as não salvas marcadas.
 
 ## Futuro (não planejado ainda)
