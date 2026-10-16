@@ -385,6 +385,9 @@ computador e para outras marcas).
   e sai do app ao fechar (e ao abrir, se o app fechou de repente). "Delete and close" apaga só as
   não salvas; "Save and close" já vem só com as não salvas marcadas.
 
+- **Versão 2.8.1** (2026-10-16): sessões salvas e mantidas no app (etiqueta "✓ Saved", saem ao
+  fechar). Testado no Mac com sessões simuladas (sem câmeras).
+
 ## Futuro (não planejado ainda)
 
 - **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos
