@@ -117,6 +117,42 @@ xattr -dr com.apple.quarantine path/to/stillpoint-vX.Y.Z
    choose), and the quality: Standard, High or Maximum. Each session can have its own settings.
 6. Enter the Matrix
 
+### Making the cameras look alike (window app)
+
+Open **Camera settings** (button in the Cameras panel). It shows the settings of every camera
+and lets you change one camera or **All cameras** at once.
+
+- **Test shot** fires every camera once so you can compare the photos (they are not saved).
+- With **Match automatically** on, the test shot also changes the cameras so they look alike:
+  same shutter, aperture, ISO and Picture Style, a common white balance, and then the color
+  (white balance fine-tune) and brightness (ISO or exposure compensation) of each camera.
+- **Use gray card**: put a gray card where every camera sees it. The app measures only the card
+  and sets the white balance so it comes out neutral gray in every camera. After the first
+  photo, check the box on the card in each photo (click the card or drag a box to fix it).
+
+### Calibrate with chart (cameras of different models)
+
+Different models (for example, an SL3 and a T7) draw contrast, saturation and color tone a little
+differently, even with the same settings. The chart measures that difference once, and from
+then on **Match automatically** gives each model the Picture Style values that make it look like
+the others.
+
+1. In **Camera settings**, click **Calibrate with chart**, then **Open chart**.
+2. Print the chart at 100% (actual size, no scaling) on matte paper. The printer does not need to
+   be accurate: the app compares the cameras with each other.
+3. Put the chart where every camera sees all of it, including the four corner marks: flat, under
+   even light, without glare, filling about a quarter of each photo or more.
+4. Set the exposure so the chart looks normal (tip: run a **Test shot** with **Match
+   automatically** first), then click **Start**.
+5. After the first photo, check that the four dots sit on the centers of the four corner marks
+   (dot 1 goes on the mark next to the small black dot). Drag a dot to fix it, then **Continue**.
+6. The app takes four photos in total and puts every setting back as it was. The result is saved
+   on this computer; do it again only when you add a new camera model.
+
+It needs at least two different models connected. The Picture Style applies to JPEG photos and to
+the preview inside RAW files, which is what Stillpoint shows and exports; programs like Lightroom
+ignore it when they open the RAW file.
+
 
 
 <a id="troubleshooting"></a>

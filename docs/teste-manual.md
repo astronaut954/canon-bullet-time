@@ -140,7 +140,7 @@ o app fechado:
 - Mac: `mkdir -p ~/Library/Application\ Support/Stillpoint/Photos && cp -R docs/test-session/* ~/Library/Application\ Support/Stillpoint/Photos/`
 - Windows (PowerShell): `New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\Stillpoint\Photos" | Out-Null; Copy-Item -Recurse -Force docs\test-session\* "$env:LOCALAPPDATA\Stillpoint\Photos\"`
 
-Salvar tira a sessão do app; copie de novo para testar outra vez.
+Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from app) ou mantém (Keep in app); descartando, copie de novo para testar outra vez.
 
 - [ ] "Save sessions" pergunta Photos ou Sequence.
 - [ ] Photos: Original move as fotos como antes; PNG, JPG, WEBP, TIFF e HEIC criam os arquivos
@@ -247,6 +247,59 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       fine-tune) e ver no menu WB Shift/BKT da câmera se aparece G5. Anotar o modelo e o
       resultado em "Observações" abaixo; se aparecer M5, o modelo é invertido.
 - [ ] O (?) mostra a legenda ao passar o mouse; Esc fecha a janela.
+
+## 17. Match colors (etapa 13)
+- [ ] Picture Style: o botão "±" abre Contrast, Saturation e Color tone da câmera. Mudar um valor
+      muda na câmera (conferir no menu Picture Style da câmera, botão INFO). Conferir na SL3 e na T7.
+- [ ] "±" da linha All cameras: muda em todas; valor diferente entre câmeras aparece como "—".
+- [ ] Esc ou clicar fora fecha a caixa do "±" (sem fechar a janela).
+- [ ] Match automatically com contraste +3 numa câmera e 0 nas outras (ou Saturation/Color tone
+      diferentes): todas terminam com o mesmo valor (o mais comum; empate: o da primeira câmera),
+      o resumo mostra a mudança e o "±" deixa de ficar âmbar. Cancel volta os valores de antes.
+- [ ] Ajuste fino diferente entre câmeras não deixa mais a célula âmbar nem "Settings differ".
+- [ ] Copy from camera: copia também Contrast, Saturation e Color tone do "±" (depois do Picture
+      Style). Com a calibração da cartela, cada modelo recebe o valor com a diferença do modelo.
+- [ ] "±" do Picture Style: só uma ou duas opções (Contrast, Saturation, Color tone) diferentes →
+      âmbar tracejado (na câmera diferente e em All cameras), e na caixa do "±" a opção diferente
+      fica âmbar; as três diferentes → âmbar cheio; todas iguais → normal. A legenda do "?" mostra
+      o tracejado âmbar.
+- [ ] Settings → Debug → On. Test shot (com e sem Match automatically): no fim, "Open debug folder"
+      (no resumo ou no Settings) abre uma pasta com as fotos, report.csv e trace.txt.
+- [ ] Debug ligado, fechar e abrir o app: volta desligado. Desligado: Test shot não cria pasta.
+- [ ] Settings mostra "Debug data: N MB" (ou "No debug data saved."). "Delete debug data" → confirmar:
+  a pasta Debug fica vazia, aparece "No debug data saved." e o botão some. Pastas de sessão intactas.
+- [ ] (Opcional) Com mais de 300 MB ou mais de 20 pastas em Debug, um novo Test shot apaga as mais antigas.
+- [ ] Match automatically com cenas bem diferentes (uma câmera vendo parede clara, outra canto
+      escuro), mesmo ISO no início: o brilho das fotos finais fica mais parecido que antes, sem
+      um ISO ir para um extremo e o outro para o outro.
+- [ ] "Use gray card" só pode ser marcado com Match automatically ligado.
+- [ ] Cartão cinza (ou papel cinza fosco) onde todas as câmeras veem, "Use gray card" marcado,
+      Test shot: depois da primeira foto aparece a tela Gray card com cada foto e o cartão marcado.
+      Clicar no cartão numa foto move a marcação; segurar e arrastar desenha a área (a foto não
+      é arrastada). Sem cartão marcado em 2 câmeras, Continue fica
+      desligado. Continue: o Match termina; nas fotos finais o cartão sai cinza (sem puxar para
+      cor nenhuma) e com brilho parecido em todas.
+- [ ] Na tela Gray card: Cancel, Esc ou Done cancelam o Test shot e as câmeras voltam como estavam.
+- [ ] Com Debug ligado e cartão cinza: a pasta termina em "_match-graycard" e o trace.txt tem a
+      área do cartão de cada câmera.
+- [ ] Calibrate with chart com câmeras do mesmo modelo: avisa que precisa de 2 modelos diferentes.
+- [ ] Calibrate with chart (SL3 + T7): "Open chart" abre o PDF; impresso em 100%, as medidas
+      batem (as marcas dos cantos têm 22 mm).
+- [ ] Cartela onde todas veem, Start: depois da 1ª foto, a tela Chart mostra os 4 pontos nos
+      centros das marcas (ponto 1 na marca da bolinha). Arrastar um ponto move; clicar na foto
+      leva o ponto mais perto até ali. Continue precisa de 2 câmeras marcadas.
+- [ ] No fim: 4 fotos tiradas, todas as configurações de volta como estavam (Picture Style,
+      Contrast, Saturation, Color tone, balanço de branco, ajuste fino). O resumo mostra cada
+      modelo com a diferença medida e o que vai usar.
+- [ ] Depois: Match automatically deixa a T7 com a diferença medida (ex.: Saturation −1) e o "±"
+      não fica âmbar por isso; o texto de ajuda do "±" mostra "calibrated with the chart".
+- [ ] Cancel, Esc ou Done na tela Chart: cancela e as câmeras voltam como estavam.
+- [ ] Com Debug: pasta "_chart" com as fotos e o trace.txt (medidas de cada foto).
+- [ ] Salvar 1 ou mais sessões (sem fechar o app): no fim aparece "Discard the saved session(s)?"
+      com "Discard from app" em destaque. Discard: as sessões salvas somem do app (a pasta salva
+      fica intacta). Keep in app: continuam no app. Com erro no meio, pergunta só pelas que salvou.
+- [ ] Fechar o app durante o salvamento ("Close when done") e salvar ao fechar: não pergunta; as
+      salvas saem do app como antes.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.

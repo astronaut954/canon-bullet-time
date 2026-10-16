@@ -34,7 +34,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 10 | Exportação e tela cheia | "Save sessions" como **Photos** (original, ou convertidas para JPG, PNG, WEBP, TIFF, HEIC) ou **Sequence** (MP4, MOV, GIF, WEBP, AVIF; velocidade, loops, reverse loop, tamanho), configuração por sessão e "Apply to all"; abre a pasta no fim. Na tela cheia: Reverse loop e velocidade. Qualidade Standard / High / Maximum. Testado no Mac e no Windows (2026-10-15). Versão 2.5.0. | feito |
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
-| 13 | Match colors | Ajuste automático simples de cor e brilho por câmera, a partir de uma câmera de referência, sem mexer nas fotos originais. Funciona com qualquer marca. Candidatos anotados em 2026-10-15: igualar contraste e saturação pelo Picture Style (conferir antes se a SL3 e a T7 aceitam pelo computador) e medir um cartão cinza no centro da cena (todas as câmeras medem o mesmo objeto). | depois |
+| 13 | Match colors | Picture Style pelo app (botão "±": contraste, saturação, tom de cor) e igualado pelo Match; brilho medido como o olho vê; "Use gray card" (acha o cartão, a pessoa confere, cinza neutro); "Calibrate with chart" (cartela impressa, diferença por modelo); modo debug; perguntar se descarta as sessões depois de salvar. Testado no Mac com SL3 + T7 até o cartão cinza (2026-10-16); a cartela ainda não foi testada com câmeras. Versão 2.8.0. | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -284,8 +284,9 @@ fixo, só a lista rola, e arrastar para reordenar.
   7000 K, balanço em Auto ou Daylight): diferença típica entre câmeras caiu de ~6 para ~0,8
   passo em azul/âmbar e de ~1 para ~0,2 stop no brilho. Isso é a conta, não câmera de verdade.
   Limite: ISO anda de 1/3 de stop, então sobra até ~1/6 de stop de diferença.
-  **Pendente (2026-10-15):** no primeiro teste com câmeras de verdade (Mac, SL3 + T7) o resultado
-  "deixou muito a desejar" (dono do projeto). Corrigir depois, com fotos do teste para analisar.
+  No primeiro teste com câmeras de verdade (Mac, SL3 + T7) o resultado piorou: o sentido
+  verde/magenta estava invertido (corrigido) e as câmeras viam cenas diferentes. Depois da
+  calibração por modelo, o dono do projeto achou que funciona (2026-10-15).
 - Layout do Test shot (decidido em 2026-10-15, opção A entre três comparadas): sem a prévia
   grande; só a fileira de miniaturas, maiores e com a foto inteira. Clicar numa miniatura abre a
   foto grande por cima da janela (← → passam de câmera, Esc ou Close fecham). "Hide photos"
@@ -297,9 +298,95 @@ fixo, só a lista rola, e arrastar para reordenar.
   (falha dentro do EdsGetEvent; a causa é suspeita, não confirmada). O app confere o disparo
   único antes de cada bullet time e de cada Test shot.
 - Verificado aqui: código compila (cabeçalhos simulados do SDK); telas testadas num navegador com
-  dados simulados (5 e 16 câmeras). Falta: testar com câmeras de verdade no Mac e no Windows.
+  dados simulados (5 e 16 câmeras). Testado com câmeras de verdade no Mac (SL3 + T7). Falta:
+  teste com câmeras no Windows. Desligar as câmeras com o app aberto: testado pelo dono do
+  projeto em 2026-10-15, o app não fecha mais.
+
+### Etapa 13: Match colors (iniciada em 2026-10-15, concluída em 2026-10-16, versão 2.8.0)
+
+Decisões do dono do projeto (2026-10-15): primeiro o Picture Style, depois o cartão cinza; os
+ajustes do Picture Style ficam dentro da coluna Picture Style (botão "±"); o cartão cinza é
+achado sozinho pelo app e a pessoa pode corrigir clicando. Ajustar as fotos (em vez da câmera)
+saiu da etapa: fica como ideia futura (serviria para câmeras que não aceitam mudanças pelo
+computador e para outras marcas).
+
+- Picture Style: dado verificado na documentação do EDSDK 13.20.10 (5.2.40): os ajustes do estilo
+  atual (contraste, saturação, tom de cor: −4 a +4) são de leitura e escrita, sem restrição por
+  modelo. Na SL3 e na T7: falta conferir.
+- Tabela: botão "±" ao lado do Picture Style abre contraste, saturação e tom de cor da câmera (ou
+  de todas, na linha All cameras).
+- Match automatically: deixa Contrast, Saturation e Color tone iguais em todas (o valor mais comum),
+  sem medir pela foto. A primeira versão igualava contraste e saturação medidos na foto, mas no teste
+  real (SL3 + T7) a medida dependia do que cada câmera via e andou ao contrário do ajuste (SL3 em +4
+  mediu menos contraste; T7 em −4 mediu mais), o que também bagunçou o ISO. Decisão (2026-10-15):
+  mesma curva em todas; a diferença de cada modelo fica para a medição com alvo (cartão cinza).
+- "±" do Picture Style em âmbar tracejado quando só algumas opções (contraste, saturação, tom)
+  diferem entre as câmeras; âmbar cheio quando as três diferem. Na caixa do "±" de uma câmera, a
+  opção diferente fica âmbar. Nova linha na legenda do "?" (pedido do dono do projeto, 2026-10-16).
+- O ajuste fino do balanço de branco deixou de contar como "configuração diferente" (âmbar e
+  "Settings differ"): depois do ajuste automático ele é diferente de propósito em cada câmera.
+- ISO errado no teste de 2026-10-15 (Mac, SL3 + T7, mesmo ISO no início): terminou em ISO 800 na
+  SL3 e 100 na T7, com as fotos mais diferentes que antes. Causa não confirmada (o app não guardava
+  as medidas). O dono do projeto quer o brilho igualado "de olho" mesmo com cenas diferentes, sem
+  limites fixos. Feito:
+  - **Modo debug** (Settings → Debug): cada Test shot guarda em `<dados do app>/Debug/<data-hora>`
+    as prévias medidas, `report.csv` (configurações e medidas por foto e câmera) e `trace.txt` (o
+    que o ajuste decidiu e por quê); o resumo ganha "Open debug folder". Para não ocupar disco sem a pessoa perceber: desliga
+    sozinho ao fechar o app, guarda no máximo as 20 mais recentes e 300 MB no total (apaga as mais
+    antigas), e Settings mostra o espaço ocupado com o botão "Delete debug data".
+  - **Brilho medido como o olho vê:** claridade média (L*) da foto inteira, com o centro valendo o
+    dobro, no lugar da mediana do centro (que pulava entre o tom claro e o escuro em fotos meio a
+    meio). Conferido em cópias: +1/3, +1 e −1 stop medidos como +0,33, +0,99 e −1,00; numa imagem
+    meio clara, meio escura, −1 stop = −1,00 e +1 stop = +0,60 (a parte clara estoura), sem pulos.
+  - **Foto quase toda preta (≥ 70%) ou estourada (≥ 50%):** o app não usa para brilho
+    daquela câmera e avisa.
+
+- **Cartão cinza** ("Use gray card", ao lado de Match automatically; 2026-10-16): a pessoa põe
+  um cartão cinza onde todas as câmeras veem. Depois da primeira foto o app acha o cartão em cada
+  foto (maior área lisa, de tom médio e cor quase neutra, de preferência perto do centro) e mostra
+  as fotos com o cartão marcado; a pessoa confere, clica no cartão (o app acha a área em volta) ou arrasta para desenhar a área, e continua
+  (Continue precisa de pelo menos 2 câmeras com o cartão). Daí em diante o app mede só o cartão
+  (a mesma área em todas as fotos; as câmeras não se mexem). Muda o alvo da cor: o cartão deve
+  sair cinza neutro (balanço de branco certo), e não a média das câmeras; o brilho continua na
+  média. O fundo de cada câmera não engana mais a cor nem o brilho. Ajusta as mesmas configurações
+  do Match sem cartão (balanço de branco, ajuste fino, ISO/compensação). Conferido: em 5 fotos de
+  teste com um cartão desenhado (tinta, degradê e ruído), achou o cartão nas 5; sem cartão, marca
+  outra área lisa (por isso a conferência). Simulação (300 cenas): o cinza termina a ~0,6 passo do
+  neutro (sem cartão: ~4,8), câmeras tão parecidas quanto antes, ~6,4 fotos em média.
+
+- **Calibrate with chart** (2026-10-16, pedido do dono do projeto): cartela impressa
+  (`assets/chart/stillpoint-chart.pdf`, gerada por `scripts/make_chart.py`, A4 deitado, vetorial):
+  11 tons de cinza (contraste), cinza médio (cor), 16 cores com 2 tons de pele (saturação e tom de
+  cor) e 4 marcas nos cantos com uma bolinha de orientação. Botão em Camera settings → instruções
+  → "Open chart" (abre o PDF para imprimir) → Start. O app acha as 4 marcas (padrão 1:1:2:1:1 na
+  horizontal e na vertical, depois a volta certa pela bolinha e pelo cinza do claro ao escuro) e
+  corrige o ângulo; a pessoa confere os 4 cantos (arrasta ou clica) e continua. 4 fotos: como estão
+  (mesmo Picture Style, ajustes em 0, mesmo balanço fixo, sem ajuste fino), Contrast +2,
+  Saturation +2, Color tone +2; depois tudo volta como estava. Por modelo: quanto cada ajuste mexe
+  em cada medida (3×3, então um ajuste que também mexe em outra medida entra na conta) e a
+  diferença para o modelo mais comum, em passos; guardado em `chart-calibration.txt` (dados do
+  app) por modelo e Picture Style. Um modelo já calibrado antes mantém o valor (dá para calibrar
+  SL3+T7 hoje e T7+R50 depois). O Match automatically usa: o modelo mais comum fica com o valor
+  comum e os outros andam a diferença arredondada; a tabela não marca essa diferença como
+  "diferente" e o "±" mostra no texto de ajuda. Precisa de 2 modelos diferentes. Instruções no
+  README ("Calibrate with chart"). Conferido: em 25 fotos montadas (de frente, inclinada, de
+  cabeça para baixo, pequena, com luz desigual) achou a cartela em todas, com os cantos a ~0,1% do
+  lugar certo; +2 de contraste/saturação/tom mediu +9,7 / +0,14 / +11° em todas as posições (luz
+  desigual muda o contraste medido em ~1 passo: por isso "luz por igual" nas instruções).
+  Simulação: diferença escondida de −0,7 / −1,3 / +1,0 passo medida como −0,68 / −1,34 / +0,99; o
+  Match deixou a T7 com −1 / −1 / +1 em relação às SL3. Picture Style vale para JPEG e para a
+  prévia do RAW (o que o Stillpoint mostra e exporta); Lightroom e afins ignoram.
+
+- **Depois de salvar** (pedido do dono do projeto, 2026-10-16): as sessões salvas não saem mais do
+  app sozinhas; o app pergunta "Discard from app" (botão em destaque) ou "Keep in app". Salvando
+  para fechar o app (ou "Close when done"), não pergunta e as salvas saem como antes. Uma sessão
+  mantida conta como "não salva" no aviso ao fechar o app.
 
 ## Futuro (não planejado ainda)
+
+- **Ajustar as fotos em vez da câmera (registrado em 2026-10-15).** Corrigir cor e brilho nas fotos
+  salvas, sem mexer nos originais. Útil para câmeras que não deixam mudar as configurações pelo
+  computador e para outras marcas. Em RAW não tem efeito.
 
 - **Outras marcas (Sony, Nikon).** Viável marca a marca, com câmera para testar.
   Sony (site oficial, conferido em 2026-10-15): SDK gratuito, Windows 11 x64 e macOS 14.1+,

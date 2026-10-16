@@ -43,6 +43,11 @@ struct CameraSettings
     int shiftGM = 0;          // magenta (−) ↔ verde (+), −9 a +9. A documentação do EDSDK diz o
                               // contrário, mas na T7 (2026-10-15) +5 aparece como G5 no menu.
     bool focusManual = false; // lente em MF
+    // Ajustes do Picture Style atual (como o INFO da câmera): −4 a +4
+    bool styleDetailAvailable = false;
+    int contrast = 0;
+    int saturation = 0;
+    int colorTone = 0;        // − mais vermelho ↔ + mais amarelo (tom de pele)
     std::vector<CameraSetting> settings;
 };
 
@@ -52,6 +57,7 @@ namespace CameraSettingsCanon
     CameraSettings Read(const CameraContext& camera);
 
     // Muda uma configuração. key: as de CameraSetting, mais "kelvin" (valor em K: põe
-    // o balanço de branco em temperatura de cor), "shiftab" e "shiftgm" (−9 a +9).
+    // o balanço de branco em temperatura de cor), "shiftab" e "shiftgm" (−9 a +9),
+    // "contrast", "saturation" e "colortone" (−4 a +4, no Picture Style atual).
     bool Write(const CameraContext& camera, const std::string& key, long long value, std::string& error);
 }

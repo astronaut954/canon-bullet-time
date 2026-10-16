@@ -1886,12 +1886,47 @@
     },
 
     // Reordenar por foto
+    // Modo debug: Test shot simples guardado
+    debugSaved(e) {
+      log("Debug data saved", "ok", e.folder);
+      toast("Debug data saved");
+    },
     // Test shot com "Match automatically"
     autoMatchProgress(e) {
       csGallery.setHead("Test shot · matching", "Photo " + e.shot + " of up to " + e.shots + " · " + e.stage);
       csGallery.message(e.stage);
     },
+    // Cartão cinza: depois da primeira foto, conferir onde está o cartão
+    grayCardPick(e) { csCardShow(e.sessions, e.regions || []); },
+    // Cartela de cores
+    chartPick(e) { csChartShow(e.sessions, e.quads || []); },
+    chartProgress(e) {
+      csGallery.setHead("Chart calibration", "Photo " + e.shot + " of " + e.shots + " · " + e.stage);
+      csGallery.message(e.stage);
+    },
+    chartResult(e) {
+      csCardHide();
+      const notes = e.notes || [];
+      if (e.cancelled) {
+        toast("Chart calibration cancelled. The cameras are back to how they were.");
+        log("Chart calibration cancelled; camera settings restored", "warn");
+        return;
+      }
+      const actions = [{ label: "OK", primary: true }];
+      if (e.debugFolder) actions.unshift({ label: "Open debug folder", link: true, onClick: () => window.openDebugFolder() });
+      if (!e.ok) {
+        dialog("Chart calibration did not finish", [e.error || "Try again."].concat(notes).join("\n\n"), actions);
+        log("Chart calibration did not finish", "warn", e.error);
+        return;
+      }
+      const parts = [(e.models || []).join("\n\n"),
+        "Saved. From now on, Match automatically gives each model these Contrast, Saturation and Color tone differences. Differences under half a step are not changed. All camera settings are back to how they were."];
+      if (notes.length) parts.push(notes.join("\n"));
+      dialog("Cameras calibrated", parts.join("\n\n"), actions);
+      log("Chart calibration saved", "ok");
+    },
     autoMatchResult(e) {
+      csCardHide();
       const notes = e.notes || [];
       if (e.cancelled) {
         toast("Test shot cancelled. The cameras are back to how they were.");
@@ -1911,10 +1946,14 @@
       if (notes.length) parts.push(notes.join("\n"));
       if (e.ok) parts.push("The photos show the result. Use ← → to compare.");
       const title = !e.ok ? "Matching did not finish" : blocks.length ? "Cameras matched" : "Nothing to change";
-      dialog(title, parts.join("\n\n"), [{ label: "OK", primary: true }]);
+      const actions = [{ label: "OK", primary: true }];
+      if (e.debugFolder) actions.unshift({ label: "Open debug folder", link: true, onClick: () => window.openDebugFolder() });
+      dialog(title, parts.join("\n\n"), actions);
+      if (e.debugFolder) log("Debug data saved", "tech", e.debugFolder);
       log("Match automatically: " + (blocks.length ? plural(blocks.length, "camera", "cameras") + " changed" : "no change"), e.ok ? "ok" : "warn");
     },
     orderPhotos(e) {
+      csCardHide();
       if (csTest.capturing && csTest.cancelling) return;  // cancelado: as fotos não são mostradas
       if (csTest.capturing) showCsTest(e.sessions);
       else if (order.open) showOrderPhotos(e.sessions);
@@ -1972,11 +2011,16 @@
       // Salvo: a janela de salvar fecha. Com erro, continua aberta com o que faltou
       exp.waiting = false;
       if (!e.error) closeExport();
+      const saved = (e.sessions || []).filter((name) => sessions.some((s) => s.name === name));
       if (exp.closeWhenDone) {
+        // Fechando o app: as salvas saem do app sem perguntar (já estão na pasta escolhida)
         const how = exp.closeWhenDone;
         exp.closeWhenDone = "";
+        saved.forEach((name) => window.deleteSession(name));
+        const left = sessions.length - saved.length;
         if (how === "stop" || !e.error)
-          setTimeout(() => { if (how === "stop" || !sessions.length) window.exitApp(false); else confirmExit(sessions.length); }, 500);
+          setTimeout(() => { if (how === "stop" || !left) window.exitApp(false); else confirmExit(left); }, 500);
+        saved.length = 0;
       }
       if (e.error) {
         toast(e.error, 8000);
@@ -1985,6 +2029,19 @@
         const text = "Saved " + plural(e.count, "session", "sessions") + " to " + e.folder;
         toast(text);
         log(text, "ok");
+      }
+      // Salvas (sem fechar o app): descartar do app ou manter
+      if (saved.length) {
+        const one = saved.length === 1;
+        dialog(one ? "Discard the saved session?" : "Discard the " + saved.length + " saved sessions?",
+          (one ? "The session was saved to " : "The sessions were saved to ") + e.folder + ". Discard " + (one ? "it" : "them") +
+          " from Stillpoint to free up space, or keep " + (one ? "it" : "them") + " in the app. The saved copies are not touched.", [
+          { label: "Keep in app" },
+          { label: "Discard from app", primary: true, onClick: () => {
+            saved.forEach((name) => window.deleteSession(name));
+            log("Discarded " + plural(saved.length, "saved session", "saved sessions") + " from the app", "tech");
+          } },
+        ]);
       }
     },
     confirmExit(e) { confirmExit(e.unsavedSessions); },
@@ -2169,7 +2226,9 @@
   // manual: pedido pelo menu ("Check for updates"); responde mesmo sem versão nova
   function checkForUpdate(manual) {
     if (!upd.info || (!manual && !upd.info.checkUpdates)) return;
-    if (manual && upd.release) { openUpdate(); return; }
+    // Já achou uma versão nova: mostra de novo. Se ela ainda não tinha o arquivo deste
+    // sistema (publicado num segundo momento), procura outra vez.
+    if (manual && upd.release && upd.release.asset) { openUpdate(); return; }
     if (manual) toast("Checking for updates…");
     const answer = (title, text) => {
       if (!manual) return;
@@ -2246,11 +2305,12 @@
   $("aboutGithub").addEventListener("click", () => window.openUrl(REPO_PAGE));
 
   // Settings: tema e idioma. Gravados na hora; valem ao abrir o app de novo.
-  const prefs = { theme: "", language: "", restart: false };
+  const prefs = { theme: "", language: "", restart: false, debug: false };
   function openSettings() {
     if (!upd.info) return;
-    if (!prefs.theme) { prefs.theme = upd.info.theme; prefs.language = upd.info.language; }
+    if (!prefs.theme) { prefs.theme = upd.info.theme; prefs.language = upd.info.language; prefs.debug = !!upd.info.debug; }
     renderSettings();
+    refreshDebugSize();
     $("settingsOverlay").classList.remove("hidden");
   }
   function renderSettings() {
@@ -2262,7 +2322,49 @@
     $("settingsLanguages").innerHTML = "";
     $("settingsLanguages").appendChild(segmented(languages.map((l) => [l.id, l.name]), prefs.language, (v) => saveSettings(prefs.theme, v)));
     $("settingsRestart").classList.toggle("hidden", !prefs.restart);
+    // Modo debug: vale na hora
+    $("settingsDebug").innerHTML = "";
+    $("settingsDebug").appendChild(segmented([["off", "Off"], ["on", "On"]], prefs.debug ? "on" : "off", (v) => {
+      // App compilado antes do modo debug existir (página nova com o programa antigo)
+      if (typeof window.setDebugMode !== "function") { toast("This build has no debug mode yet. Build the app again.", 8000); return; }
+      Promise.resolve(window.setDebugMode(v === "on")).then((r) => {
+        if (!r || !r.ok) { toast("Could not save the settings"); return; }
+        prefs.debug = !!r.debug;
+        log("Debug mode " + (prefs.debug ? "on" : "off"), "tech");
+        renderSettings();
+        showDebugSize(r);
+      });
+    }));
   }
+  $("settingsDebugFolder").addEventListener("click", () => window.openDebugFolder());
+  // Espaço ocupado pelos dados de debug
+  function sizeText(bytes) {
+    if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
+    if (bytes >= 1024 * 1024) return Math.round(bytes / (1024 * 1024)) + " MB";
+    if (bytes >= 1024) return Math.round(bytes / 1024) + " KB";
+    return bytes + " bytes";
+  }
+  function showDebugSize(r) {
+    const bytes = r && typeof r.bytes === "number" ? r.bytes : null;
+    $("settingsDebugSize").textContent = bytes === null ? "" : bytes > 0 ? "Debug data: " + sizeText(bytes) : "No debug data saved.";
+    $("settingsDebugDelete").classList.toggle("hidden", !bytes);
+  }
+  function refreshDebugSize() {
+    if (typeof window.debugInfo !== "function") { showDebugSize(null); return; }
+    Promise.resolve(window.debugInfo()).then(showDebugSize);
+  }
+  $("settingsDebugDelete").addEventListener("click", () => {
+    dialog("Delete debug data?", "Deletes the photos and reports saved by debug mode. Your sessions are not touched.", [
+      { label: "Cancel" },
+      { label: "Delete", danger: true, onClick: () => {
+        Promise.resolve(window.deleteDebugData()).then((r) => {
+          showDebugSize(r);
+          if (r && r.bytes > 0) toast("Some debug files could not be deleted");
+          else { toast("Debug data deleted"); log("Debug data deleted", "tech"); }
+        });
+      } },
+    ]);
+  });
   function saveSettings(theme, language) {
     if (theme === prefs.theme && language === prefs.language) return;
     Promise.resolve(window.saveSettings(theme, language)).then((r) => {
@@ -2305,7 +2407,7 @@
     const ref = {};
     const cams = camSettings.filter((c) => c.adjustable);
     CS_COLS.forEach(([k]) => {
-      if (k === "focus") return;
+      if (k === "focus" || k === "shift") return;  // ajuste fino: correção por câmera, diferente de propósito
       const counts = new Map();
       cams.forEach((c) => { const l = csLabel(c, k); if (l !== null) counts.set(l, (counts.get(l) || 0) + 1); });
       let best = null, n = 0;
@@ -2314,6 +2416,42 @@
     });
     return ref;
   }
+  // Ajustes do Picture Style (contraste, saturação, tom): diferente do mais comum entre as câmeras
+  // Cada opção do ± (Contrast, Saturation, Color tone): o valor mais comum, ou null se é
+  // igual em todas as câmeras
+  // Calibração com a cartela: quantos passos este modelo anda de propósito em relação ao
+  // modelo mais comum (essa diferença não conta como "diferente")
+  function csChartAdjust(c, f) {
+    if (!c.chart) return 0;
+    const cams = camSettings.filter((x) => x.adjustable && x.styleDetail);
+    const count = {};
+    cams.forEach((x) => { count[x.model] = (count[x.model] || 0) + 1; });
+    let common = null;
+    cams.forEach((x) => { if (x.chart && (!common || count[x.model] > count[common.model])) common = x; });
+    if (!common || common.model === c.model) return 0;
+    return Math.round(c.chart[f] - common.chart[f]);
+  }
+  const csStyleValue = (c, f) => c[f] - csChartAdjust(c, f);
+  function csStyleDetailRefs() {
+    const cams = camSettings.filter((c) => c.adjustable && c.styleDetail);
+    const out = {};
+    STYLE_DETAILS.forEach(([, , f]) => {
+      const counts = new Map();
+      cams.forEach((c) => counts.set(csStyleValue(c, f), (counts.get(csStyleValue(c, f)) || 0) + 1));
+      let best = null, n = 0;
+      counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
+      out[f] = counts.size > 1 ? best : null;
+    });
+    return out;
+  }
+  // "" = igual às outras; "partial" = só algumas opções do ± diferentes; "diff" = todas
+  function csStyleDetailLevel(c) {
+    if (!c.styleDetail) return "";
+    const refs = csStyleDetailRefs();
+    const n = STYLE_DETAILS.filter(([, , f]) => refs[f] !== null && csStyleValue(c, f) !== refs[f]).length;
+    return n === 0 ? "" : n === STYLE_DETAILS.length ? "diff" : "partial";
+  }
+  const csStyleDetailDiffers = (c) => csStyleDetailLevel(c) !== "";
   const csDiffers = (c, k, ref) => ref[k] !== null && ref[k] !== undefined && csLabel(c, k) !== null && csLabel(c, k) !== ref[k];
 
   // Aviso no painel Cameras
@@ -2325,7 +2463,7 @@
       return { cls: "diff", text: "Not on single shot", title: "The camera is on " + drive.label + " and did not accept single shooting. Set it to single shooting on the camera." };
     if (!c.adjustable) return { cls: "locked", text: "Settings on the camera only", title: c.reason };
     const ref = csReference();
-    if (CS_COLS.some(([k]) => k !== "focus" && csDiffers(c, k, ref))) return { cls: "diff", text: "Settings differ", title: "Open Camera settings to match the cameras." };
+    if (CS_COLS.some(([k]) => k !== "focus" && csDiffers(c, k, ref)) || csStyleDetailDiffers(c)) return { cls: "diff", text: "Settings differ", title: "Open Camera settings to match the cameras." };
     return null;
   }
 
@@ -2356,7 +2494,74 @@
   function csIsPending(camera, keys) {
     return keys.some((k) => csPending.has(camera + "|" + k) || csPending.has("*|" + k));
   }
-  const COL_KEYS = { wb: ["wb", "kelvin"], shift: ["shiftab", "shiftgm"] };
+  const COL_KEYS = { wb: ["wb", "kelvin"], shift: ["shiftab", "shiftgm"], style: ["style", "contrast", "saturation", "colortone"] };
+
+  // ----- Ajustes do Picture Style (contraste, saturação, tom de cor), como o INFO da
+  // câmera: um botão na célula abre uma caixa com os três -----
+  const STYLE_DETAILS = [["contrast", "Contrast", "contrast"], ["saturation", "Saturation", "saturation"], ["colortone", "Color tone", "colorTone"]];
+  let csStylePop = null;  // { camera } aberto ("*" = All cameras)
+  const signed = (v) => (v > 0 ? "+" + v : String(v));
+  // level: "" igual; "partial" algumas opções diferentes (âmbar tracejado); "diff" todas (âmbar)
+  function csStyleButton(camera, level, values) {
+    const differs = !!level;
+    const b = document.createElement("button");
+    b.className = "cs-more" + (level ? " " + level : "") + (csStylePop && csStylePop.camera === camera ? " open" : "");
+    b.textContent = "±";
+    const chartNote = values && values.chart && STYLE_DETAILS.some(([, , f]) => csChartAdjust(values, f))
+      ? " · calibrated with the chart: " + STYLE_DETAILS.filter(([, , f]) => csChartAdjust(values, f)).map(([, label, f]) => label + " " + signed(csChartAdjust(values, f))).join(", ") + " for this model"
+      : "";
+    b.title = (values ? "Contrast " + signed(values.contrast) + " · Saturation " + signed(values.saturation) + " · Color tone " + signed(values.colorTone) + chartNote
+                      : "Contrast, saturation and color tone") + (level === "partial" ? " (some are different from the other cameras)" : differs ? " (different from the other cameras)" : "");
+    b.dataset.styleCam = camera;
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      csStylePop = csStylePop && csStylePop.camera === camera ? null : { camera };
+      renderStylePop();
+    });
+    return b;
+  }
+  function renderStylePop() {
+    let pop = $("csStylePop");
+    document.querySelectorAll(".cs-more.open").forEach((b) => b.classList.remove("open"));
+    const anchor = csStylePop && document.querySelector('.cs-more[data-style-cam="' + csStylePop.camera + '"]');
+    if (!csStylePop || !anchor || $("camSettingsOverlay").classList.contains("hidden")) {
+      if (pop) pop.remove();
+      csStylePop = anchor ? csStylePop : null;
+      return;
+    }
+    anchor.classList.add("open");
+    if (!pop) {
+      pop = el("div", "cs-pop");
+      pop.id = "csStylePop";
+      pop.addEventListener("click", (e) => e.stopPropagation());
+      pop.addEventListener("focusout", () => { if (csRenderLater) setTimeout(csRender, 0); });
+      $("camSettingsOverlay").appendChild(pop);
+    }
+    const all = csStylePop.camera === "*";
+    const cams = all ? camSettings.filter((c) => c.adjustable && c.styleDetail) : camSettings.filter((c) => c.camera === csStylePop.camera);
+    pop.innerHTML = "";
+    pop.appendChild(el("div", "cs-pop-title", (all ? "All cameras" : csStylePop.camera) + " · Picture Style"));
+    const range = [];
+    for (let v = -4; v <= 4; v++) range.push(v);
+    STYLE_DETAILS.forEach(([key, label, field]) => {
+      const values = new Set(cams.map((c) => c[field]));
+      const current = values.size === 1 ? [...values][0] : null;
+      const refs = all ? null : csStyleDetailRefs();
+      const off = current === null || (refs && refs[field] !== null && current - csChartAdjust(cams[0], field) !== refs[field]);
+      const options = range.map((v) => [String(v), signed(v)]);
+      if (current === null) options.unshift(["", "—", true]);
+      const row = el("label", "cs-pop-row" + (csIsPending(csStylePop.camera, [key]) ? " applying" : ""));
+      row.appendChild(el("span", "", label));
+      row.appendChild(csSelect(options, current === null ? "" : String(current), (v) => csSet(csStylePop.camera, key, +v), "small" + (off ? " diff" : "")));
+      pop.appendChild(row);
+    });
+    pop.appendChild(el("div", "cs-pop-note", "Color tone: − redder, + more yellow (skin tones)."));
+    const r = anchor.getBoundingClientRect();
+    const w = 230;
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+    pop.style.top = Math.min(window.innerHeight - 190, r.bottom + 6) + "px";
+  }
+  document.addEventListener("click", () => { if (csStylePop) { csStylePop = null; renderStylePop(); } });
 
   // ab ou gm null: câmeras com valores diferentes ("—" na lista; qualquer valor, até 0, aplica)
   // flip: modelo que o app mediu com o sentido invertido (troca os rótulos daquele eixo)
@@ -2413,6 +2618,7 @@
       if (k === "wb" && v.startsWith("k")) csSet(c.camera, "kelvin", +v.slice(1));
       else csSet(c.camera, k, +v);
     }, diff ? "diff" : ""));
+    if (k === "style" && c.styleDetail) td.appendChild(csStyleButton(c.camera, csStyleDetailLevel(c), c));
     return td;
   }
 
@@ -2478,13 +2684,19 @@
     }
     if (!current) options.unshift(["", same ? [...labels][0] : "Different", true]);
     td.appendChild(csSelect(options, current, (v) => csSet("*", k, +v), same ? "" : "diff"));
+    if (k === "style" && cams.some((c) => c.styleDetail)) {
+      const refs = csStyleDetailRefs();
+      const n = STYLE_DETAILS.filter(([, , f]) => refs[f] !== null).length;
+      td.appendChild(csStyleButton("*", n === 0 ? "" : n === STYLE_DETAILS.length ? "diff" : "partial", null));
+    }
     return td;
   }
 
   // Redesenha, mas não com uma lista aberta (a lista fecharia sozinha): espera sair dela
   function csRender() {
     const a = document.activeElement;
-    if (a && a.tagName === "SELECT" && $("csBody").contains(a)) { csRenderLater = true; return; }
+    const pop = $("csStylePop");
+    if (a && a.tagName === "SELECT" && ($("csBody").contains(a) || (pop && pop.contains(a)))) { csRenderLater = true; return; }
     csRenderLater = false;
     renderCamSettings();
   }
@@ -2550,6 +2762,7 @@
     });
     body.appendChild(table);
     body.scrollTop = scroll;
+    renderStylePop();
 
     copy.disabled = adjustable.length < 2;
     copy.appendChild(new Option("Choose…", ""));
@@ -2571,6 +2784,18 @@
       else csSet("*", "wb", wb.value);
     }
     if (c.shiftAvailable) { csSet("*", "shiftab", c.shiftAB); csSet("*", "shiftgm", c.shiftGM); }
+    // Ajustes do Picture Style (Contrast, Saturation, Color tone): depois do estilo (cada
+    // estilo guarda os seus). Com a calibração da cartela, cada modelo recebe o valor que
+    // o deixa parecido com a câmera escolhida (o mesmo que o Match faria).
+    if (c.styleDetail) {
+      camSettings.filter((x) => x.adjustable && x.styleDetail && x.camera !== name).forEach((x) => {
+        STYLE_DETAILS.forEach(([key, , f]) => {
+          const v = Math.max(-4, Math.min(4, c[f] - csChartAdjust(c, f) + csChartAdjust(x, f)));
+          const styleChanges = (c.settings.style && c.settings.style.value) !== (x.settings.style && x.settings.style.value);
+          if (v !== x[f] || styleChanges) csSet(x.camera, key, v);
+        });
+      });
+    }
     toast("Copying the settings of " + name + " to the other cameras");
   }
 
@@ -2609,9 +2834,265 @@
     csGallery.setItems([]);
     csGallery.setHead(match ? "Test shot · matching" : "Test shot", "");
     csGallery.message("Taking a photo with each camera");
-    if (match) window.autoMatch(intValue(ui.downloadWait, 1, 10));
+    if (match) window.autoMatch(intValue(ui.downloadWait, 1, 10), $("csCard").checked ? 1 : 0);
     else window.takeOrderPhotos(intValue(ui.downloadWait, 1, 10));
   }
+  // ----- Cartão cinza: o app achou o cartão em cada foto; a pessoa confere ou clica nele -----
+  const csCard = { regions: {}, mode: "card", quads: {}, moved: {} };
+  function csCardHide() { $("csCardPick").classList.add("hidden"); }
+  function csCardOpen() { return !$("csCardPick").classList.contains("hidden"); }
+  function csCardBox(tile, r) {
+    const box = tile.querySelector(".cs-card-box");
+    const label = tile.querySelector(".cs-card-label");
+    const found = r && r.found;
+    box.style.display = found ? "" : "none";
+    if (found) {
+      box.style.left = (r.x0 * 100) + "%";
+      box.style.top = (r.y0 * 100) + "%";
+      box.style.width = ((r.x1 - r.x0) * 100) + "%";
+      box.style.height = ((r.y1 - r.y0) * 100) + "%";
+    }
+    label.textContent = tile.dataset.title + (found ? "" : " · not found, click the card");
+    label.classList.toggle("missing", !found);
+  }
+  function csCardStatus() {
+    if (csCard.mode === "chart") return csChartStatus();
+    const all = Object.keys(csCard.regions);
+    const found = all.filter((k) => csCard.regions[k] && csCard.regions[k].found).length;
+    $("csCardStatus").textContent = found + " of " + all.length + " cameras with the card marked";
+    $("csCardContinue").disabled = found < 2;
+  }
+  function csCardShow(list, regions) {
+    csCard.mode = "card";
+    $("csCardTitle").textContent = "Gray card";
+    $("csCardText").textContent = "Check that the box is on the gray card in every photo. If it is wrong or missing, click the card in that photo, or drag to draw a box over it.";
+    const session = (list || [])[0];
+    csCard.regions = {};
+    regions.forEach((r) => { csCard.regions[r.camera] = r; });
+    const grid = $("csCardGrid");
+    grid.innerHTML = "";
+    placedCameras().filter((c) => c.connected && csCard.regions[c.name]).forEach((cam) => {
+      const photos = session ? session.photos.filter((p) => p.camera === cam.name) : [];
+      const pick = photos.find((p) => /\.jpe?g$/i.test(p.file)) || photos.find((p) => p.previewable);
+      const tile = document.createElement("div");
+      tile.className = "cs-card-tile";
+      tile.dataset.title = shortModel(cam.model) + " · " + cam.name;
+      tile.innerHTML = '<div class="cs-card-photo"><img alt=""><div class="cs-card-box"></div></div><div class="cs-card-label"></div>';
+      const img = tile.querySelector("img");
+      if (session && pick) orderPhoto(session.name, pick.file, 900).then((url) => { if (url) img.src = url; });
+      // Clicar: o app acha o cartão em volta do ponto. Arrastar: a pessoa desenha a área.
+      img.draggable = false;
+      const photoEl = tile.querySelector(".cs-card-photo");
+      const at = (e) => {
+        const rect = img.getBoundingClientRect();
+        return { x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+                 y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)), ok: rect.width > 0 && rect.height > 0 };
+      };
+      const apply = (r) => {
+        if (!r) return;
+        csCard.regions[cam.name] = r;
+        csCardBox(tile, r);
+        csCardStatus();
+      };
+      let drag = null;
+      photoEl.addEventListener("dragstart", (e) => e.preventDefault());
+      photoEl.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const p = at(e);
+        if (!p.ok) return;
+        drag = { x0: p.x, y0: p.y, sx: e.clientX, sy: e.clientY, moved: false };
+        photoEl.setPointerCapture(e.pointerId);
+      });
+      photoEl.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+        drag.moved = true;
+        const p = at(e);
+        csCardBox(tile, { found: true, x0: Math.min(drag.x0, p.x), y0: Math.min(drag.y0, p.y), x1: Math.max(drag.x0, p.x), y1: Math.max(drag.y0, p.y) });
+      });
+      const finish = (e) => {
+        if (!drag) return;
+        const d = drag;
+        drag = null;
+        const p = at(e);
+        const k = (v) => String(Math.round(v * 1000));
+        if (!d.moved) {
+          Promise.resolve(window.grayCardFind(cam.name, k(p.x), k(p.y))).then(apply);
+          return;
+        }
+        const x0 = Math.min(d.x0, p.x), y0 = Math.min(d.y0, p.y), x1 = Math.max(d.x0, p.x), y1 = Math.max(d.y0, p.y);
+        if (x1 - x0 < 0.005 || y1 - y0 < 0.005) { csCardBox(tile, csCard.regions[cam.name]); return; }
+        Promise.resolve(window.grayCardSet(cam.name, k(x0), k(y0), k(x1), k(y1))).then((r) => apply(r || csCard.regions[cam.name]));
+      };
+      photoEl.addEventListener("pointerup", finish);
+      photoEl.addEventListener("pointercancel", () => { drag = null; csCardBox(tile, csCard.regions[cam.name]); });
+      grid.appendChild(tile);
+      csCardBox(tile, csCard.regions[cam.name]);
+    });
+    csCardStatus();
+    csSetZoom(false);
+    $("csCardPick").classList.remove("hidden");
+    csGallery.message("Waiting for you to check the gray card");
+  }
+  $("csCardContinue").addEventListener("click", () => {
+    csCardHide();
+    csGallery.message(csCard.mode === "chart" ? "Calibrating with the chart" : "Matching with the gray card");
+    window.grayCardConfirm();
+  });
+
+  // ----- Cartela de cores: o app achou as 4 marcas; a pessoa confere ou arrasta os cantos -----
+  // Cantos na ordem da cartela: 0 em cima à esquerda (o da bolinha), 1 em cima à direita,
+  // 2 embaixo à direita, 3 embaixo à esquerda
+  function csChartDraw(tile, q) {
+    const svg = tile.querySelector("svg");
+    const pts = [0, 1, 2, 3].map((k) => (q.x[k] * 100) + "," + (q.y[k] * 100)).join(" ");
+    svg.querySelector("polygon").setAttribute("points", pts);
+    tile.querySelectorAll(".cs-chart-handle").forEach((h, k) => {
+      h.style.left = (q.x[k] * 100) + "%";
+      h.style.top = (q.y[k] * 100) + "%";
+    });
+    const marked = q.found || csCard.moved[tile.dataset.camera];
+    const label = tile.querySelector(".cs-card-label");
+    label.textContent = tile.dataset.title + (marked ? "" : " · not found, drag the 4 dots onto the 4 corner marks");
+    label.classList.toggle("missing", !marked);
+    tile.classList.toggle("unmarked", !marked);
+  }
+  function csChartStatus() {
+    const all = Object.keys(csCard.quads);
+    const marked = all.filter((k) => csCard.quads[k].found || csCard.moved[k]).length;
+    $("csCardStatus").textContent = marked + " of " + all.length + " cameras with the chart marked";
+    $("csCardContinue").disabled = marked < 2;
+  }
+  function csChartShow(list, quads) {
+    csCard.mode = "chart";
+    csCard.quads = {};
+    csCard.moved = {};
+    quads.forEach((q) => { csCard.quads[q.camera] = q; });
+    $("csCardTitle").textContent = "Chart";
+    $("csCardText").textContent = "Check that the 4 dots are on the centers of the 4 corner marks in every photo. Dot 1 goes on the mark next to the small black dot. To fix one, drag it (or click where it should go).";
+    const session = (list || [])[0];
+    const grid = $("csCardGrid");
+    grid.innerHTML = "";
+    placedCameras().filter((c) => c.connected && csCard.quads[c.name]).forEach((cam) => {
+      const photos = session ? session.photos.filter((p) => p.camera === cam.name) : [];
+      const pick = photos.find((p) => /\.jpe?g$/i.test(p.file)) || photos.find((p) => p.previewable);
+      const tile = document.createElement("div");
+      tile.className = "cs-card-tile cs-chart-tile";
+      tile.dataset.title = shortModel(cam.model) + " · " + cam.name;
+      tile.dataset.camera = cam.name;
+      tile.innerHTML = '<div class="cs-card-photo"><img alt="">' +
+        '<svg class="cs-chart-lines" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon></polygon></svg>' +
+        [1, 2, 3, 4].map((n) => '<span class="cs-chart-handle' + (n === 1 ? " first" : "") + '">' + n + "</span>").join("") +
+        '</div><div class="cs-card-label"></div>';
+      const img = tile.querySelector("img");
+      img.draggable = false;
+      if (session && pick) orderPhoto(session.name, pick.file, 900).then((url) => { if (url) img.src = url; });
+      const photoEl = tile.querySelector(".cs-card-photo");
+      const at = (e) => {
+        const rect = img.getBoundingClientRect();
+        return { x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+                 y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)), ok: rect.width > 0 && rect.height > 0 };
+      };
+      let drag = -1;
+      photoEl.addEventListener("dragstart", (e) => e.preventDefault());
+      photoEl.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const p = at(e);
+        if (!p.ok) return;
+        const q = csCard.quads[cam.name];
+        // O canto pego (ou o mais perto do clique) vai para onde está o ponteiro
+        const handle = e.target.closest(".cs-chart-handle");
+        drag = handle ? [...tile.querySelectorAll(".cs-chart-handle")].indexOf(handle)
+                      : [0, 1, 2, 3].reduce((best, k) => (Math.hypot(q.x[k] - p.x, q.y[k] - p.y) < Math.hypot(q.x[best] - p.x, q.y[best] - p.y) ? k : best), 0);
+        if (!handle) { q.x[drag] = p.x; q.y[drag] = p.y; csChartDraw(tile, q); }
+        photoEl.setPointerCapture(e.pointerId);
+      });
+      photoEl.addEventListener("pointermove", (e) => {
+        if (drag < 0) return;
+        const p = at(e);
+        const q = csCard.quads[cam.name];
+        q.x[drag] = p.x;
+        q.y[drag] = p.y;
+        csChartDraw(tile, q);
+      });
+      const finish = () => {
+        if (drag < 0) return;
+        drag = -1;
+        const q = csCard.quads[cam.name];
+        csCard.moved[cam.name] = true;
+        const args = [cam.name];
+        for (let k = 0; k < 4; k++) args.push(String(Math.round(q.x[k] * 1000)), String(Math.round(q.y[k] * 1000)));
+        Promise.resolve(window.chartSetQuad(...args)).then(() => { csChartDraw(tile, q); csChartStatus(); });
+      };
+      photoEl.addEventListener("pointerup", finish);
+      photoEl.addEventListener("pointercancel", finish);
+      grid.appendChild(tile);
+      csChartDraw(tile, csCard.quads[cam.name]);
+    });
+    csChartStatus();
+    csSetZoom(false);
+    $("csCardPick").classList.remove("hidden");
+    csGallery.message("Waiting for you to check the chart");
+  }
+
+  // Botão "Calibrate with chart": instruções, abrir a cartela e começar
+  function csChartIntro() {
+    const cams = camSettings.filter((c) => c.adjustable && c.styleDetail && cameras.some((x) => x.name === c.camera && x.connected));
+    const models = new Set(cams.map((c) => c.model));
+    if (models.size < 2) {
+      dialog("Calibrate with chart",
+        "This compares camera models, so it needs at least two different models connected whose Picture Style can be changed from the app (for example, an SL3 and a T7).\n\n" +
+        "Cameras of the same model already look alike: Match automatically is enough for them.",
+        [{ label: "Open chart", link: true, onClick: () => window.openChart() }, { label: "OK", primary: true }]);
+      return;
+    }
+    dialog("Calibrate with chart",
+      "Makes cameras of different models look alike in contrast, saturation and color tone. Do it once for each new camera model; Match automatically then uses the result.\n\n" +
+      "1. Click Open chart and print it at 100% (actual size, no scaling), on matte paper.\n" +
+      "2. Put it where every camera sees the whole chart, including the 4 corner marks: flat, under even light, without glare. It should fill about a quarter of each photo or more.\n" +
+      "3. Set the exposure so the chart looks normal in every camera (tip: run Test shot with Match automatically first).\n" +
+      "4. Click Start. The app takes 4 photos, changing contrast, saturation and color tone, and then puts every setting back as it was.\n\n" +
+      "After the first photo, you check that the chart corners are marked right.",
+      [{ label: "Cancel" },
+       { label: "Open chart", link: true, onClick: () => {
+         Promise.resolve(window.openChart()).then((r) => { if (!r || !r.ok) toast("The chart file was not found. Build the app again."); });
+         csChartIntro();
+       } },
+       { label: "Start", primary: true, onClick: csChartStart }]);
+  }
+  function csChartStart() {
+    const connected = cameras.filter((c) => c.connected).length;
+    if (busy || !connected || csTest.capturing) return;
+    csTest.capturing = true;
+    csTest.cancelling = false;
+    csTest.has = false;
+    csTest.mode = "chart";
+    $("camSettingsOverlay").querySelector(".cs-sheet").classList.add("capturing");
+    $("csTestBox").classList.remove("hidden", "has-photos");
+    csSetZoom(false);
+    csSetCollapsed(false);
+    csGallery.setItems([]);
+    csGallery.setHead("Chart calibration", "");
+    csGallery.message("Taking a photo with each camera");
+    updateButtons();
+    window.chartCalibrate(intValue(ui.downloadWait, 1, 10));
+  }
+  $("csChart").addEventListener("click", () => { if (!csTest.capturing) csChartIntro(); });
+  $("csCardCancel").addEventListener("click", () => {
+    csCardHide();
+    if (csTest.capturing) csTakeTest();  // o mesmo que o botão Cancel do Test shot
+  });
+  // "Use gray card" só vale com "Match automatically"
+  function csCardOption() {
+    const on = $("csAuto").checked;
+    $("csCard").disabled = !on;
+    document.querySelector(".cs-card-option").classList.toggle("off", !on);
+  }
+  $("csAuto").addEventListener("change", csCardOption);
+  csCardOption();
+
   function showCsTest(list) {
     csTest.capturing = false;
     csTest.cancelling = false;
@@ -2629,7 +3110,7 @@
     csGallery.setItems(items, 0);
     $("csTestBox").classList.toggle("has-photos", items.length > 0);
     const missing = items.filter((i) => !i.file).length;
-    csGallery.setHead(csTest.mode === "match" ? "Test shot · matched" : "Test shot",
+    csGallery.setHead(csTest.mode === "chart" ? "Chart calibration" : csTest.mode === "match" ? "Test shot · matched" : "Test shot",
       (missing ? plural(missing, "camera", "cameras") + " did not send a photo · " : "") + "Not saved · click a photo to enlarge · ← → to compare");
   }
   function csDiscardTest() {
@@ -2643,7 +3124,11 @@
     Object.keys(photoCache).filter((k) => k.startsWith("order/")).forEach((k) => delete photoCache[k]);
   }
   function closeCamSettings() {
+    // Fechar esperando o cartão cinza: cancela (senão o Match ficaria esperando)
+    if (csCardOpen()) $("csCardCancel").click();
     $("camSettingsOverlay").classList.add("hidden");
+    csStylePop = null;
+    renderStylePop();
     clearInterval(csPoll);
     csPoll = 0;
     csDiscardTest();
@@ -2685,7 +3170,9 @@
     }
     if (open) {
       if (e.key === "Escape") {
-        if (open === "camSettingsOverlay" && csZoom) csSetZoom(false);  // primeiro fecha a foto grande
+        if (open === "camSettingsOverlay" && csCardOpen()) $("csCardCancel").click();  // cartão cinza: Esc = Cancel
+        else if (open === "camSettingsOverlay" && csStylePop) { csStylePop = null; renderStylePop(); }
+        else if (open === "camSettingsOverlay" && csZoom) csSetZoom(false);  // primeiro fecha a foto grande
         else if (open === "camSettingsOverlay") closeCamSettings();
         else $(open).classList.add("hidden");
       }

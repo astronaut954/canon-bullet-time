@@ -261,6 +261,18 @@ namespace CameraSettingsCanon
             }
         }
 
+        // Ajustes do Picture Style atual (inParam 0 = o estilo em uso)
+        EdsPictureStyleDesc style{};
+        if (EdsGetPropertyData(camera, kEdsPropID_PictureStyleDesc, 0, sizeof(style), &style) == EDS_ERR_OK
+            && style.contrast >= -4 && style.contrast <= 4 && style.saturation >= -4 && style.saturation <= 4
+            && style.colorTone >= -4 && style.colorTone <= 4)
+        {
+            out.styleDetailAvailable = true;
+            out.contrast = style.contrast;
+            out.saturation = style.saturation;
+            out.colorTone = style.colorTone;
+        }
+
         bool anyChoice = false;
         for (const auto& s : out.settings)
             anyChoice = anyChoice || !s.choices.empty();
@@ -307,6 +319,27 @@ namespace CameraSettingsCanon
         {
             const EdsInt32 data = static_cast<EdsInt32>(value);
             const EdsError err = EdsSetPropertyData(camera, kEdsPropID_WhiteBalance, 0, sizeof(data), &data);
+            if (err != EDS_ERR_OK)
+                error = ErrorText(err);
+            return err == EDS_ERR_OK;
+        }
+        if (key == "contrast" || key == "saturation" || key == "colortone")
+        {
+            if (value < -4 || value > 4)
+            {
+                error = "Use a value from -4 to +4.";
+                return false;
+            }
+            EdsPictureStyleDesc style{};
+            EdsError err = EdsGetPropertyData(camera, kEdsPropID_PictureStyleDesc, 0, sizeof(style), &style);
+            if (err == EDS_ERR_OK)
+            {
+                const EdsInt32 v = static_cast<EdsInt32>(value);
+                if (key == "contrast") style.contrast = v;
+                else if (key == "saturation") style.saturation = v;
+                else style.colorTone = v;
+                err = EdsSetPropertyData(camera, kEdsPropID_PictureStyleDesc, 0, sizeof(style), &style);
+            }
             if (err != EDS_ERR_OK)
                 error = ErrorText(err);
             return err == EDS_ERR_OK;

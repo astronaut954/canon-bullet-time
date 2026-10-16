@@ -34,6 +34,7 @@
 #include "exporter.h"
 #include "camera_settings.h"
 #include "auto_match.h"
+#include "match_debug.h"
 #include "color_match.h"
 #include "platform/media.h"
 
@@ -476,13 +477,57 @@ namespace
         EnsureSingleShot(controller, all, warned);
     }
 
+    // Modo debug (Settings): pasta com as fotos e as medidas de cada Test shot
+    std::filesystem::path DebugRoot() { return Platform::AppDataFolder() / "Debug"; }
+
+    // Caminho como texto UTF-8 (para mandar à página)
+    std::string PathToUtf8(const std::filesystem::path& path)
+    {
+        const std::u8string text = path.u8string();
+        return std::string(reinterpret_cast<const char*>(text.data()), text.size());
+    }
+
+    // As fotos de uma sessão do Test shot, uma por câmera, com as configurações atuais
+    // (as que a câmera usou nessa foto) e a medida, para o MatchDebug
+    std::vector<MatchDebug::Photo> DebugPhotos(CanonController& controller, PhotoStore& store, const StoredSession& session,
+                                               const std::map<std::string, ColorMatch::Stats>* measured)
+    {
+        std::map<std::string, const StoredPhoto*> picks;
+        for (const auto& p : session.photos)
+            if (!picks.count(p.camera) || IsJpegPhoto(p.file))
+                picks[p.camera] = &p;
+        std::vector<MatchDebug::Photo> photos;
+        for (const auto& cam : controller.GetCameras())
+        {
+            if (!cam.sessionOpen || cam.camera == nullptr)
+                continue;
+            MatchDebug::Photo photo;
+            photo.camera = cam.shortName;
+            photo.settings = CameraSettingsCanon::Read(cam);
+            const auto pick = picks.find(cam.shortName);
+            if (pick != picks.end())
+            {
+                photo.file = store.Root() / session.name / pick->second->file;
+                const auto m = measured ? measured->find(cam.shortName) : std::map<std::string, ColorMatch::Stats>::const_iterator{};
+                if (measured && m != measured->end())
+                    photo.measured = m->second;
+                else if (pick->second->previewable)
+                    photo.measured = ColorMatch::Measure(photo.file);
+            }
+            photos.push_back(photo);
+        }
+        return photos;
+    }
+
     // Calibração do ajuste fino por modelo (feita pelo "Match automatically")
     std::filesystem::path CalibrationFile() { return Platform::AppDataFolder() / "camera-calibration.txt"; }
+    std::filesystem::path ChartCalibrationFile() { return Platform::AppDataFolder() / "chart-calibration.txt"; }
 
     // Configurações para a tela Camera settings (JSON)
     std::string CameraSettingsJson(CanonController& controller, const std::vector<CameraSettings>& all)
     {
         const auto calibrations = AutoMatch::LoadCalibration(CalibrationFile());
+        const auto charts = AutoMatch::LoadChartCalibration(ChartCalibrationFile());
         std::string list = "[";
         for (size_t i = 0; i < all.size(); ++i)
         {
@@ -509,12 +554,21 @@ namespace
             const auto cal = calibrations.find(s.model);
             const bool abFlip = cal != calibrations.end() && cal->second.abSign < 0;
             const bool gmFlip = cal != calibrations.end() && cal->second.gmSign < 0;
+            // Diferença do modelo medida com a cartela (para o Picture Style atual), ou null
+            std::string chart = "null";
+            for (const auto& c : s.settings)
+                if (c.key == "style")
+                    if (const auto it = charts.find(AutoMatch::ChartKey(s.model, c.value)); it != charts.end())
+                        chart = Json("chart").Add("contrast", it->second.contrast).Add("saturation", it->second.saturation)
+                                    .Add("colorTone", it->second.colorTone).Str();
             list += (i ? "," : "") + Json("camera").Add("camera", s.camera).Add("model", s.model)
                 .Add("abFlip", abFlip).Add("gmFlip", gmFlip)
                 .Add("order", order).Add("adjustable", s.adjustable).Add("reason", s.reason)
                 .Add("mode", s.mode).Add("manual", s.manualMode).Add("kelvin", s.kelvin)
                 .Add("kelvinAvailable", s.kelvinAvailable).Add("shiftAvailable", s.shiftAvailable)
                 .Add("shiftAB", s.shiftAB).Add("shiftGM", s.shiftGM).Add("focusManual", s.focusManual)
+                .Add("styleDetail", s.styleDetailAvailable).Add("contrast", s.contrast)
+                .Add("saturation", s.saturation).Add("colorTone", s.colorTone).Raw("chart", chart)
                 .Raw("settings", settings).Str();
         }
         return list + "]";
@@ -1005,6 +1059,15 @@ namespace
         const auto settings = LoadSettings();
         const std::string theme = ChosenTheme(settings);
         const std::string language = ChosenLanguage(settings);
+        // Modo debug: vale na hora e desliga sozinho ao fechar o app (não fica esquecido ligado)
+        std::atomic<bool> debugMode{ false };
+        std::mutex debugFolderMutex;
+        std::filesystem::path lastDebugFolder;
+        auto rememberDebugFolder = [&](const std::filesystem::path& folder)
+        {
+            std::lock_guard<std::mutex> lock(debugFolderMutex);
+            lastDebugFolder = folder;
+        };
 
         window.bind("uiReady", [&](const std::string&) -> std::string
         {
@@ -1040,7 +1103,54 @@ namespace
                 }())
                 .Add("theme", theme)
                 .Raw("languages", ChoicesJson(kLanguages))
-                .Add("language", language).Str();
+                .Add("language", language)
+                .Add("debug", debugMode.load()).Str();
+        });
+
+        // setDebugMode(true/false): liga ou desliga o modo debug (Settings). Não é gravado:
+        // ao abrir o app, começa desligado.
+        window.bind("setDebugMode", [&](const std::string& request) -> std::string
+        {
+            debugMode = request.find("true") != std::string::npos;
+            return Json("settings").Add("ok", true).Add("debug", debugMode.load())
+                .Add("bytes", static_cast<double>(MatchDebug::FolderSize(DebugRoot()))).Str();
+        });
+
+        // debugInfo(): espaço ocupado pelos dados de debug (Settings)
+        window.bind("debugInfo", [&](const std::string&) -> std::string
+        {
+            return Json("debugInfo").Add("bytes", static_cast<double>(MatchDebug::FolderSize(DebugRoot()))).Str();
+        });
+
+        // deleteDebugData(): apaga todas as pastas de debug
+        window.bind("deleteDebugData", [&](const std::string&) -> std::string
+        {
+            std::error_code ec;
+            for (const auto& entry : std::filesystem::directory_iterator(DebugRoot(), ec))
+                std::filesystem::remove_all(entry.path(), ec);
+            {
+                std::lock_guard<std::mutex> lock(debugFolderMutex);
+                lastDebugFolder.clear();
+            }
+            return Json("debugInfo").Add("bytes", static_cast<double>(MatchDebug::FolderSize(DebugRoot()))).Str();
+        });
+
+        // openDebugFolder(): abre a pasta do último Test shot com debug (ou a pasta Debug)
+        window.bind("openDebugFolder", [&](const std::string&) -> std::string
+        {
+            std::filesystem::path folder;
+            {
+                std::lock_guard<std::mutex> lock(debugFolderMutex);
+                folder = lastDebugFolder;
+            }
+            std::error_code ec;
+            if (folder.empty() || !std::filesystem::exists(folder, ec))
+            {
+                folder = DebugRoot();
+                std::filesystem::create_directories(folder, ec);
+            }
+            Platform::OpenInFileManager(folder);
+            return "null";
         });
 
         // saveSettings(tema, idioma): grava no settings.txt. restart: true quando o que
@@ -1242,6 +1352,17 @@ namespace
                 controller.SetOutputFolder(orderStore.Root().string());
                 bulletTime.RunSequence(settings);
                 controller.SetOutputFolder(previous);
+                if (debugMode)
+                {
+                    const auto sessions = orderStore.ListSessions();
+                    MatchDebug debug;
+                    if (!sessions.empty() && debug.Begin(DebugRoot(), "test"))
+                    {
+                        debug.Shot(1, "Test shot", DebugPhotos(controller, orderStore, sessions.back(), nullptr));
+                        rememberDebugFolder(debug.Folder());
+                        listener.Emit(Json("debugSaved").Add("folder", PathToUtf8(debug.Folder())));
+                    }
+                }
                 listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
             });
             return "null";
@@ -1250,10 +1371,37 @@ namespace
         // cancelTest(): para o Test shot (com ou sem ajuste) entre uma foto e outra ou
         // esperando as fotos; com ajuste, as câmeras voltam como estavam.
         std::atomic<bool> testCancel{ false };
+        // Cartão cinza: depois da primeira foto, o Match espera a pessoa conferir (ou
+        // corrigir com um clique) onde está o cartão em cada foto
+        struct CardPick
+        {
+            std::mutex mutex;
+            std::condition_variable wake;
+            bool confirmed = false;
+            std::map<std::string, ColorMatch::Region> regions;      // por câmera
+            std::map<std::string, std::filesystem::path> files;     // a foto 1 de cada câmera
+            std::map<std::string, Chart::Quad> quads;               // cartela: cantos por câmera
+        } cardPick;
+        auto quadJson = [](const std::string& camera, const Chart::Quad& q)
+        {
+            std::string xs = "[", ys = "[";
+            for (int k = 0; k < 4; ++k)
+            {
+                xs += (k ? "," : "") + std::to_string(q.x[k]);
+                ys += (k ? "," : "") + std::to_string(q.y[k]);
+            }
+            return Json("quad").Add("camera", camera).Add("found", q.found).Raw("x", xs + "]").Raw("y", ys + "]").Str();
+        };
+        auto regionJson = [](const std::string& camera, const ColorMatch::Region& r)
+        {
+            return Json("region").Add("camera", camera).Add("found", r.found)
+                .Add("x0", r.x0).Add("y0", r.y0).Add("x1", r.x1).Add("y1", r.y1).Str();
+        };
         window.bind("cancelTest", [&](const std::string&) -> std::string
         {
             testCancel = true;
             bulletTime.RequestCancel();
+            cardPick.wake.notify_all();
             return "null";
         });
 
@@ -1262,19 +1410,82 @@ namespace
         // câmeras o mais parecidas possível (auto_match.h). Avisa o andamento
         // (autoMatchProgress), mostra as últimas fotos (orderPhotos) e o resumo do que
         // mudou (autoMatchResult).
+        // grayCardFind("câmera", "x", "y"): a pessoa clicou no cartão (x, y de 0 a 1000)
+        window.bind("grayCardFind", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 3)
+                return "null";
+            std::filesystem::path file;
+            {
+                std::lock_guard<std::mutex> lock(cardPick.mutex);
+                const auto it = cardPick.files.find(args[0]);
+                if (it == cardPick.files.end())
+                    return "null";
+                file = it->second;
+            }
+            int x = 500, y = 500;
+            try { x = std::stoi(args[1]); y = std::stoi(args[2]); } catch (...) {}
+            const ColorMatch::Region region = ColorMatch::GrayCardAt(file, x / 1000.0, y / 1000.0);
+            std::lock_guard<std::mutex> lock(cardPick.mutex);
+            cardPick.regions[args[0]] = region;
+            return regionJson(args[0], region);
+        });
+
+        // grayCardSet("câmera", "x0", "y0", "x1", "y1"): a pessoa desenhou a área do cartão
+        // (de 0 a 1000)
+        window.bind("grayCardSet", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 5)
+                return "null";
+            double v[4] = { 0, 0, 1000, 1000 };
+            try { for (int i = 0; i < 4; ++i) v[i] = std::clamp(std::stod(args[i + 1]), 0.0, 1000.0) / 1000.0; }
+            catch (...) { return "null"; }
+            ColorMatch::Region region;
+            region.found = v[2] > v[0] && v[3] > v[1];
+            region.x0 = v[0]; region.y0 = v[1]; region.x1 = v[2]; region.y1 = v[3];
+            std::lock_guard<std::mutex> lock(cardPick.mutex);
+            if (!cardPick.files.count(args[0]) || !region.found)
+                return "null";
+            cardPick.regions[args[0]] = region;
+            return regionJson(args[0], region);
+        });
+
+        // grayCardConfirm(): o cartão está certo em todas; o Match continua
+        window.bind("grayCardConfirm", [&](const std::string&) -> std::string
+        {
+            {
+                std::lock_guard<std::mutex> lock(cardPick.mutex);
+                cardPick.confirmed = true;
+            }
+            cardPick.wake.notify_all();
+            return "null";
+        });
+
         window.bind("autoMatch", [&](const std::string& request) -> std::string
         {
             const auto values = ParseIntArgs(request);
+            const bool grayCard = values.size() > 1 && values[1] != 0;
             SequenceSettings settings;
             settings.countdownSeconds = 0;
             settings.sessionCount = 1;
             settings.downloadWaitSeconds = values.empty() ? 10 : std::max(1, values[0]);
             settings.playSounds = false;
-            run("orderPhotos", [&, settings]
+            run("orderPhotos", [&, settings, grayCard]
             {
                 if (cameraConnecting())
                     return;
                 testCancel = false;
+                {
+                    std::lock_guard<std::mutex> lock(cardPick.mutex);
+                    cardPick.confirmed = false;
+                    cardPick.regions.clear();
+                    cardPick.files.clear();
+                }
+                MatchDebug debug;
+                if (debugMode)
+                    debug.Begin(DebugRoot(), grayCard ? "match-graycard" : "match");
                 auto shoot = [&](int shot, int shots, const std::string& stage,
                                  std::map<std::string, ColorMatch::Stats>& measured) -> bool
                 {
@@ -1296,12 +1507,75 @@ namespace
                     for (const auto& p : session.photos)
                         if (!picks.count(p.camera) || IsJpegPhoto(p.file))
                             picks[p.camera] = &p;
+                    if (grayCard && shot == 1)
+                    {
+                        // Acha o cartão em cada foto e espera a pessoa conferir
+                        std::string regions = "[";
+                        {
+                            std::lock_guard<std::mutex> lock(cardPick.mutex);
+                            for (const auto& [camera, photo] : picks)
+                                if (photo->previewable)
+                                {
+                                    const auto file = orderStore.Root() / session.name / photo->file;
+                                    cardPick.files[camera] = file;
+                                    cardPick.regions[camera] = ColorMatch::FindGrayCard(file);
+                                    regions += (regions.size() > 1 ? "," : "") + regionJson(camera, cardPick.regions[camera]);
+                                }
+                        }
+                        listener.Emit(Json("grayCardPick").Raw("sessions", SessionsJson(orderStore)).Raw("regions", regions + "]"));
+                        std::unique_lock<std::mutex> lock(cardPick.mutex);
+                        while (!cardPick.confirmed && !testCancel)
+                        {
+                            cardPick.wake.wait_for(lock, std::chrono::milliseconds(200));
+                            lock.unlock();
+                            EdsGetEvent();  // as câmeras continuam respondendo enquanto espera
+                            lock.lock();
+                        }
+                        if (testCancel)
+                            return false;
+                        for (const auto& [camera, r] : cardPick.regions)
+                            debug.Line("Gray card " + camera + ": " + (r.found ? std::to_string(r.x0).substr(0, 5) + "," + std::to_string(r.y0).substr(0, 5)
+                                                                        + " to " + std::to_string(r.x1).substr(0, 5) + "," + std::to_string(r.y1).substr(0, 5)
+                                                                      : std::string("not marked")));
+                    }
                     for (const auto& [camera, photo] : picks)
                         if (photo->previewable)
-                            measured[camera] = ColorMatch::Measure(orderStore.Root() / session.name / photo->file);
+                        {
+                            const auto file = orderStore.Root() / session.name / photo->file;
+                            if (!grayCard)
+                                measured[camera] = ColorMatch::Measure(file);
+                            else
+                            {
+                                std::lock_guard<std::mutex> lock(cardPick.mutex);
+                                const auto it = cardPick.regions.find(camera);
+                                if (it != cardPick.regions.end())
+                                    measured[camera] = ColorMatch::Measure(file, &it->second);
+                            }
+                        }
+                    if (debug.Active())
+                        debug.Shot(shot, stage, DebugPhotos(controller, orderStore, session, &measured));
                     return true;
                 };
-                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); });
+                auto trace = [&](const std::string& line)
+                {
+                    debug.Line(line);
+                    Log("[match] " + line);
+                };
+                AutoMatch::Options options;
+                options.grayCard = grayCard;
+                options.chartFile = ChartCalibrationFile();
+                const AutoMatch::Result result = AutoMatch::Run(controller, shoot, CalibrationFile(), [&] { return testCancel.load(); }, options,
+                                                                debug.Active() ? std::function<void(const std::string&)>(trace) : nullptr);
+                if (debug.Active())
+                {
+                    debug.Line(result.cancelled ? "Result: cancelled" : result.ok ? "Result: done" : "Result: " + result.error);
+                    for (const auto& change : result.changes)
+                        for (const auto& item : change.items)
+                            debug.Line("  " + change.camera + ": " + item[0] + " " + item[1] + " -> " + item[2]);
+                    for (const auto& note : result.notes)
+                        debug.Line("  note: " + note);
+                    rememberDebugFolder(debug.Folder());
+                }
 
                 std::string changes = "[";
                 for (size_t i = 0; i < result.changes.size(); ++i)
@@ -1324,7 +1598,167 @@ namespace
                 listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
                 listener.Emit(Json("autoMatchResult").Add("ok", result.ok).Add("matched", result.matched)
                                   .Add("cancelled", result.cancelled)
+                                  .Add("debugFolder", debug.Active() ? PathToUtf8(debug.Folder()) : std::string())
                                   .Add("error", result.error).Raw("changes", changes).Raw("notes", notes));
+                EmitCameraSettings(controller, listener, singleShotWarned);
+            });
+            return "null";
+        });
+
+        // openChart(): abre a cartela (PDF) no programa padrão, para imprimir
+        window.bind("openChart", [&](const std::string&) -> std::string
+        {
+            const auto file = Platform::ResourcesDirectory() / "assets" / "chart" / "stillpoint-chart.pdf";
+            std::error_code ec;
+            const bool ok = std::filesystem::exists(file, ec);
+            if (ok)
+                Platform::OpenInFileManager(file);
+            return Json("chart").Add("ok", ok).Str();
+        });
+
+        // chartSetQuad("câmera", x0, y0, x1, y1, x2, y2, x3, y3): a pessoa arrastou os cantos
+        // (centros das marcas, de 0 a 1000, na ordem da cartela)
+        window.bind("chartSetQuad", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 9)
+                return "null";
+            Chart::Quad q;
+            try
+            {
+                for (int k = 0; k < 4; ++k)
+                {
+                    q.x[k] = std::clamp(std::stod(args[1 + 2 * k]), 0.0, 1000.0) / 1000.0;
+                    q.y[k] = std::clamp(std::stod(args[2 + 2 * k]), 0.0, 1000.0) / 1000.0;
+                }
+            }
+            catch (...) { return "null"; }
+            q.found = true;
+            std::lock_guard<std::mutex> lock(cardPick.mutex);
+            if (!cardPick.files.count(args[0]))
+                return "null";
+            cardPick.quads[args[0]] = q;
+            return quadJson(args[0], q);
+        });
+
+        // chartCalibrate(espera): calibra os modelos com a cartela (auto_match.h,
+        // CalibrateChart). Depois da 1ª foto, a pessoa confere os cantos (chartPick).
+        // Avisa o andamento (chartProgress) e o resultado (chartResult).
+        window.bind("chartCalibrate", [&](const std::string& request) -> std::string
+        {
+            const auto values = ParseIntArgs(request);
+            SequenceSettings settings;
+            settings.countdownSeconds = 0;
+            settings.sessionCount = 1;
+            settings.downloadWaitSeconds = values.empty() ? 10 : std::max(1, values[0]);
+            settings.playSounds = false;
+            run("orderPhotos", [&, settings]
+            {
+                if (cameraConnecting())
+                    return;
+                testCancel = false;
+                {
+                    std::lock_guard<std::mutex> lock(cardPick.mutex);
+                    cardPick.confirmed = false;
+                    cardPick.quads.clear();
+                    cardPick.files.clear();
+                }
+                MatchDebug debug;
+                if (debugMode)
+                    debug.Begin(DebugRoot(), "chart");
+                auto shoot = [&](int shot, int shots, const std::string& stage,
+                                 std::map<std::string, Chart::Reading>& measured) -> bool
+                {
+                    if (testCancel)
+                        return false;
+                    listener.Emit(Json("chartProgress").Add("shot", shot).Add("shots", shots).Add("stage", stage));
+                    orderStore.DeleteAll();
+                    EnsureSingleShot(controller, singleShotWarned);
+                    const std::string previous = controller.GetOutputFolder();
+                    controller.SetOutputFolder(orderStore.Root().string());
+                    bulletTime.RunSequence(settings);
+                    controller.SetOutputFolder(previous);
+                    const auto sessions = orderStore.ListSessions();
+                    if (sessions.empty() || testCancel)
+                        return false;
+                    const StoredSession& session = sessions.back();
+                    std::map<std::string, const StoredPhoto*> picks;
+                    for (const auto& p : session.photos)
+                        if (!picks.count(p.camera) || IsJpegPhoto(p.file))
+                            picks[p.camera] = &p;
+                    if (shot == 1)
+                    {
+                        // Acha a cartela em cada foto e espera a pessoa conferir os cantos
+                        std::string quads = "[";
+                        {
+                            std::lock_guard<std::mutex> lock(cardPick.mutex);
+                            for (const auto& [camera, photo] : picks)
+                                if (photo->previewable)
+                                {
+                                    const auto file = orderStore.Root() / session.name / photo->file;
+                                    cardPick.files[camera] = file;
+                                    cardPick.quads[camera] = Chart::Find(file);
+                                    quads += (quads.size() > 1 ? "," : "") + quadJson(camera, cardPick.quads[camera]);
+                                }
+                        }
+                        listener.Emit(Json("chartPick").Raw("sessions", SessionsJson(orderStore)).Raw("quads", quads + "]"));
+                        std::unique_lock<std::mutex> lock(cardPick.mutex);
+                        while (!cardPick.confirmed && !testCancel)
+                        {
+                            cardPick.wake.wait_for(lock, std::chrono::milliseconds(200));
+                            lock.unlock();
+                            EdsGetEvent();  // as câmeras continuam respondendo enquanto espera
+                            lock.lock();
+                        }
+                        if (testCancel)
+                            return false;
+                    }
+                    for (const auto& [camera, photo] : picks)
+                        if (photo->previewable)
+                        {
+                            std::lock_guard<std::mutex> lock(cardPick.mutex);
+                            const auto it = cardPick.quads.find(camera);
+                            if (it == cardPick.quads.end() || !it->second.found)
+                            {
+                                Chart::Reading none;
+                                none.problem = "the chart corners were not marked";
+                                measured[camera] = none;
+                            }
+                            else
+                                measured[camera] = Chart::Measure(orderStore.Root() / session.name / photo->file, it->second);
+                        }
+                    if (debug.Active())
+                        debug.Shot(shot, stage, DebugPhotos(controller, orderStore, session, nullptr));
+                    return true;
+                };
+                auto trace = [&](const std::string& line)
+                {
+                    debug.Line(line);
+                    Log("[chart] " + line);
+                };
+                const AutoMatch::ChartResult result = AutoMatch::CalibrateChart(
+                    controller, shoot, ChartCalibrationFile(), [&] { return testCancel.load(); },
+                    debug.Active() ? std::function<void(const std::string&)>(trace) : nullptr);
+                if (debug.Active())
+                {
+                    debug.Line(result.cancelled ? "Result: cancelled" : result.ok ? "Result: done" : "Result: " + result.error);
+                    for (const auto& line : result.models)
+                        debug.Line("  " + line);
+                    for (const auto& note : result.notes)
+                        debug.Line("  note: " + note);
+                    rememberDebugFolder(debug.Folder());
+                }
+                auto list = [](const std::vector<std::string>& items)
+                {
+                    std::string out = "[";
+                    for (size_t i = 0; i < items.size(); ++i)
+                        out += (i ? "," : "") + JsonString(items[i]);
+                    return out + "]";
+                };
+                listener.Emit(Json("orderPhotos").Raw("sessions", SessionsJson(orderStore)));
+                listener.Emit(Json("chartResult").Add("ok", result.ok).Add("cancelled", result.cancelled)
+                                  .Add("debugFolder", debug.Active() ? PathToUtf8(debug.Folder()) : std::string())
+                                  .Add("error", result.error).Raw("models", list(result.models)).Raw("notes", list(result.notes)));
                 EmitCameraSettings(controller, listener, singleShotWarned);
             });
             return "null";
@@ -1422,7 +1856,7 @@ namespace
                 namespace fs = std::filesystem;
                 std::string error;
                 std::vector<fs::path> savedTo;
-                std::vector<std::string> names;
+                std::vector<std::string> names, savedNames;
                 const auto stored = store.ListSessions();
                 int done = 0;
                 static const std::regex shortName(R"(^(\d+_[^_]+_\d+)_.+$)");
@@ -1561,8 +1995,12 @@ namespace
                         if (!error.empty())
                             break;
                     }
-                    // Tudo salvo: a sessão sai do app
-                    store.DeleteSession(job.session);
+                    // Tudo salvo. Fechando o app, a sessão sai do app; senão a pessoa escolhe
+                    // depois se descarta ou mantém (pergunta na tela)
+                    if (exitAfter)
+                        store.DeleteSession(job.session);
+                    else
+                        savedNames.push_back(job.session);
                     savedTo.push_back(target);
                     ++done;
                     report(1.0, "done");
@@ -1577,7 +2015,10 @@ namespace
                             store.DeleteSession(session.name);
                 if (!error.empty())
                     Log("Save sessions: " + error);
-                listener.Emit(Json("saved").Add("count", done).Add("folder", folder).Add("error", error));
+                std::string saved = "[";
+                for (const auto& name : savedNames)
+                    saved += (saved.size() > 1 ? "," : "") + JsonString(name);
+                listener.Emit(Json("saved").Add("count", done).Add("folder", folder).Add("error", error).Raw("sessions", saved + "]"));
                 emitSessions();
                 if (exitAfter && error.empty())
                     window.dispatch([&] { closeNow(); });

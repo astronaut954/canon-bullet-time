@@ -176,6 +176,7 @@
           <span class="info-tip" tabindex="0" aria-label="What the colors mean">?
             <span class="info-tip-text">
               <span class="cs-key cs-key-diff"></span>Different from the other cameras<br>
+              <span class="cs-key cs-key-partial"></span>Some Picture Style options (±) differ<br>
               <span class="cs-key cs-key-na"></span>Not available or not changeable on this camera<br>
               <span class="cs-key cs-key-warn"></span>Needs attention on the camera (for example, autofocus on)<br>
               Changes go to the camera right away.
@@ -187,10 +188,26 @@
       <!-- Teste rápido: uma foto de cada câmera, só para conferir (não é salva) -->
       <div id="csTestBox" class="cs-test hidden"><div id="csGallery" class="gallery"></div></div>
       <div id="csBody" class="cs-body"></div>
+      <!-- Cartão cinza: conferir (ou clicar para corrigir) onde está o cartão em cada foto -->
+      <div id="csCardPick" class="cs-card-pick hidden">
+        <div class="cs-card-head">
+          <h3 id="csCardTitle">Gray card</h3>
+          <p id="csCardText">Check that the box is on the gray card in every photo. If it is wrong or missing, click the card in that photo, or drag to draw a box over it.</p>
+        </div>
+        <div id="csCardGrid" class="cs-card-grid"></div>
+        <div class="cs-card-foot">
+          <span id="csCardStatus" class="cs-card-status"></span>
+          <span class="spacer"></span>
+          <button id="csCardCancel" class="btn btn-secondary">Cancel</button>
+          <button id="csCardContinue" class="btn btn-primary">Continue</button>
+        </div>
+      </div>
       <div class="cs-foot">
         <button id="csTest" class="btn btn-secondary" title="Fires all cameras to check the photos. The photos are not saved.">Test shot</button>
         <label class="log-option cs-auto" title="Sets the same shutter, aperture, ISO and Picture Style, a common white balance, and matches the color (white balance fine-tune) and brightness (ISO) of every camera to the average of all. Takes up to 5 photos."><input id="csAuto" type="checkbox" checked> Match automatically</label>
+        <label class="log-option cs-auto cs-card-option" title="Put a gray card where every camera sees it. The app measures only the card (not the rest of the scene) and sets the white balance so the card comes out neutral gray in every camera. After the first photo, you check where the card is."><input id="csCard" type="checkbox"> Use gray card</label>
         <button id="csRead" class="btn btn-link btn-small">Read again</button>
+        <button id="csChart" class="btn btn-link btn-small" title="Makes cameras of different models look alike in contrast, saturation and color tone, using a printed chart. Once per camera model.">Calibrate with chart</button>
         <span class="spacer"></span>
         <label class="cs-copy"><span>Copy from camera</span><select id="csCopy" class="cs-sel"></select></label>
         <button id="csDone" class="btn btn-primary">Done</button>
@@ -229,6 +246,16 @@
         <div class="settings-row">
           <span class="export-label">Language</span>
           <div><div id="settingsLanguages"></div><div class="export-note">More languages will appear here.</div></div>
+        </div>
+        <div class="settings-row">
+          <span class="export-label">Debug</span>
+          <div>
+            <div id="settingsDebug"></div>
+            <div class="export-note">Saves the photos of every Test shot and what Match automatically measured and changed, in a folder you can send for analysis. Turns off when Stillpoint closes. Keeps up to 300 MB (the oldest are deleted).</div>
+            <div class="export-note" id="settingsDebugSize"></div>
+            <button id="settingsDebugFolder" class="btn btn-link btn-small settings-link">Open debug folder</button>
+            <button id="settingsDebugDelete" class="btn btn-link btn-small settings-link">Delete debug data</button>
+          </div>
         </div>
         <div id="settingsRestart" class="settings-restart hidden">
           <span>The change applies the next time Stillpoint opens.</span>
