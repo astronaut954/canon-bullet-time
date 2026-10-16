@@ -823,7 +823,8 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-card-head p { margin: 6px 0 0; color: var(--noct-text-muted); }
 .cs-card-grid { flex: 1; min-height: 0; overflow: auto; padding: 16px 22px; display: flex; flex-wrap: wrap; gap: 16px; align-content: flex-start; }
 .cs-card-tile { display: flex; flex-direction: column; gap: 6px; }
-.cs-card-photo { position: relative; display: inline-block; cursor: crosshair; line-height: 0; border: 1px solid var(--noct-border); }
+.cs-card-photo { position: relative; display: inline-block; cursor: crosshair; line-height: 0; border: 1px solid var(--noct-border); user-select: none; -webkit-user-select: none; touch-action: none; }
+.cs-card-photo img { -webkit-user-drag: none; pointer-events: none; }
 .cs-card-photo img { display: block; height: 300px; width: auto; max-width: 100%; }
 .cs-card-box { position: absolute; border: 2px solid var(--noct-primary); box-shadow: 0 0 0 1px rgba(0, 0, 0, .8), var(--noct-glow-primary-soft); pointer-events: none; }
 .cs-card-label { font: 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--noct-text-muted); }

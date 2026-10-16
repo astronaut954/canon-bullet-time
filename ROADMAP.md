@@ -341,7 +341,7 @@ computador e para outras marcas).
 - **Cartão cinza** ("Use gray card", ao lado de Match automatically; 2026-10-16): a pessoa põe
   um cartão cinza onde todas as câmeras veem. Depois da primeira foto o app acha o cartão em cada
   foto (maior área lisa, de tom médio e cor quase neutra, de preferência perto do centro) e mostra
-  as fotos com o cartão marcado; a pessoa confere ou clica no cartão para corrigir e continua
+  as fotos com o cartão marcado; a pessoa confere, clica no cartão (o app acha a área em volta) ou arrasta para desenhar a área, e continua
   (Continue precisa de pelo menos 2 câmeras com o cartão). Daí em diante o app mede só o cartão
   (a mesma área em todas as fotos; as câmeras não se mexem). Muda o alvo da cor: o cartão deve
   sair cinza neutro (balanço de branco certo), e não a média das câmeras; o brilho continua na

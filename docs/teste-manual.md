@@ -269,7 +269,8 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
 - [ ] "Use gray card" só pode ser marcado com Match automatically ligado.
 - [ ] Cartão cinza (ou papel cinza fosco) onde todas as câmeras veem, "Use gray card" marcado,
       Test shot: depois da primeira foto aparece a tela Gray card com cada foto e o cartão marcado.
-      Clicar no cartão numa foto move a marcação. Sem cartão marcado em 2 câmeras, Continue fica
+      Clicar no cartão numa foto move a marcação; segurar e arrastar desenha a área (a foto não
+      é arrastada). Sem cartão marcado em 2 câmeras, Continue fica
       desligado. Continue: o Match termina; nas fotos finais o cartão sai cinza (sem puxar para
       cor nenhuma) e com brilho parecido em todas.
 - [ ] Na tela Gray card: Cancel, Esc ou Done cancelam o Test shot e as câmeras voltam como estavam.

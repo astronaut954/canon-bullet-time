@@ -2784,18 +2784,53 @@
       tile.innerHTML = '<div class="cs-card-photo"><img alt=""><div class="cs-card-box"></div></div><div class="cs-card-label"></div>';
       const img = tile.querySelector("img");
       if (session && pick) orderPhoto(session.name, pick.file, 900).then((url) => { if (url) img.src = url; });
-      tile.querySelector(".cs-card-photo").addEventListener("click", (e) => {
+      // Clicar: o app acha o cartão em volta do ponto. Arrastar: a pessoa desenha a área.
+      img.draggable = false;
+      const photoEl = tile.querySelector(".cs-card-photo");
+      const at = (e) => {
         const rect = img.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        const x = Math.round(Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * 1000);
-        const y = Math.round(Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)) * 1000);
-        Promise.resolve(window.grayCardFind(cam.name, String(x), String(y))).then((r) => {
-          if (!r) return;
-          csCard.regions[cam.name] = r;
-          csCardBox(tile, r);
-          csCardStatus();
-        });
+        return { x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+                 y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)), ok: rect.width > 0 && rect.height > 0 };
+      };
+      const apply = (r) => {
+        if (!r) return;
+        csCard.regions[cam.name] = r;
+        csCardBox(tile, r);
+        csCardStatus();
+      };
+      let drag = null;
+      photoEl.addEventListener("dragstart", (e) => e.preventDefault());
+      photoEl.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const p = at(e);
+        if (!p.ok) return;
+        drag = { x0: p.x, y0: p.y, sx: e.clientX, sy: e.clientY, moved: false };
+        photoEl.setPointerCapture(e.pointerId);
       });
+      photoEl.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+        drag.moved = true;
+        const p = at(e);
+        csCardBox(tile, { found: true, x0: Math.min(drag.x0, p.x), y0: Math.min(drag.y0, p.y), x1: Math.max(drag.x0, p.x), y1: Math.max(drag.y0, p.y) });
+      });
+      const finish = (e) => {
+        if (!drag) return;
+        const d = drag;
+        drag = null;
+        const p = at(e);
+        const k = (v) => String(Math.round(v * 1000));
+        if (!d.moved) {
+          Promise.resolve(window.grayCardFind(cam.name, k(p.x), k(p.y))).then(apply);
+          return;
+        }
+        const x0 = Math.min(d.x0, p.x), y0 = Math.min(d.y0, p.y), x1 = Math.max(d.x0, p.x), y1 = Math.max(d.y0, p.y);
+        if (x1 - x0 < 0.005 || y1 - y0 < 0.005) { csCardBox(tile, csCard.regions[cam.name]); return; }
+        Promise.resolve(window.grayCardSet(cam.name, k(x0), k(y0), k(x1), k(y1))).then((r) => apply(r || csCard.regions[cam.name]));
+      };
+      photoEl.addEventListener("pointerup", finish);
+      photoEl.addEventListener("pointercancel", () => { drag = null; csCardBox(tile, csCard.regions[cam.name]); });
       grid.appendChild(tile);
       csCardBox(tile, csCard.regions[cam.name]);
     });

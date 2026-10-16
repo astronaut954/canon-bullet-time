@@ -1412,6 +1412,26 @@ namespace
             return regionJson(args[0], region);
         });
 
+        // grayCardSet("câmera", "x0", "y0", "x1", "y1"): a pessoa desenhou a área do cartão
+        // (de 0 a 1000)
+        window.bind("grayCardSet", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.size() < 5)
+                return "null";
+            double v[4] = { 0, 0, 1000, 1000 };
+            try { for (int i = 0; i < 4; ++i) v[i] = std::clamp(std::stod(args[i + 1]), 0.0, 1000.0) / 1000.0; }
+            catch (...) { return "null"; }
+            ColorMatch::Region region;
+            region.found = v[2] > v[0] && v[3] > v[1];
+            region.x0 = v[0]; region.y0 = v[1]; region.x1 = v[2]; region.y1 = v[3];
+            std::lock_guard<std::mutex> lock(cardPick.mutex);
+            if (!cardPick.files.count(args[0]) || !region.found)
+                return "null";
+            cardPick.regions[args[0]] = region;
+            return regionJson(args[0], region);
+        });
+
         // grayCardConfirm(): o cartão está certo em todas; o Match continua
         window.bind("grayCardConfirm", [&](const std::string&) -> std::string
         {
