@@ -300,6 +300,10 @@ Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from ap
       fica intacta). Keep in app: continuam no app. Com erro no meio, pergunta só pelas que salvou.
 - [ ] Fechar o app durante o salvamento ("Close when done") e salvar ao fechar: não pergunta; as
       salvas saem do app como antes.
+- [ ] Keep in app: a sessão aparece com "Saved" na lista. Só com sessões salvas no app, fechar o
+      app não pergunta nada e, ao abrir de novo, não aparece "Sessions from last time" (elas
+      continuam na lista). Com uma salva e uma não salva: o aviso fala de 1 sessão; "Delete and
+      close" apaga só a não salva; "Save and close" vem só com a não salva marcada.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.

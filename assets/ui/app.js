@@ -889,7 +889,8 @@
       li.className = "folder" + (currentSession && currentSession.name === s.name ? " active" : "");
       li.innerHTML = icon("folder", 16) + '<div><div class="folder-date"></div><div class="folder-meta"></div></div>';
       li.querySelector(".folder-date").textContent = label.date;
-      li.querySelector(".folder-meta").textContent = [plural(count, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
+      li.querySelector(".folder-meta").textContent = [plural(count, "photo", "photos"), label.detail, s.saved ? "Saved" : ""].filter(Boolean).join(" · ");
+      if (s.saved) li.title = "Already saved. It stays in the app until you delete it.";
       li.addEventListener("click", () => showSession(s));
       ui.sessionList.appendChild(li);
     });
@@ -1275,7 +1276,9 @@
   function openExport(mode) {
     $("modeOverlay").classList.add("hidden");
     exp.mode = mode;
-    exp.selected = new Set(sessions.map((s) => s.name));
+    // Salvando para fechar: só as que ainda não foram salvas (as já salvas ficam marcadas fora)
+    const unsaved = sessions.filter((s) => !s.saved);
+    exp.selected = new Set((exp.exitAfter && unsaved.length ? unsaved : sessions).map((s) => s.name));
     Object.keys(exp.settings).forEach((k) => { if (!sessions.some((s) => s.name === k)) delete exp.settings[k]; });
     if (!sessions.some((s) => s.name === exp.active)) exp.active = (currentSession && currentSession.name) || sessions[0].name;
     exp.photo = 0;

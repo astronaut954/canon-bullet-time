@@ -20,6 +20,7 @@ struct StoredSession
 {
     std::string name;    // nome da pasta (data/hora da sessão)
     std::vector<StoredPhoto> photos; // em ordem de câmera
+    bool saved = false;  // já foi salva e a pessoa escolheu mantê-la no app
 };
 
 // Imagem RGB (3 bytes por pixel), já na orientação certa
@@ -45,6 +46,10 @@ public:
 
     std::vector<StoredSession> ListSessions() const;
     int CountSessions() const;
+    // Sessões ainda não salvas (as salvas e mantidas no app não contam)
+    int CountUnsaved() const;
+    // Marca a sessão como salva (arquivo ".saved" dentro da pasta dela)
+    void MarkSaved(const std::string& session) const;
 
     // JPEG reduzido (lado maior = maxSize), com cache em disco. "" se não der.
     std::string Preview(const std::string& session, const std::string& file, int maxSize) const;
@@ -69,6 +74,8 @@ public:
     bool ReorderSession(const std::string& session, const std::vector<std::string>& groups,
                         std::string& errorMessage) const;
     void DeleteAll() const;
+    // Apaga só as sessões ainda não salvas
+    void DeleteUnsaved() const;
 
 private:
     std::filesystem::path SessionPath(const std::string& session) const;
