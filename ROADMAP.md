@@ -411,6 +411,9 @@ computador e para outras marcas).
   com a caixa pela porta USB serial ("dispara canais X em Y ms"). USB continua cuidando das
   configurações e das fotos. Antes de montar 12 canais, um protótipo de 2 canais confirma: a
   câmera dispara pelo cabo com a sessão USB aberta e a foto chega ao computador.
+  Feito em 2026-10-16: guia de montagem em `docs/hardware/caixa-de-disparo.pdf` (2 fases, lista
+  de compras com preços conferidos, esquemas) e o programa do ESP32 em
+  `hardware/trigger-box/firmware/` (protocolo serial PING/FIRE/PLAN/GO; não testado em hardware).
 - **Ajustar as fotos em vez da câmera: correções pelo programa e RAW (decidido em 2026-10-16,
   opção B).** Quando houver câmera corrigida pelo programa e o formato for Original, o Save
   sessions avisa que o RAW dessas câmeras não inclui a correção, e a pessoa escolhe (RAW sem

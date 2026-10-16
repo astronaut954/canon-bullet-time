@@ -49,7 +49,7 @@ saída do terminal idêntica (conferir com o SDK falso).
 
 | Item | Caminho |
 | --- | --- |
-| Projeto no Mac | `~/Documents/canon-bullet-time` (pasta local com o nome antigo) |
+| Projeto no Mac | `~/Developer/stillpoint` (movido de `~/Documents/canon-bullet-time` em 2026-10-16, fora do iCloud) |
 | Projeto no Windows | `C:\Users\ra-mo\source\repos\canon-bullet-time` |
 | Pacotes do SDK (Mac) | `~/Downloads/ESDK` |
 | Pacotes do SDK (Windows) | `third_party\*.zip` (fora do Git) |
