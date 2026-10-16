@@ -257,6 +257,8 @@ Salvar tira a sessão do app; copie de novo para testar outra vez.
       diferentes): todas terminam com o mesmo valor (o mais comum; empate: o da primeira câmera),
       o resumo mostra a mudança e o "±" deixa de ficar âmbar. Cancel volta os valores de antes.
 - [ ] Ajuste fino diferente entre câmeras não deixa mais a célula âmbar nem "Settings differ".
+- [ ] Copy from camera: copia também Contrast, Saturation e Color tone do "±" (depois do Picture
+      Style). Com a calibração da cartela, cada modelo recebe o valor com a diferença do modelo.
 - [ ] "±" do Picture Style: só uma ou duas opções (Contrast, Saturation, Color tone) diferentes →
       âmbar tracejado (na câmera diferente e em All cameras), e na caixa do "±" a opção diferente
       fica âmbar; as três diferentes → âmbar cheio; todas iguais → normal. A legenda do "?" mostra

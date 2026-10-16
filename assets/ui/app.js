@@ -2766,6 +2766,18 @@
       else csSet("*", "wb", wb.value);
     }
     if (c.shiftAvailable) { csSet("*", "shiftab", c.shiftAB); csSet("*", "shiftgm", c.shiftGM); }
+    // Ajustes do Picture Style (Contrast, Saturation, Color tone): depois do estilo (cada
+    // estilo guarda os seus). Com a calibração da cartela, cada modelo recebe o valor que
+    // o deixa parecido com a câmera escolhida (o mesmo que o Match faria).
+    if (c.styleDetail) {
+      camSettings.filter((x) => x.adjustable && x.styleDetail && x.camera !== name).forEach((x) => {
+        STYLE_DETAILS.forEach(([key, , f]) => {
+          const v = Math.max(-4, Math.min(4, c[f] - csChartAdjust(c, f) + csChartAdjust(x, f)));
+          const styleChanges = (c.settings.style && c.settings.style.value) !== (x.settings.style && x.settings.style.value);
+          if (v !== x[f] || styleChanges) csSet(x.camera, key, v);
+        });
+      });
+    }
     toast("Copying the settings of " + name + " to the other cameras");
   }
 
