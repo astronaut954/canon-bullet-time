@@ -1640,9 +1640,32 @@
     window.exportSessions(exp.exitAfter ? "exit" : "", deleteRest ? "delete" : "", ...names.map(exportSpec));
   }
 
+  // Formatos misturados: salvando como Original, umas câmeras mandaram RAW e outras só JPEG
+  // (Quality diferente). Avisa antes, para a pessoa igualar em Camera settings se quiser.
+  const RAW_RE = /\.(cr2|cr3|crw|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|raw)$/i;
+  function mixedFormats() {
+    const raw = new Set(), jpeg = new Set();
+    sessions.filter((s) => exp.selected.has(s.name) && exp.mode === "photos" && settingsFor(s.name).photos.format === "original").forEach((s) => {
+      const byCam = {};
+      s.photos.forEach((p) => { if (!p.camera) return; byCam[p.camera] = byCam[p.camera] || { raw: false }; if (RAW_RE.test(p.file)) byCam[p.camera].raw = true; });
+      Object.keys(byCam).forEach((cam) => (byCam[cam].raw ? raw : jpeg).add(cam));
+    });
+    jpeg.forEach((c) => { if (raw.has(c)) jpeg.delete(c); });
+    return raw.size && jpeg.size ? { raw: [...raw].sort(), jpeg: [...jpeg].sort() } : null;
+  }
   function confirmExport() {
     const chosen = exp.selected.size;
     if (!chosen) return;
+    const mixed = mixedFormats();
+    if (mixed && !exp.formatsChecked) {
+      dialog("Not every camera sent RAW",
+        "RAW: " + mixed.raw.join(", ") + ". JPEG only: " + mixed.jpeg.join(", ") + ". Saved as Original, each camera keeps the format it shot. " +
+        "To make them the same, set Quality in Camera settings before the next session, or save as JPG to convert all of them now.", [
+        { label: "Back" },
+        { label: "Save as is", primary: true, onClick: () => { exp.formatsChecked = true; confirmExport(); exp.formatsChecked = false; } },
+      ]);
+      return;
+    }
     const left = sessions.length - chosen;
     if (!left) return runExport(false);
     dialog("Delete the sessions you did not select?",
