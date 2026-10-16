@@ -555,6 +555,14 @@ void PhotoStore::DeleteAll() const
         fs::remove_all(root / session.name, ec);
 }
 
+void PhotoStore::DeleteSaved() const
+{
+    std::error_code ec;
+    for (const auto& session : ListSessions())
+        if (session.saved)
+            fs::remove_all(root / session.name, ec);
+}
+
 void PhotoStore::DeleteUnsaved() const
 {
     std::error_code ec;

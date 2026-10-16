@@ -908,6 +908,9 @@ namespace
         CanonController controller;
         BulletTime bulletTime(controller, listener);
         PhotoStore store(Platform::AppDataFolder() / "Photos");
+        // Sessões salvas e mantidas no app ficam só até fechar: se o app fechou de
+        // repente, saem agora
+        store.DeleteSaved();
         // Fotos de teste do "Reorder by photo": só servem para ordenar, são apagadas depois
         PhotoStore orderStore(Platform::AppDataFolder() / "Order photos");
         orderStore.DeleteAll();
@@ -997,6 +1000,7 @@ namespace
         {
             if (shuttingDown.exchange(true))
                 return;
+            store.DeleteSaved();  // as salvas mantidas no app saem ao fechar (a cópia salva fica)
             SetLogSink([](const std::string&) {});
             listener.Emit(Json("closing"));
 

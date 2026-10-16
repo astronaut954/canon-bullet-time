@@ -76,6 +76,8 @@ public:
     void DeleteAll() const;
     // Apaga só as sessões ainda não salvas
     void DeleteUnsaved() const;
+    // Apaga as sessões já salvas que ficaram no app (ao fechar e ao abrir)
+    void DeleteSaved() const;
 
 private:
     std::filesystem::path SessionPath(const std::string& session) const;

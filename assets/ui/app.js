@@ -884,7 +884,7 @@
     const t = document.createElement("span");
     t.className = "saved-tag";
     t.textContent = "✓ Saved";
-    t.title = "Already saved. It stays in the app until you delete it.";
+    t.title = "Already saved. It leaves the app when you close Stillpoint (the saved copy stays where you saved it).";
     return t;
   }
 
@@ -901,7 +901,7 @@
       li.querySelector(".folder-meta").textContent = [plural(count, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
       if (s.saved) {
         li.querySelector(".folder-meta").after(savedTag());
-        li.title = "Already saved. It stays in the app until you delete it.";
+        li.title = "Already saved. It leaves the app when you close Stillpoint (the saved copy stays where you saved it).";
       }
       li.addEventListener("click", () => showSession(s));
       ui.sessionList.appendChild(li);
@@ -2051,8 +2051,8 @@
         const one = saved.length === 1;
         dialog(one ? "Discard the saved session?" : "Discard the " + saved.length + " saved sessions?",
           (one ? "The session was saved to " : "The sessions were saved to ") + e.folder + ". Discard " + (one ? "it" : "them") +
-          " from Stillpoint to free up space, or keep " + (one ? "it" : "them") + " in the app. The saved copies are not touched.", [
-          { label: "Keep in app" },
+          " from Stillpoint now, or keep " + (one ? "it" : "them") + " in the app until you close it. The saved copies are not touched.", [
+          { label: "Keep until I close" },
           { label: "Discard from app", primary: true, onClick: () => {
             saved.forEach((name) => window.deleteSession(name));
             log("Discarded " + plural(saved.length, "saved session", "saved sessions") + " from the app", "tech");

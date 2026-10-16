@@ -297,13 +297,15 @@ Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from ap
 - [ ] Com Debug: pasta "_chart" com as fotos e o trace.txt (medidas de cada foto).
 - [ ] Salvar 1 ou mais sessões (sem fechar o app): no fim aparece "Discard the saved session(s)?"
       com "Discard from app" em destaque. Discard: as sessões salvas somem do app (a pasta salva
-      fica intacta). Keep in app: continuam no app. Com erro no meio, pergunta só pelas que salvou.
+      fica intacta). "Keep until I close": continuam no app até fechar. Com erro no meio, pergunta
+      só pelas que salvou.
 - [ ] Fechar o app durante o salvamento ("Close when done") e salvar ao fechar: não pergunta; as
-      salvas saem do app como antes.
-- [ ] Keep in app: a sessão aparece com a etiqueta verde "✓ Saved" na lista de sessões e na janela Save sessions. Só com sessões salvas no app, fechar o
-      app não pergunta nada e, ao abrir de novo, não aparece "Sessions from last time" (elas
-      continuam na lista). Com uma salva e uma não salva: o aviso fala de 1 sessão; "Delete and
-      close" apaga só a não salva; "Save and close" vem só com a não salva marcada.
+      salvas saem do app.
+- [ ] "Keep until I close": a sessão aparece com a etiqueta verde "✓ Saved" na lista de sessões e
+      na janela Save sessions. Só com sessões salvas no app, fechar não pergunta nada; ao abrir de
+      novo elas não estão mais no app (a pasta salva continua intacta) e não aparece "Sessions
+      from last time". Com uma salva e uma não salva: o aviso fala de 1 sessão; "Delete and close"
+      apaga a não salva; "Save and close" vem só com a não salva marcada.
 - [ ] Disparo normal depois de mudar as configurações; terminal app sem mudança.
 - [ ] Com o app aberto (com e sem a janela Camera settings aberta), desligar as câmeras: o app
       não fecha sozinho; elas aparecem como desconectadas e voltam ao religar.
