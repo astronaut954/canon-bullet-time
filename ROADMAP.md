@@ -388,6 +388,11 @@ computador e para outras marcas).
 - **Versão 2.8.1** (2026-10-16): sessões salvas e mantidas no app (etiqueta "✓ Saved", saem ao
   fechar). Testado no Mac com sessões simuladas (sem câmeras).
 
+- **Aviso de formatos misturados** (2026-10-16, para a 2.8.2): no Save sessions como Original,
+  quando umas câmeras mandaram RAW e outras só JPEG, o app avisa com as câmeras de cada lado e
+  deixa salvar mesmo assim ou voltar. É a parte da "opção B" que já faz sentido sem a correção pelo
+  programa: nunca misturar formatos sem a pessoa saber.
+
 ## Futuro (não planejado ainda)
 
 - **Disparo com intervalos (PRIORIDADE, pedido do dono do projeto em 2026-10-16; etapa 14).**

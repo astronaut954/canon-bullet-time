@@ -142,6 +142,9 @@ o app fechado:
 
 Depois de salvar, o app pergunta se descarta as sessões salvas (Discard from app) ou mantém até fechar (Keep until I close); nos dois casos elas saem do app, então copie de novo para testar outra vez.
 
+- [ ] Sessão com RAW numa câmera e só JPEG noutra (Quality diferente), Photos → Original → Save:
+      aviso "Not every camera sent RAW" com as câmeras de cada lado; "Save as is" salva mesmo assim;
+      "Back" volta. Com todas iguais (ou formato convertido), não avisa.
 - [ ] "Save sessions" pergunta Photos ou Sequence.
 - [ ] Photos: Original move as fotos como antes; PNG, JPG, WEBP, TIFF e HEIC criam os arquivos
       convertidos (Windows: HEIC desativado se faltar a extensão, com o motivo).
