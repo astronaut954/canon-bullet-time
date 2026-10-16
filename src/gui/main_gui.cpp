@@ -699,7 +699,7 @@ namespace
             photos += "]";
 
             Json item("session");
-            item.Add("name", session.name).Raw("photos", photos);
+            item.Add("name", session.name).Add("saved", session.saved).Raw("photos", photos);
             list += (firstSession ? "" : ",") + item.Str();
             firstSession = false;
         }
@@ -908,6 +908,9 @@ namespace
         CanonController controller;
         BulletTime bulletTime(controller, listener);
         PhotoStore store(Platform::AppDataFolder() / "Photos");
+        // Sessões salvas e mantidas no app ficam só até fechar: se o app fechou de
+        // repente, saem agora
+        store.DeleteSaved();
         // Fotos de teste do "Reorder by photo": só servem para ordenar, são apagadas depois
         PhotoStore orderStore(Platform::AppDataFolder() / "Order photos");
         orderStore.DeleteAll();
@@ -997,6 +1000,7 @@ namespace
         {
             if (shuttingDown.exchange(true))
                 return;
+            store.DeleteSaved();  // as salvas mantidas no app saem ao fechar (a cópia salva fica)
             SetLogSink([](const std::string&) {});
             listener.Emit(Json("closing"));
 
@@ -1082,7 +1086,7 @@ namespace
             // o reinício sem precisar de uma câmera presa conectando
             std::string selfUpdateReason;
             const bool canSelfUpdate = Platform::CanSelfUpdate(selfUpdateReason);
-            return Json("startup").Add("unsavedSessions", store.CountSessions())
+            return Json("startup").Add("unsavedSessions", store.CountUnsaved())
                 .Add("testRestart", std::getenv("STILLPOINT_TEST_RESTART") != nullptr)
                 .Add("version", version)
                 .Add("previousVersion", previousVersion)
@@ -2000,7 +2004,10 @@ namespace
                     if (exitAfter)
                         store.DeleteSession(job.session);
                     else
+                    {
+                        store.MarkSaved(job.session);  // mantida: não conta como "não salva"
                         savedNames.push_back(job.session);
+                    }
                     savedTo.push_back(target);
                     ++done;
                     report(1.0, "done");
@@ -2371,9 +2378,10 @@ namespace
 
         window.bind("exitApp", [&](const std::string& request) -> std::string
         {
-            // exitApp(true) apaga as fotos não salvas antes de fechar
+            // exitApp(true) apaga as fotos não salvas antes de fechar (as salvas e
+            // mantidas no app ficam)
             if (request.find("true") != std::string::npos)
-                store.DeleteAll();
+                store.DeleteUnsaved();
             window.dispatch([&] { closeNow(); });
             return "null";
         });
@@ -2385,7 +2393,7 @@ namespace
             {
                 if (allowClose)
                     return true;
-                const int unsaved = store.CountSessions();
+                const int unsaved = store.CountUnsaved();
                 if (unsaved == 0)
                     closeNow();  // encerra as câmeras antes de fechar a janela
                 else

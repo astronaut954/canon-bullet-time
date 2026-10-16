@@ -879,6 +879,15 @@
     else { currentSession = current; renderSessionList(); }
   }
 
+  // Etiqueta de sessão já salva (lista de sessões e janela Save sessions)
+  function savedTag() {
+    const t = document.createElement("span");
+    t.className = "saved-tag";
+    t.textContent = "✓ Saved";
+    t.title = "Already saved. It leaves the app when you close Stillpoint (the saved copy stays where you saved it).";
+    return t;
+  }
+
   function renderSessionList() {
     ui.sessionList.innerHTML = "";
     ui.noSessions.classList.toggle("hidden", sessions.length > 0);
@@ -890,6 +899,10 @@
       li.innerHTML = icon("folder", 16) + '<div><div class="folder-date"></div><div class="folder-meta"></div></div>';
       li.querySelector(".folder-date").textContent = label.date;
       li.querySelector(".folder-meta").textContent = [plural(count, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
+      if (s.saved) {
+        li.querySelector(".folder-meta").after(savedTag());
+        li.title = "Already saved. It leaves the app when you close Stillpoint (the saved copy stays where you saved it).";
+      }
       li.addEventListener("click", () => showSession(s));
       ui.sessionList.appendChild(li);
     });
@@ -1275,7 +1288,9 @@
   function openExport(mode) {
     $("modeOverlay").classList.add("hidden");
     exp.mode = mode;
-    exp.selected = new Set(sessions.map((s) => s.name));
+    // Salvando para fechar: só as que ainda não foram salvas (as já salvas ficam marcadas fora)
+    const unsaved = sessions.filter((s) => !s.saved);
+    exp.selected = new Set((exp.exitAfter && unsaved.length ? unsaved : sessions).map((s) => s.name));
     Object.keys(exp.settings).forEach((k) => { if (!sessions.some((s) => s.name === k)) delete exp.settings[k]; });
     if (!sessions.some((s) => s.name === exp.active)) exp.active = (currentSession && currentSession.name) || sessions[0].name;
     exp.photo = 0;
@@ -1324,6 +1339,7 @@
       li.querySelector(".export-check").addEventListener("click", (e) => e.stopPropagation());
       li.querySelector(".folder-date").textContent = label.date;
       li.querySelector(".folder-meta").textContent = [plural(sessionItems(s).length, "photo", "photos"), label.detail].filter(Boolean).join(" · ");
+      if (s.saved) li.querySelector(".folder-meta").after(savedTag());
       li.querySelector(".export-summary").textContent = summaryText(s);
       li.classList.toggle("different", !exp.sameForAll && s.name !== exp.active && !sameAsActive(s.name));
       const first = sessionItems(s).find((i) => i.previewable);
@@ -2035,8 +2051,8 @@
         const one = saved.length === 1;
         dialog(one ? "Discard the saved session?" : "Discard the " + saved.length + " saved sessions?",
           (one ? "The session was saved to " : "The sessions were saved to ") + e.folder + ". Discard " + (one ? "it" : "them") +
-          " from Stillpoint to free up space, or keep " + (one ? "it" : "them") + " in the app. The saved copies are not touched.", [
-          { label: "Keep in app" },
+          " from Stillpoint now, or keep " + (one ? "it" : "them") + " in the app until you close it. The saved copies are not touched.", [
+          { label: "Keep until I close" },
           { label: "Discard from app", primary: true, onClick: () => {
             saved.forEach((name) => window.deleteSession(name));
             log("Discarded " + plural(saved.length, "saved session", "saved sessions") + " from the app", "tech");

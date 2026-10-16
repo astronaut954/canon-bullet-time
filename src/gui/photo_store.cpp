@@ -31,6 +31,7 @@ namespace fs = std::filesystem;
 namespace
 {
     const char* const kPreviewFolder = ".previews";
+    const char* const kSavedMark = ".saved";  // sessão salva e mantida no app
 
     std::string ReadFile(const fs::path& path)
     {
@@ -288,9 +289,11 @@ std::vector<StoredSession> PhotoStore::ListSessions() const
         StoredSession session;
         session.name = dir.path().filename().string();
 
+        session.saved = fs::exists(dir.path() / kSavedMark, ec);
         for (const auto& entry : fs::directory_iterator(dir.path(), ec))
         {
-            if (!entry.is_regular_file())
+            // Só fotos (arquivos que começam com "." são do app, como ".saved")
+            if (!entry.is_regular_file() || entry.path().filename().string().rfind('.', 0) == 0)
                 continue;
             StoredPhoto photo;
             photo.file = entry.path().filename().string();
@@ -321,6 +324,23 @@ std::vector<StoredSession> PhotoStore::ListSessions() const
 int PhotoStore::CountSessions() const
 {
     return static_cast<int>(ListSessions().size());
+}
+
+int PhotoStore::CountUnsaved() const
+{
+    int count = 0;
+    for (const auto& session : ListSessions())
+        if (!session.saved)
+            ++count;
+    return count;
+}
+
+void PhotoStore::MarkSaved(const std::string& session) const
+{
+    const fs::path dir = SessionPath(session);
+    std::error_code ec;
+    if (!dir.empty() && fs::is_directory(dir, ec))
+        std::ofstream(dir / kSavedMark) << "saved\n";
 }
 
 std::string PhotoStore::Preview(const std::string& session, const std::string& file, int maxSize) const
@@ -493,8 +513,8 @@ bool PhotoStore::DeletePhotos(const std::string& session, const std::vector<std:
     std::vector<fs::path> toDelete;
     for (const auto& entry : fs::directory_iterator(dir, ec))
     {
-        if (!entry.is_regular_file())
-            continue;
+        if (!entry.is_regular_file() || entry.path().filename().string().rfind('.', 0) == 0)
+            continue;  // só fotos (".saved" é do app)
         const std::string file = entry.path().filename().string();
         std::smatch match;
         const std::string group = std::regex_match(file, match, photoName)
@@ -533,6 +553,22 @@ void PhotoStore::DeleteAll() const
     std::error_code ec;
     for (const auto& session : ListSessions())
         fs::remove_all(root / session.name, ec);
+}
+
+void PhotoStore::DeleteSaved() const
+{
+    std::error_code ec;
+    for (const auto& session : ListSessions())
+        if (session.saved)
+            fs::remove_all(root / session.name, ec);
+}
+
+void PhotoStore::DeleteUnsaved() const
+{
+    std::error_code ec;
+    for (const auto& session : ListSessions())
+        if (!session.saved)
+            fs::remove_all(root / session.name, ec);
 }
 
 std::string Base64Encode(const std::string& data)

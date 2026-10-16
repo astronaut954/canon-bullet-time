@@ -378,9 +378,12 @@ computador e para outras marcas).
   prévia do RAW (o que o Stillpoint mostra e exporta); Lightroom e afins ignoram.
 
 - **Depois de salvar** (pedido do dono do projeto, 2026-10-16): as sessões salvas não saem mais do
-  app sozinhas; o app pergunta "Discard from app" (botão em destaque) ou "Keep in app". Salvando
-  para fechar o app (ou "Close when done"), não pergunta e as salvas saem como antes. Uma sessão
-  mantida conta como "não salva" no aviso ao fechar o app.
+  app sozinhas; o app pergunta "Discard from app" (botão em destaque) ou "Keep until I close".
+  Salvando para fechar o app (ou "Close when done"), não pergunta e as salvas saem. Depois da 2.8.0:
+  a sessão mantida fica marcada (arquivo `.saved` na pasta dela; etiqueta verde "✓ Saved" na lista
+  de sessões e na janela Save sessions), não conta como "não salva" nos avisos de fechar e de abrir,
+  e sai do app ao fechar (e ao abrir, se o app fechou de repente). "Delete and close" apaga só as
+  não salvas; "Save and close" já vem só com as não salvas marcadas.
 
 ## Futuro (não planejado ainda)
 

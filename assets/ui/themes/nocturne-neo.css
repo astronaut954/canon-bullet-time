@@ -844,3 +844,7 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 .cs-chart-handle.first { box-shadow: 0 0 0 3px rgba(0, 0, 0, .6), 0 0 0 5px var(--noct-primary); }
 .cs-chart-tile.unmarked .cs-chart-handle { border-color: var(--noct-pending); color: var(--noct-pending); }
 .cs-sheet.capturing #csChart { opacity: .5; pointer-events: none; }
+
+/* Sessão já salva (mantida no app): etiqueta verde cheia, na lista e em Save sessions */
+.saved-tag { display: block; width: fit-content; margin-top: 5px; padding: 2px 7px; background: var(--noct-primary); color: var(--noct-on-primary);
+  font: 700 10px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; box-shadow: var(--noct-glow-primary-soft); }
