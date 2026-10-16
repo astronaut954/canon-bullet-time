@@ -850,33 +850,44 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
   font: 700 10px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; box-shadow: var(--noct-glow-primary-soft); }
 
 /* Timing (painel Bullet time): resumo, botão Advanced, seção avançada e linha do tempo */
-.timing-summary { display: flex; align-items: center; gap: 10px; margin: -4px 0 12px; font: 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--noct-text-muted); }
+.timing-summary { display: flex; align-items: center; gap: 10px; margin: -6px 0 8px; font: 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--noct-text-muted); }
 .timing-summary b { color: var(--noct-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .timing-summary .btn { margin-left: auto; flex: none; }
 .timing-tag { display: inline-block; padding: 2px 8px; border: 1px solid var(--noct-pending); color: var(--noct-pending); font: 600 10px var(--noct-font-mono); }
 .timing-tag + .timing-label { display: none; }
-.timing-mini { border: 1px solid var(--noct-border); background: var(--noct-surface-inner); padding: 4px 10px; margin: -4px 0 12px; }
+.timing-mini { border: 1px solid var(--noct-border); background: var(--noct-surface-inner); padding: 1px 8px; margin: -2px 0 8px; }
 .timing-adv { border-top: 1px dashed var(--noct-border); padding-top: 12px; margin-bottom: 12px; }
 .timing-modes { margin-bottom: 12px; flex-wrap: wrap; }
-.timing-fields { grid-template-columns: repeat(4, 1fr); }
+/* Opções do modo: caixas do mesmo tamanho, rótulos numa linha só, alinhadas pela base */
+.timing-fields { display: flex; flex-wrap: wrap; gap: 12px; align-items: start; margin: 12px 0 0; }
+.timing-fields .field { width: 150px; flex: none; }
+.timing-fields .field select.cs-sel { height: 36px; max-width: none; width: 100%; font-size: 14px; padding-left: 12px; line-height: 34px; }
+.timing-fields .field > span:first-child { white-space: nowrap; }
 .timing-fields:empty { display: none; }
-.timing-box { border: 1px solid var(--noct-border); background: var(--noct-surface-inner); padding: 8px 12px 10px; }
+.timing-custom { margin-top: 12px; }
+.timing-box { border: 1px solid var(--noct-border); background: var(--noct-surface-inner); padding: 8px 12px 10px; margin-bottom: 0; }
 .timing-head { display: flex; align-items: baseline; gap: 12px; font: 11px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--noct-text-muted); margin-bottom: 6px; }
 .timing-head b { color: var(--noct-text); font-size: 12px; }
 .timing-total { margin-left: auto; color: var(--noct-text-dim); }
 .timing-warn { margin: 6px 0 0; font: 11px var(--noct-font-mono); color: var(--noct-pending); }
 .tl { position: relative; height: 50px; margin: 0 10px; }
-.tl.small { height: 26px; }
+.tl.small { height: 24px; }
+.tl.small.stagger { height: 36px; }
 .tl .axis { position: absolute; left: 14px; right: 14px; top: 20px; border-top: 1px dashed var(--noct-border-strong); }
 .tl.small .axis { top: 12px; }
-.tl .tick { position: absolute; top: 36px; transform: translateX(-50%); font: 10px var(--noct-font-mono); color: var(--noct-text-dim); }
+.tl .tick { position: absolute; top: 36px; transform: translateX(-50%); font: 10px var(--noct-font-mono); color: var(--noct-text-dim); white-space: nowrap; }
+.tl .tick:last-child { transform: translateX(-100%); }
+.tl .tick.first { transform: none; }
 .tl .dot { position: absolute; top: 10px; height: 20px; width: auto; min-width: 20px; margin: 0; flex: none; padding: 0 6px; box-sizing: border-box; transform: translateX(-50%); border-radius: 10px; white-space: nowrap;
   background: var(--noct-primary); color: var(--noct-on-primary); font: 700 10px var(--noct-font-mono); display: flex; align-items: center; justify-content: center; box-shadow: var(--noct-glow-primary-soft); }
-.tl.small .dot { top: 5px; height: 14px; min-width: 14px; font-size: 8px; padding: 0 4px; }
+.tl.small .dot { top: 4px; height: 16px; min-width: 16px; font-size: 8px; padding: 0 3px; border-radius: 8px; }
+.tl.small.stagger .axis { top: 18px; }
+.tl.small.stagger .dot { top: 2px; }
+.tl.small.stagger .dot.low { top: 18px; }
 .tl .dot.second { background: var(--noct-elevated); color: var(--noct-primary); border: 1px solid var(--noct-primary); box-shadow: none; }
 .tl .dot.off { background: transparent; color: var(--noct-text-dim); border: 1px dashed var(--noct-text-dim); box-shadow: none; }
 /* Custom: passos (câmeras + tempo depois do passo anterior) */
-.timing-custom { margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
+.timing-custom { margin-bottom: 0; display: flex; flex-direction: column; gap: 8px; }
 .timing-step { display: grid; grid-template-columns: 56px auto minmax(0, 1fr) 26px; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--noct-border); background: var(--noct-surface-inner); }
 .timing-step .step-n { font: 700 11px var(--noct-font-mono); color: var(--noct-text-muted); text-transform: uppercase; letter-spacing: .08em; width: 56px; flex: none; }
 .timing-step .step-after { display: flex; align-items: center; gap: 6px; font: 11px var(--noct-font-mono); color: var(--noct-text-muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -889,3 +900,8 @@ body.timing-open .app { --controls-h: clamp(320px, 64vh, 720px); }
 .cam-chip.used { opacity: .35; }
 .timing-step .step-x { flex: none; width: 26px; height: 26px; padding: 0; color: var(--noct-text-muted); }
 .timing-step .step-x:hover { color: var(--noct-danger); }
+.tl.stagger:not(.small) { height: 66px; }
+.tl.stagger:not(.small) .axis { top: 30px; }
+.tl.stagger:not(.small) .dot { top: 6px; }
+.tl.stagger:not(.small) .dot.low { top: 34px; }
+.tl.stagger:not(.small) .tick { top: 54px; }

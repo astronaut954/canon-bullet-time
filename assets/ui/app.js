@@ -3324,6 +3324,7 @@
   }
   function renderTimeline(root, plan, small) {
     root.innerHTML = "";
+    root.classList.remove("stagger");
     const axis = el("div", "axis"); root.appendChild(axis);
     if (!plan.shots.length) return;
     const tmax = Math.max(1, plan.shots[plan.shots.length - 1].t);
@@ -3331,15 +3332,21 @@
     const X = (t) => 14 + (plan.shots[plan.shots.length - 1].t ? (t / tmax) * (width - 28) : 0);
     const groups = new Map();
     plan.shots.forEach((s) => { const k = s.t + "|" + (s.pass ? 1 : 0); if (!groups.has(k)) groups.set(k, { t: s.t, pass: s.pass, orders: [] }); groups.get(k).orders.push(s.order); });
-    groups.forEach((g) => {
-      const d = el("span", "dot" + (g.pass ? " second" : ""), timingLabel(g.orders));
+    const list = [...groups.values()];
+    // Apertado (bolinhas a menos de 20 px): alterna em duas alturas para os números lerem
+    let minGap = Infinity;
+    for (let i = 1; i < list.length; i++) minGap = Math.min(minGap, X(list[i].t) - X(list[i - 1].t));
+    const stagger = list.length > 1 && minGap < 20;
+    if (stagger) root.classList.add("stagger");
+    list.forEach((g, i) => {
+      const d = el("span", "dot" + (g.pass ? " second" : "") + (stagger && i % 2 ? " low" : ""), timingLabel(g.orders));
       d.style.left = X(g.t) + "px";
       d.title = (g.orders.length === 1 ? "Camera " + g.orders[0] : "Cameras " + g.orders.join(", ")) + " at " + fmtS(g.t);
       root.appendChild(d);
     });
     if (!small) [0, 0.5, 1].forEach((f) => {
       if (plan.shots[plan.shots.length - 1].t === 0 && f > 0) return;
-      const tick = el("span", "tick", fmtS(f * tmax)); tick.style.left = X(f * tmax) + "px"; root.appendChild(tick);
+      const tick = el("span", "tick" + (f === 0 ? " first" : ""), fmtS(f * tmax)); tick.style.left = X(f * tmax) + "px"; root.appendChild(tick);
     });
   }
   function timingSummaryText(plan) {
@@ -3388,9 +3395,9 @@
     }
     if (timing.mode === "groups") {
       f.appendChild(field("Groups", "", timing.groups, (v) => { timing.groups = Math.round(num(v, 1, 99, 2)); timingSave(); }));
-      f.appendChild(field("Between groups", "sec", timing.gap, (v) => { timing.gap = num(v, 0.05, 600, 1); timingSave(); }));
+      f.appendChild(field("Gap", "sec", timing.gap, (v) => { timing.gap = num(v, 0.05, 600, 1); timingSave(); }, { title: "Time between one group and the next." }));
     }
-    if (timing.mode === "oddeven") f.appendChild(field("Evens after odds", "sec", timing.oeGap, (v) => { timing.oeGap = num(v, 0.05, 600, 1); timingSave(); }));
+    if (timing.mode === "oddeven") f.appendChild(field("Evens delay", "sec", timing.oeGap, (v) => { timing.oeGap = num(v, 0.05, 600, 1); timingSave(); }, { title: "The even cameras fire this long after the odd ones." }));
     if (timing.mode !== "all") f.appendChild(field("Loops", "", timing.loops, (v) => { timing.loops = Math.round(num(v, 1, 99, 1)); timingSave(); }, { title: "Repeats the whole pattern this many times." }));
     const cust = $("timingCustom"); cust.innerHTML = ""; cust.classList.toggle("hidden", timing.mode !== "custom");
     if (timing.mode === "custom") renderTimingSteps(cust, plan.N);

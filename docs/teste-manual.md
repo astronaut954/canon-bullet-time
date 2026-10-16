@@ -329,7 +329,10 @@ geram fotos de teste com o número da câmera e "#n" (número da foto na sessão
 - [ ] Custom: passos com chips; clicar num chip move a câmera para aquele passo; "Add step" cria um
       passo; o X remove. Câmera fora dos passos: aviso "Camera 9 is not in any step…".
 - [ ] Advanced fechado com um modo escolhido: etiqueta âmbar "Timing", resumo e linha do tempo
-      pequena. Em All at once nada disso aparece.
+      pequena com os números (33 fotos ainda legíveis; apertando mais, alterna em duas alturas).
+      Em All at once nada disso aparece. O painel não rola: o botão e o "Done…" ficam à vista.
+- [ ] Advanced aberto: a caixa Timeline fica sempre no mesmo lugar (logo abaixo dos modos) ao trocar
+      de modo; as opções do modo têm caixas do mesmo tamanho e alinhadas.
 - [ ] Fechar e abrir o app: o Timing escolhido continua.
 - [ ] It's bullet time com Sequence 0,5 s 1 → 9 → 1: a sessão fica com 17 fotos, na ordem 1…9, 8…1
       (olhar o número grande de cada foto e o "#n"); o download conta até 17. Sequence export toca
