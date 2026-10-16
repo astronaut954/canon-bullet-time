@@ -35,6 +35,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 11 | Menu do app e Settings | Mac: menu na barra de cima (Stillpoint, Edit, View, Window, Help), com ⌘C/⌘V/⌘A nos campos de texto e ⌘Q. Windows: botão de menu no canto do app. About, Check for updates, Settings (tema e idioma), links de ajuda. Também: cancelar o bullet time e campos só com números inteiros. Testado no Mac e no Windows (2026-10-15). Versão 2.6.0. | feito |
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
 | 13 | Match colors | Picture Style pelo app (botão "±": contraste, saturação, tom de cor) e igualado pelo Match; brilho medido como o olho vê; "Use gray card" (acha o cartão, a pessoa confere, cinza neutro); "Calibrate with chart" (cartela impressa, diferença por modelo); modo debug; perguntar se descarta as sessões depois de salvar. Testado no Mac com SL3 + T7 até o cartão cinza (2026-10-16); a cartela ainda não foi testada com câmeras. Versão 2.8.0. | feito |
+| 14 | Disparo com intervalos (Timing) | Campo Timing no painel Bullet time (botão Advanced): todas juntas, uma depois da outra (intervalo, direção 1→N / N→1 / ida e volta, loops), grupos, ímpar/par e custom (passos: câmeras + tempo). Linha do tempo. Disparo com plano no núcleo (uma foto por item; o número da foto é a posição no plano). Câmeras simuladas para testar sem câmeras (STILLPOINT_FAKE_CAMERAS). Interface testada no navegador; disparo real ainda não testado. | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -387,6 +388,33 @@ computador e para outras marcas).
 
 - **Versão 2.8.1** (2026-10-16): sessões salvas e mantidas no app (etiqueta "✓ Saved", saem ao
   fechar). Testado no Mac com sessões simuladas (sem câmeras).
+
+### Etapa 14: Disparo com intervalos / Timing (iniciada em 2026-10-16)
+
+Decisões do dono do projeto (2026-10-16): interface na proposta B (linha de resumo "Timing: …" com o
+botão Advanced; a seção abre dentro do painel e, fechada com um modo escolhido, mostra o resumo em
+destaque e uma linha do tempo pequena). Modos: All at once; One after another (intervalo, direção
+1→N, N→1 ou ida e volta 1→N→1, loops); Groups (n grupos em ordem, intervalo entre eles); Odd/even
+(ímpares juntas, pares X s depois); Custom (passos: cada passo tem as câmeras, escolhidas por
+chips, e o tempo depois do passo anterior; câmera fora de todos os passos não dispara, com aviso).
+Loops repete o padrão (na ida e volta, 1→N→2 repetido e o 1 no fim, para não disparar duas vezes
+seguidas a mesma câmera). O plano fica salvo em settings.txt (`timing=`).
+
+- Núcleo: `SequenceSettings::schedule` (câmera + instante em ms). Vazio = `ShootAll` como sempre
+  (a versão de terminal não muda). Com plano, `CanonController::ShootScheduled` dispara cada item
+  na hora, uma câmera por vez, e o número da foto na sessão é a posição do item (uma câmera pode
+  fotografar mais de uma vez na mesma sessão; `pendingPrefixes` na `CameraContext`). O Download
+  wait conta a partir do último disparo. Cancelar no meio: os itens que faltam não disparam.
+- A página manda `shoot(contagem, sessões, espera, plano)`, com o plano como "câmera:ms,…" (vazio =
+  todas juntas).
+- Câmeras simuladas: `STILLPOINT_FAKE_CAMERAS=9` antes de abrir o app (Mac:
+  `STILLPOINT_FAKE_CAMERAS=9 ./build/macos-arm64/Stillpoint`). Sem SDK; 9 câmeras "conectadas"
+  (SL3 e T7 alternadas); o disparo (e o Test shot) grava fotos de teste (900×600, o número da câmera
+  em destaque e "#n" = número da foto na sessão) seguindo o plano e os tempos. Camera settings mostra
+  as câmeras como não ajustáveis.
+- Conferido: interface testada no navegador com 9 câmeras simuladas (modos, custom, resumo,
+  plano enviado). Falta: compilar no Mac com o SDK real (o projeto saiu da pasta conectada), testar
+  com câmeras simuladas no app e, depois, com câmeras de verdade.
 
 ## Futuro (não planejado ainda)
 
