@@ -359,11 +359,11 @@ window.Live = (function () {
           // Para quem é fotografado, grupos com pausa são poses diferentes: "Next pose" na
           // contagem e "Hold still" só no último meio segundo antes de disparar
           const label = nextCams.length > 1 ? "Next group: cameras " + camList(nextCams) : "Next: camera " + nextCams[0];
-          if (audience) big(fmtS(nextIn), nextIn <= 500 ? "Hold still" : "Next pose");
+          if (audience) big(fmtS(nextIn), nextIn <= 500 ? "Firing!" : "Next pose");
           else status(fmtS(nextIn), label, true);
         } else if (audience) {
-          // Disparos seguidos (intervalos curtos) ou todas de uma vez: não se mexer
-          big("", "Hold still");
+          // Disparos seguidos (intervalos curtos) ou todas de uma vez
+          big("Firing!", "", true);
         } else {
           const k = S.fired.size;
           status(k + " / " + n, k ? "Firing · camera " + camNumber(p.shots[Math.max(...S.fired) - 1].cam) : "Firing");
@@ -375,7 +375,7 @@ window.Live = (function () {
         break;
       }
       case "receiving":
-        if (audience) big("", S.play.urls.length ? "" : "Got it!");
+        if (audience) big(S.play.urls.length ? "" : "Got it!", "", true);
         else status(S.received.done + " / " + S.received.total, "Receiving photos");
         break;
       case "done":
