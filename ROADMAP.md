@@ -36,7 +36,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
 | 13 | Match colors | Picture Style pelo app (botão "±": contraste, saturação, tom de cor) e igualado pelo Match; brilho medido como o olho vê; "Use gray card" (acha o cartão, a pessoa confere, cinza neutro); "Calibrate with chart" (cartela impressa, diferença por modelo); modo debug; perguntar se descarta as sessões depois de salvar. Testado no Mac com SL3 + T7 até o cartão cinza (2026-10-16); a cartela ainda não foi testada com câmeras. Versão 2.8.0. | feito |
 | 14 | Disparo com intervalos (Timing) | Campo Timing no painel Bullet time (botão Advanced): todas juntas, uma depois da outra (intervalo, direção 1→N / N→1 / ida e volta, loops), grupos, ímpar/par e custom (passos: câmeras + tempo). Linha do tempo. Disparo com plano no núcleo (uma foto por item; o número da foto é a posição no plano). Câmeras simuladas para testar sem câmeras (STILLPOINT_FAKE_CAMERAS). Testado no Mac com câmeras simuladas (2026-10-16); com câmeras de verdade, ainda não. Versão 2.9.0. | feito |
-| 15 | Janela Live | Palco em tela cheia para um segundo monitor (ou janela flutuante): contagem inicial (a da janela principal continua), câmeras na ordem do rig disparando (branca → verde, próxima tracejada), contagem entre grupos, fotos chegando e a sequência em loop no fim. Modos Operator e Audience; layout arco (padrão), círculo ou linha; bip por grupo (opcional, ligado). Primeiro como página dentro da janela principal (botão Live view), depois janela nativa separada no Mac e no Windows. | em andamento |
+| 15 | Janela Live | Palco em tela cheia para um segundo monitor (ou janela flutuante): contagem inicial (a da janela principal continua), câmeras na ordem do rig disparando (branca → verde, próxima tracejada), contagem entre grupos, fotos chegando e a sequência em loop no fim. Modos Operator e Audience; layout arco (padrão), círculo ou linha; bip por grupo (opcional, ligado). Janela separada (até duas), tela cheia por monitor, sons sobrepostos com ducking, modo Sweep no Timing. Testado no Mac com câmeras simuladas (2026-10-17); Windows e câmeras de verdade ainda não. Versão 2.10.0. | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -421,7 +421,7 @@ seguidas a mesma câmera). O plano fica salvo em settings.txt (`timing=`).
   certa com ida e volta ×2, custom por passos, cancelar, layout sem rolagem, Timeline fixa. Falta:
   disparo com plano em câmeras de verdade (ShootScheduled) e o teste no Windows.
 
-### Etapa 15: Janela Live (iniciada em 2026-10-17)
+### Etapa 15: Janela Live (iniciada em 2026-10-16, concluída em 2026-10-17, versão 2.10.0)
 
 Pedido do dono do projeto (2026-10-16): com o Timing, as câmeras podem disparar de jeitos
 diferentes; precisa de um retorno visual numa outra janela (tela cheia num segundo monitor ou
@@ -513,6 +513,10 @@ Windows):
 - Conferido no navegador (live.html com funções simuladas): opções, display, som, sequência.
   Não compilado: risco maior na parte nativa (Mac e Windows).
 
+Fechada em 2026-10-17 como 2.10.0 **sem** teste no Windows (primeira compilação da janela Live,
+tela cheia e waveOut lá) e **sem** câmeras de verdade — decisão do dono do projeto; conferir na
+primeira oportunidade (ver Pendências conhecidas).
+
 Parte 3 (futuro, "C"): servir a Live na rede local (TV com navegador, tablet), reaproveitando a
 mesma página.
 
@@ -582,6 +586,12 @@ mesma página.
 Atualizar esta tabela sempre que uma função mudar de status.
 
 ## Pendências conhecidas
+
+- **2.10.0 (etapa 15) publicada sem teste no Windows nem com câmeras de verdade (2026-10-17).**
+  No Windows nunca compilou: janela Live (segunda instância webview/WebView2), tela cheia por
+  monitor (WS_POPUP), tocador waveOut e ducking. Com câmeras: `ShootScheduled` (Timing/Sweep),
+  disparo com plano e a Live com fotos reais. Também falta medir o menor intervalo do Sweep por
+  USB (aviso na Timeline).
 
 - **EDSDK fora do repositório:** decidido manter o SDK da Canon só dentro do
   `.zip` das versões (o que os termos da Canon permitem). Os arquivos do SDK
