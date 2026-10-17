@@ -25,6 +25,7 @@ struct CameraContext
     int orderPrefix = 0;
 
     bool sessionOpen = false;
+    bool fake = false;                // câmera simulada (STILLPOINT_FAKE_CAMERAS): sem SDK
     bool connectionLost = false;
     int lastError = 0;
 

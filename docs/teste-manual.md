@@ -360,7 +360,9 @@ dispara de novo. Mexendo o mouse aparecem as opções embaixo: Mode (Operator / 
 - [ ] Groups 3 × 2 s: entre os grupos aparece a contagem em números ("1.4 s", "Next group: cameras
       4, 5, 6") e as três câmeras do próximo grupo tracejadas. Com Group sounds ligado, um bip curto
       no começo do 2º e do 3º grupo; desligado, só o som do disparo.
-- [ ] Layout Circle e Line mudam a disposição das câmeras na hora; a escolha, o modo e o som ficam
+- [ ] Sound off: o disparo seguinte sai sem nenhum som (nem contagem); Sound on volta tudo. Depois
+      de clicar no botão, Space ainda dispara (o botão não fica com o foco).
+- [ ] Layout Circle e Line mudam a disposição das câmeras na hora; a escolha, o modo e os sons ficam
       guardados ao fechar e abrir o app.
 - [ ] Mode Audience: só a contagem grande, "Hold still" (com a contagem em números entre grupos
       longos), e a foto grande tocando em loop no fim; sem câmeras, sem números de fotos, sem plano.
@@ -370,6 +372,11 @@ dispara de novo. Mexendo o mouse aparecem as opções embaixo: Mode (Operator / 
 - [ ] Sessions 2: a Live view mostra "Session 1 of 2"; a segunda sessão começa sozinha e a sequência
       da primeira para de tocar.
 - [ ] A janela principal continua igual por baixo: contagem própria, log e a sessão nova.
+- [ ] Camera settings com câmeras simuladas: as 9 aparecem ajustáveis (modo M), com ISO, Tv, Av,
+      exp. comp., WB (com Kelvin e ajuste fino), Picture Style (com contraste/saturação/tom), Drive e
+      foco MF; algumas começam diferentes (ISO, Tv, WB, Picture Style, ajuste fino). Mudar um valor
+      numa câmera ou em todas muda na hora; Copy from camera e Match automatically funcionam com as
+      fotos de teste. Os valores voltam ao início ao abrir o app de novo.
 
 ## Resultado
 

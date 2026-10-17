@@ -49,7 +49,7 @@ namespace
     const CameraContext* Find(CanonController& controller, const std::string& name)
     {
         for (const auto& cam : controller.GetCameras())
-            if (cam.shortName == name && cam.sessionOpen && cam.camera != nullptr)
+            if (cam.shortName == name && cam.sessionOpen && (cam.camera != nullptr || cam.fake))
                 return &cam;
         return nullptr;
     }
@@ -926,7 +926,7 @@ namespace AutoMatch
         std::map<std::string, CameraSettings> before;
         for (const auto& cam : controller.GetCameras())
         {
-            if (!cam.sessionOpen || cam.camera == nullptr)
+            if (!cam.sessionOpen || (cam.camera == nullptr && !cam.fake))
                 continue;
             CameraSettings s = CameraSettingsCanon::Read(cam);
             if (s.adjustable)
@@ -1311,7 +1311,7 @@ namespace AutoMatch
         std::set<std::string> models;
         for (const auto& cam : controller.GetCameras())
         {
-            if (!cam.sessionOpen || cam.camera == nullptr)
+            if (!cam.sessionOpen || (cam.camera == nullptr && !cam.fake))
                 continue;
             CameraSettings s = CameraSettingsCanon::Read(cam);
             if (!s.adjustable || !s.styleDetailAvailable)

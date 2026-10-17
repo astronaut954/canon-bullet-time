@@ -436,7 +436,7 @@ namespace
     {
         std::vector<const CameraContext*> ordered;
         for (const auto& cam : controller.GetCameras())
-            if (cam.sessionOpen && cam.camera != nullptr)
+            if (cam.sessionOpen && (cam.camera != nullptr || cam.fake))
                 ordered.push_back(&cam);
         std::sort(ordered.begin(), ordered.end(),
             [](const CameraContext* a, const CameraContext* b) { return a->orderPrefix < b->orderPrefix; });
@@ -505,7 +505,7 @@ namespace
         std::vector<MatchDebug::Photo> photos;
         for (const auto& cam : controller.GetCameras())
         {
-            if (!cam.sessionOpen || cam.camera == nullptr)
+            if (!cam.sessionOpen || (cam.camera == nullptr && !cam.fake))
                 continue;
             MatchDebug::Photo photo;
             photo.camera = cam.shortName;
@@ -942,15 +942,18 @@ namespace
         std::map<std::string, bool> singleShotWarned;  // câmeras que não aceitaram disparo único (já avisadas)
         CameraThread cameras([&]
         {
-            if (!sdkReady || busy || shuttingDown || fakeCount)
+            if (!sdkReady || busy || shuttingDown)
                 return;
-            if (!controller.HasPendingConnections())
-                EdsGetEvent();  // com uma câmera conectando, o SDK está ocupado
-            // Redesenha quando algo mudou, e a cada volta enquanto há câmera conectando
-            // ou ligando (para o tempo de espera andar)
-            if (controller.MonitorTick(&listener) || controller.HasPendingConnections()
-                || !controller.GetStartingCameras().empty())
-                listener.Emit(CamerasSnapshot(controller));
+            if (!fakeCount)  // câmeras simuladas: sem SDK, só a leitura das configurações abaixo
+            {
+                if (!controller.HasPendingConnections())
+                    EdsGetEvent();  // com uma câmera conectando, o SDK está ocupado
+                // Redesenha quando algo mudou, e a cada volta enquanto há câmera conectando
+                // ou ligando (para o tempo de espera andar)
+                if (controller.MonitorTick(&listener) || controller.HasPendingConnections()
+                    || !controller.GetStartingCameras().empty())
+                    listener.Emit(CamerasSnapshot(controller));
+            }
 
             // Configurações (avisos no painel e tela Camera settings): lidas de novo quando
             // as câmeras conectadas mudam (com a janela aberta, a página pede a cada 3 s).
@@ -1075,6 +1078,7 @@ namespace
                         cam.portName = "fake" + std::to_string(i + 1);
                         cam.orderPrefix = i + 1;
                         cam.sessionOpen = true;
+                        cam.fake = true;
                         list.push_back(cam);
                     }
                 controller.SetOutputFolder(store.Root().string());
@@ -1375,7 +1379,18 @@ namespace
             if (args.size() > 3)
                 settings.schedule = parseSchedule(args[3]);
             if (args.size() > 4)
-                settings.groupSounds = args[4] == "1";
+            {
+                // "som do disparo,som dos grupos" (1/0); só o segundo = compatível com "1"
+                const std::string flags = args[4];
+                const auto comma = flags.find(',');
+                if (comma == std::string::npos)
+                    settings.groupSounds = flags == "1";
+                else
+                {
+                    settings.playSounds = flags.substr(0, comma) == "1";
+                    settings.groupSounds = flags.substr(comma + 1) == "1";
+                }
+            }
             // A janela Live recebe o plano inteiro antes de começar: cada item com a
             // câmera (nome e número) e o instante em ms. Plano vazio = todas juntas no 0.
             {
@@ -1468,7 +1483,8 @@ namespace
                 for (const auto& e : errors)
                     text += (text.empty() ? "" : " ") + e;
                 listener.Emit(result.Add("ok", errors.empty()).Add("error", text));
-                EdsGetEvent();
+                if (!fakeCount)
+                    EdsGetEvent();
                 EmitCameraSettings(controller, listener, singleShotWarned);
             });
             return "null";

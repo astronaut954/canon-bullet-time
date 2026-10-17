@@ -446,6 +446,10 @@ Parte 1 (página, feita em 2026-10-17):
   branca 0,3 s; falha de disparo e foto que não chegou em vermelho (Operator); Audience mostra só
   a contagem, "Hold still", a contagem entre grupos longos e a sequência no fim. Esc cancela o
   disparo ou fecha; Space dispara de novo. O relógio da página se acerta pelo `shotFired` que chega.
+- Botão grande Sound on / Sound off na Live view (pedido de 2026-10-16): liga e desliga todos os
+  sons do disparo (contagem, "it's bullet time", bip dos grupos); `shoot` recebe "som,grupos".
+  Câmeras simuladas na tela Camera settings: `CameraContext::fake` e `CameraSettingsCanon::Read/Write`
+  com valores em memória (cada câmera começa um pouco diferente, para o Match ter o que igualar).
 - Conferido no navegador (Playwright, 9 câmeras simuladas, 1280×720 e 900×560): ida e volta 17
   fotos, grupos com contagem, falha, layouts, Audience. Falta: teste no app (Mac) com
   `STILLPOINT_FAKE_CAMERAS=9` e o som por grupo.

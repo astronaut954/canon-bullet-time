@@ -3244,7 +3244,9 @@
     const plan = timingPlan();
     if (plan.warn && !plan.shots.length) { toast(plan.warn, 6000); return; }
     const schedule = timing.mode === "all" ? "" : plan.shots.map((s) => s.cam + ":" + s.t).join(",");
-    const sounds = window.Live && window.Live.options().sounds ? "1" : "0";
+    // Som: "disparo,grupos" (1/0), das opções da Live view (o botão grande Sound e Group sounds)
+    const live = window.Live ? window.Live.options() : { sound: true, sounds: true };
+    const sounds = (live.sound ? "1" : "0") + "," + (live.sound && live.sounds ? "1" : "0");
     window.shoot(String(intValue(ui.countdown, 0, 0)), String(intValue(ui.sessions, 1, 1)), String(intValue(ui.downloadWait, 1, 10)), schedule, sounds);
   });
 

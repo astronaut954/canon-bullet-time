@@ -13,7 +13,7 @@
 window.Live = (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const DEFAULTS = { mode: "operator", layout: "arc", sounds: true };
+  const DEFAULTS = { mode: "operator", layout: "arc", sound: true, sounds: true };
   const NUMERIC_GAP_MS = 1500;   // contagem em números só para intervalos maiores que isto
   const FLASH_MS = 320;          // quanto tempo a câmera fica branca depois de disparar
   const PLAY_FPS = 8;
@@ -84,13 +84,16 @@ window.Live = (function () {
       hint: $("liveHint"), tools: $("liveTools"),
       modeBtns: Array.from(document.querySelectorAll("#liveTools [data-mode]")),
       layoutBtns: Array.from(document.querySelectorAll("#liveTools [data-layout]")),
-      sounds: $("liveSounds"), close: $("liveClose"),
+      sounds: $("liveSounds"), close: $("liveClose"), sound: $("liveSound"),
     };
+    el.sound.addEventListener("click", () => setOpts({ sound: !S.opts.sound }));
     el.modeBtns.forEach((b) => b.addEventListener("click", () => setOpts({ mode: b.dataset.mode })));
     el.layoutBtns.forEach((b) => b.addEventListener("click", () => setOpts({ layout: b.dataset.layout })));
     el.sounds.addEventListener("change", () => setOpts({ sounds: el.sounds.checked }));
     el.close.addEventListener("click", close);
     el.root.addEventListener("mousemove", showTools);
+    // Um botão clicado não fica com o foco: Space continua sendo "disparar", não o botão
+    el.root.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.blur(); });
     window.addEventListener("resize", () => { if (S.open) layoutRig(); });
     document.addEventListener("keydown", onKey, true);
   }
@@ -110,7 +113,7 @@ window.Live = (function () {
       if (S.phase === "countdown" || S.phase === "firing" || S.phase === "receiving") { if (cb.cancel) cb.cancel(); }
       else close();
     } else if (e.key === " ") {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") return;
+      if (e.target.tagName === "INPUT") return;
       e.preventDefault();
       e.stopImmediatePropagation();
       if ((S.phase === "idle" || S.phase === "done" || S.phase === "cancelled" || S.phase === "failed") && cb.shoot) cb.shoot();
@@ -122,6 +125,7 @@ window.Live = (function () {
     if (!["operator", "audience"].includes(S.opts.mode)) S.opts.mode = "operator";
     if (!["arc", "circle", "line"].includes(S.opts.layout)) S.opts.layout = "arc";
     S.opts.sounds = !!S.opts.sounds;
+    S.opts.sound = !!S.opts.sound;
     if (!silent && cb.save) cb.save(Object.assign({}, S.opts));
     renderOpts();
     if (el && S.open) layoutRig();
@@ -133,6 +137,8 @@ window.Live = (function () {
     el.modeBtns.forEach((b) => b.classList.toggle("on", b.dataset.mode === S.opts.mode));
     el.layoutBtns.forEach((b) => b.classList.toggle("on", b.dataset.layout === S.opts.layout));
     el.sounds.checked = S.opts.sounds;
+    el.sound.classList.toggle("off", !S.opts.sound);
+    el.sound.querySelector("span").textContent = S.opts.sound ? "Sound on" : "Sound off";
   }
 
   // ---------------------------------------------------------------- câmeras (rig)

@@ -6,6 +6,7 @@
 #include "camera_settings.h"
 
 #include <cstdio>
+#include <initializer_list>
 #include <map>
 #include <set>
 
@@ -206,12 +207,116 @@ namespace
         std::snprintf(text, sizeof(text), "The camera did not accept the change (error %lu).", static_cast<unsigned long>(err));
         return text;
     }
+
+    // -----------------------------------------------------------------------
+    // Câmeras simuladas (STILLPOINT_FAKE_CAMERAS): valores guardados em memória, para
+    // testar a tela Camera settings e o Match colors sem câmera. Cada câmera começa
+    // com valores um pouco diferentes, para haver o que igualar.
+    // -----------------------------------------------------------------------
+    struct FakeState
+    {
+        long long iso = 0x58, tv = 0x70, av = 0x30, expcomp = 0, wb = 1, style = 0x81, drive = 0;
+        int kelvin = 5200, shiftAB = 0, shiftGM = 0, contrast = 0, saturation = 0, colorTone = 0;
+    };
+    std::map<std::string, FakeState>& FakeStates()
+    {
+        static std::map<std::string, FakeState> states;
+        return states;
+    }
+    FakeState& FakeFor(const CameraContext& cam)
+    {
+        auto& states = FakeStates();
+        auto it = states.find(cam.shortName);
+        if (it == states.end())
+        {
+            FakeState s;
+            const int n = cam.orderPrefix;
+            static const long long isos[] = { 0x58, 0x60, 0x58, 0x50, 0x58, 0x68, 0x58, 0x58, 0x60 };
+            static const long long tvs[] = { 0x70, 0x70, 0x78, 0x70, 0x70, 0x70, 0x68, 0x70, 0x70 };
+            static const long long wbs[] = { 1, 1, 0, 1, 1, 2, 1, 1, 1 };
+            static const long long styles[] = { 0x81, 0x81, 0x81, 0x82, 0x81, 0x81, 0x81, 0x84, 0x81 };
+            const int k = n > 0 ? (n - 1) % 9 : 0;
+            s.iso = isos[k]; s.tv = tvs[k]; s.wb = wbs[k]; s.style = styles[k];
+            s.shiftAB = (n % 3 == 0) ? 2 : 0;
+            s.shiftGM = (n % 4 == 0) ? -1 : 0;
+            s.contrast = (n % 5 == 0) ? 1 : 0;
+            s.saturation = (n % 7 == 0) ? -1 : 0;
+            it = states.emplace(cam.shortName, s).first;
+        }
+        return it->second;
+    }
+    CameraSetting FakeSetting(const std::string& key, long long value, const Table* table,
+                              std::initializer_list<long long> choices, bool readOnly = false)
+    {
+        CameraSetting out;
+        out.key = key;
+        out.available = true;
+        out.value = value;
+        out.label = key == "quality" ? QualityLabel(value) : Label(*table, value);
+        if (!readOnly)
+            for (long long v : choices)
+                out.choices.push_back({ v, key == "quality" ? QualityLabel(v) : Label(*table, v) });
+        return out;
+    }
+    CameraSettings FakeRead(const CameraContext& cam)
+    {
+        const FakeState& f = FakeFor(cam);
+        CameraSettings out;
+        out.camera = cam.shortName;
+        out.model = cam.modelName;
+        out.mode = "M";
+        out.manualMode = true;
+        out.adjustable = true;
+        out.settings.push_back(FakeSetting("iso", f.iso, &kIso, { 0x48, 0x50, 0x58, 0x60, 0x68, 0x70, 0x78, 0x80 }));
+        out.settings.push_back(FakeSetting("tv", f.tv, &kTv, { 0x60, 0x68, 0x70, 0x78, 0x80, 0x88, 0x90, 0x98 }));
+        out.settings.push_back(FakeSetting("av", f.av, &kAv, { 0x20, 0x28, 0x30, 0x38, 0x40, 0x48 }));
+        out.settings.push_back(FakeSetting("expcomp", f.expcomp, &kExposure, { 0xF0, 0xF5, 0xF8, 0xFB, 0xFD, 0x00, 0x03, 0x05, 0x08, 0x0B, 0x10 }));
+        out.settings.push_back(FakeSetting("wb", f.wb, &kWhiteBalance, { 0, 1, 2, 3, 4, 5, 8, 9 }));
+        out.settings.push_back(FakeSetting("style", f.style, &kPictureStyle, { 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87 }));
+        out.settings.push_back(FakeSetting("quality", 0x00130000 | 0x0000FF00 | 0x000000F0 | 0x0000000F, nullptr, { }, true));
+        out.settings.push_back(FakeSetting("drive", f.drive, &kDrive, { 0x00, 0x01, 0x10, 0x11 }));
+        out.settings.push_back(FakeSetting("focus", 3, &kFocus, { }, true));
+        out.focusManual = true;
+        out.kelvinAvailable = true;
+        out.kelvin = f.kelvin;
+        out.shiftAvailable = true;
+        out.shiftAB = f.shiftAB;
+        out.shiftGM = f.shiftGM;
+        out.styleDetailAvailable = true;
+        out.contrast = f.contrast;
+        out.saturation = f.saturation;
+        out.colorTone = f.colorTone;
+        return out;
+    }
+    bool FakeWrite(const CameraContext& cam, const std::string& key, long long value, std::string& error)
+    {
+        FakeState& f = FakeFor(cam);
+        auto range = [&](long long lo, long long hi, const char* text) { if (value < lo || value > hi) { error = text; return false; } return true; };
+        if (key == "iso") f.iso = value;
+        else if (key == "tv") f.tv = value;
+        else if (key == "av") f.av = value;
+        else if (key == "expcomp") f.expcomp = value;
+        else if (key == "wb") f.wb = value;
+        else if (key == "style") f.style = value;
+        else if (key == "drive") f.drive = value;
+        else if (key == "quality") { error = "This camera does not allow this change."; return false; }
+        else if (key == "kelvin") { if (!range(2800, 10000, "Use a value from 2800 K to 10000 K.")) return false; f.wb = 9; f.kelvin = static_cast<int>(value / 100 * 100); }
+        else if (key == "shiftab") { if (!range(-9, 9, "Use a value from -9 to +9.")) return false; f.shiftAB = static_cast<int>(value); }
+        else if (key == "shiftgm") { if (!range(-9, 9, "Use a value from -9 to +9.")) return false; f.shiftGM = static_cast<int>(value); }
+        else if (key == "contrast") { if (!range(-4, 4, "Use a value from -4 to +4.")) return false; f.contrast = static_cast<int>(value); }
+        else if (key == "saturation") { if (!range(-4, 4, "Use a value from -4 to +4.")) return false; f.saturation = static_cast<int>(value); }
+        else if (key == "colortone") { if (!range(-4, 4, "Use a value from -4 to +4.")) return false; f.colorTone = static_cast<int>(value); }
+        else { error = "Unknown setting."; return false; }
+        return true;
+    }
 }
 
 namespace CameraSettingsCanon
 {
     CameraSettings Read(const CameraContext& cam)
     {
+        if (cam.fake)
+            return FakeRead(cam);
         CameraSettings out;
         out.camera = cam.shortName;
         out.model = cam.modelName;
@@ -292,6 +397,8 @@ namespace CameraSettingsCanon
 
     bool Write(const CameraContext& cam, const std::string& key, long long value, std::string& error)
     {
+        if (cam.fake)
+            return FakeWrite(cam, key, value, error);
         EdsCameraRef camera = cam.camera;
         if (!camera || !cam.sessionOpen)
         {
