@@ -150,3 +150,8 @@
 .live.audience .live-sound { opacity: 0; pointer-events: none; transition: opacity .25s; }
 .live.audience.tools-visible .live-sound { opacity: 1; pointer-events: auto; }
 .live-tools .live-tools-check { margin-left: 6px; white-space: nowrap; }
+
+/* Clarão a cada disparo: branco que some em 0,25 s (curto o bastante para a varredura) */
+.live-flash { position: absolute; inset: 0; z-index: 8; background: #eaffee; opacity: 0; pointer-events: none; }
+.live-flash.on { animation: live-flash .25s ease-out forwards; }
+@keyframes live-flash { from { opacity: .9; } to { opacity: 0; } }

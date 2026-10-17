@@ -86,7 +86,7 @@ window.Live = (function () {
       rig: $("liveRig"), next: $("liveNext"), legend: $("liveLegend"),
       bar: $("liveBar"), fill: $("liveBarFill"), ticks: $("liveBarTicks"),
       film: $("liveFilm"), stage: $("liveStage"), stageImg: $("liveStageImg"),
-      hint: $("liveHint"), tools: $("liveTools"),
+      hint: $("liveHint"), tools: $("liveTools"), flash: $("liveFlash"),
       modeBtns: Array.from(document.querySelectorAll("#liveTools [data-mode]")),
       layoutBtns: Array.from(document.querySelectorAll("#liveTools [data-layout]")),
       displayBtns: Array.from(document.querySelectorAll("#liveTools [data-display]")),
@@ -285,6 +285,13 @@ window.Live = (function () {
       node.classList.toggle("bad", S.failed.has(name) || S.lost.has(name));
       node.classList.toggle("idle", !p || S.phase === "idle" || S.phase === "countdown");
     });
+  }
+  // Clarão na tela a cada disparo (reinicia a animação se ainda estiver no meio)
+  function flashScreen() {
+    if (!el || !S.open) return;
+    el.flash.classList.remove("on");
+    void el.flash.offsetWidth;
+    el.flash.classList.add("on");
   }
   function flashCam(name) {
     rigNodes().forEach((node) => {
@@ -527,6 +534,7 @@ window.Live = (function () {
       if (S.plan && S.plan.all) {
         S.phase = "receiving";
         S.received.total = S.plan.shots.length;
+        flashScreen();
         if (el) rigNodes().forEach((n) => flashCam(n.dataset.name));
       } else {
         S.phase = "firing";
@@ -540,7 +548,7 @@ window.Live = (function () {
       // (câmeras de um grupo saem uma por vez) adia os próximos; nunca volta a contagem
       const shot = S.plan.shots[e.index - 1];
       if (shot) S.t0 = Math.max(S.t0, performance.now() - shot.t);
-      if (e.ok) flashCam(e.camera); else S.failed.add(e.camera);
+      if (e.ok) { flashCam(e.camera); flashScreen(); } else S.failed.add(e.camera);
       if (e.index >= e.total) {
         S.phase = "receiving";
         S.elapsedMs = shot ? shot.t : 0;
