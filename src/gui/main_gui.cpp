@@ -1366,8 +1366,16 @@ namespace
                             number = cam.orderPrefix;
                             if (scheduled)
                             {
-                                if (settings.groupSounds && settings.playSounds && i > 0 && plan[i].atMs - plan[i - 1].atMs >= 500)
+                                const int gapBefore = i > 0 ? plan[i].atMs - plan[i - 1].atMs : 0;
+                                if (groupSounds && i > 0 && gapBefore >= 500)
+                                {
                                     AudioPlayer::PlayWavMixed(GetAssetAudioPath("group.wav").string(), true);
+                                    // Toque do metrônomo junto com o som do grupo, menos no último grupo
+                                    const int at = plan[i].atMs;
+                                    const bool last = !std::any_of(plan.begin() + i, plan.end(), [at](const auto& s) { return s.atMs > at; });
+                                    if (gapBefore > 1500 && !last && std::abs(at - static_cast<int>((at + 500) / 1000) * 1000) <= 300)
+                                        AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string());
+                                }
                                 listener.OnShotFired(cam, static_cast<int>(i) + 1, static_cast<int>(plan.size()), true);
                             }
                         }

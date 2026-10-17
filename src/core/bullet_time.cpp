@@ -251,8 +251,17 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             int tickedSecond = 0;
             controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
             {
-                if (sounds && index > 1 && plan[index - 1].atMs - plan[index - 2].atMs >= 500)
+                const int gapBefore = index > 1 ? plan[index - 1].atMs - plan[index - 2].atMs : 0;
+                if (sounds && index > 1 && gapBefore >= 500)
+                {
                     play(groupAudio, true);  // o som do grupo manda: os toques ficam por baixo
+                    // O toque do metrônomo deste segundo entra junto com o som do grupo, menos
+                    // no último grupo (o fim da sessão fica só com o som do grupo)
+                    const int at = plan[index - 1].atMs;
+                    const bool last = !std::any_of(plan.begin() + index, plan.end(), [at](const auto& s) { return s.atMs > at; });
+                    if (gapBefore > 1500 && !last && std::abs(at - static_cast<int>((at + 500) / 1000) * 1000) <= 300)
+                        play(countdownAudio);
+                }
                 listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
             }, [&](int next, long long msRemaining)
             {
@@ -269,7 +278,7 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 tickedSecond = second;
                 for (const auto& item : plan)
                     if (std::abs(item.atMs - second * 1000) <= 300)
-                        return;  // um grupo dispara neste segundo: sem toque
+                        return;  // um grupo dispara neste segundo: o toque entra com o som do grupo (acima)
                 play(countdownAudio);
             });
         }
