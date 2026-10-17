@@ -352,8 +352,11 @@ window.Live = (function () {
         const ni = nextGroupIndex();
         const now = performance.now() - S.t0;
         const nextIn = ni >= 0 ? p.groups[ni].t - now : 0;
-        const prev = currentGroup();
-        const gap = ni >= 0 ? p.groups[ni].t - (prev >= 0 ? p.groups[prev].t : 0) : 0;
+        // Intervalo entre o próximo grupo e o anterior (sempre o grupo anterior, mesmo
+        // enquanto o próximo está disparando câmera a câmera: senão o intervalo dava zero
+        // por um instante e aparecia um "Fire!" grande piscando)
+        const gap = ni > 0 ? p.groups[ni].t - p.groups[ni - 1].t : 0;
+        const pauses = p.groups.some((g, i) => i > 0 && g.t - p.groups[i - 1].t > NUMERIC_GAP_MS);
         const nextCams = ni >= 0 ? p.groups[ni].idx.map((k) => p.shots[k - 1].number) : [];
         if (ni >= 0 && gap > NUMERIC_GAP_MS && nextIn > 0) {
           // Intervalo longo: contagem em números (no modo Operator, sem cobrir as câmeras).
@@ -365,7 +368,7 @@ window.Live = (function () {
         } else if (audience) {
           // Plano com pausas: na hora do grupo fica o "0.0 s · Fire!" da contagem (sem a palavra
           // grande piscando); disparos seguidos (intervalos curtos) ou todas de uma vez: "Fire!"
-          if (ni >= 0 && gap > NUMERIC_GAP_MS) big("0.0 s", "Fire!");
+          if (pauses) big("0.0 s", "Fire!");
           else big("Fire!", "", true);
         } else {
           const k = S.fired.size;
