@@ -4,6 +4,7 @@
 #include "platform/platform.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <chrono>
 #include <filesystem>
 #include <random>
@@ -237,11 +238,11 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 if (settings.mixedAudio) AudioPlayer::PlayWavMixed(file.string(), duck);
                 else AudioPlayer::PlayWavAsync(file.string());
             };
-            // Contagem com som antes de cada grupo (intervalo maior que 1,5 s): um toque a cada
-            // segundo inteiro que falta, desde logo depois do grupo anterior (mais
-            // baixos enquanto o som do grupo toca: ducking); e o som do grupo quando ele sai (só com intervalo de
+            // Contagem com som entre grupos (intervalo maior que 1,5 s): metrônomo de um toque
+            // por segundo (mais baixo enquanto o som do grupo toca: ducking); e o som do
+            // grupo quando ele sai (só com intervalo de
             // pelo menos 0,5 s: mais rápido que isso vira ruído)
-            int tickedIndex = 0, tickedSecond = 0;
+            int tickedSecond = 0;
             controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
             {
                 if (sounds && index > 1 && plan[index - 1].atMs - plan[index - 2].atMs >= 500)
@@ -249,17 +250,21 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
             }, [&](int next, long long msRemaining)
             {
+                // Metrônomo: um toque a cada segundo inteiro contado do primeiro disparo
+                // (1, 2, 3, 4...), só enquanto o próximo grupo está a mais de 1,5 s do
+                // anterior; o segundo em que um grupo sai (som do grupo) fica sem toque.
                 const int gap = next >= 2 ? plan[next - 1].atMs - plan[next - 2].atMs : 0;
                 if (!sounds || gap <= 1500)
                     return;
-                const int second = static_cast<int>((msRemaining + 999) / 1000);
-                // Sem toque nos primeiros 400 ms depois do grupo anterior: cairia junto com o som dele
-                if (second >= 1 && msRemaining <= gap - 400 && (next != tickedIndex || second != tickedSecond))
-                {
-                    tickedIndex = next;
-                    tickedSecond = second;
-                    play(countdownAudio);
-                }
+                const long long elapsed = plan[next - 1].atMs - msRemaining;
+                const int second = static_cast<int>(elapsed / 1000);
+                if (second < 1 || second == tickedSecond)
+                    return;
+                tickedSecond = second;
+                for (const auto& item : plan)
+                    if (std::abs(item.atMs - second * 1000) <= 300)
+                        return;  // um grupo dispara neste segundo: sem toque
+                play(countdownAudio);
             });
         }
 

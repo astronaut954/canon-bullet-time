@@ -1325,7 +1325,7 @@ namespace
                 const auto start = std::chrono::steady_clock::now();
                 int done = 0;
                 const bool groupSounds = settings.groupSounds && settings.playSounds;
-                int tickedIndex = 0, tickedSecond = 0;
+                int tickedSecond = 0;
                 for (size_t i = 0; i < plan.size(); ++i)
                 {
                     const bool scheduled = !settings.schedule.empty();
@@ -1335,18 +1335,21 @@ namespace
                         const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
                         if (elapsed >= plan[i].atMs)
                             break;
-                        // Contagem com som a cada segundo até o grupo (intervalo maior que 1,5 s); os
-                        // toques ficam mais baixos enquanto o som do grupo toca, como no núcleo
+                        // Metrônomo entre grupos (intervalo maior que 1,5 s): um toque a cada segundo
+                        // contado do primeiro disparo, menos no segundo em que um grupo sai; como no núcleo
                         const int gap = i > 0 ? plan[i].atMs - plan[i - 1].atMs : 0;
                         if (groupSounds && scheduled && gap > 1500)
                         {
-                            const int second = static_cast<int>((plan[i].atMs - elapsed + 999) / 1000);
-                            // Sem toque nos primeiros 400 ms depois do grupo anterior (cairia junto com o som dele)
-                            if (second >= 1 && plan[i].atMs - elapsed <= gap - 400 && (static_cast<int>(i) != tickedIndex || second != tickedSecond))
+                            const int second = static_cast<int>(elapsed / 1000);
+                            if (second >= 1 && second != tickedSecond)
                             {
-                                tickedIndex = static_cast<int>(i);
                                 tickedSecond = second;
-                                AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string());
+                                bool groupHere = false;
+                                for (const auto& item : plan)
+                                    if (std::abs(item.atMs - second * 1000) <= 300)
+                                        groupHere = true;
+                                if (!groupHere)
+                                    AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string());
                             }
                         }
                         std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(20, plan[i].atMs - elapsed)));
