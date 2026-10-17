@@ -5,17 +5,22 @@
   position: fixed; inset: 0; z-index: 15; overflow: hidden; cursor: default;
   background: radial-gradient(ellipse at 50% 72%, #06140a 0%, #020603 70%), var(--noct-bg);
   color: var(--noct-text); font-family: var(--noct-font-mono);
-  --live-top: 56px; --live-bottom: 120px;
+  --live-top: 64px; --live-bottom: 120px;
 }
 .live.hidden { display: none; }
 
 /* Linha de cima: nome, resumo do plano e a sessão */
 .live-top {
-  position: absolute; left: 28px; right: 28px; top: 18px; display: flex; align-items: center; gap: 18px;
+  position: absolute; left: 28px; right: 20px; top: 12px; height: 40px; display: flex; align-items: center; gap: 18px; z-index: 6;
   font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--noct-text-muted); white-space: nowrap;
 }
 .live-top b { color: var(--noct-primary); letter-spacing: .2em; font-size: 13px; }
 .live-top .r { margin-left: auto; }
+.live-top .live-play {
+  position: static; display: flex; align-items: center; gap: 10px; padding: 5px 10px; flex: none;
+  background: rgba(var(--noct-bg-rgb), .92); border: 1px solid var(--noct-border); opacity: 0; pointer-events: none; transition: opacity .25s; font-size: 12px; letter-spacing: normal; text-transform: none;
+}
+.live-top .r:empty + .live-play { margin-left: auto; }
 
 /* Meio: contagem enorme ou "k / n" */
 .live-center { position: absolute; left: 0; right: 0; top: var(--live-top); bottom: var(--live-bottom); pointer-events: none; }
@@ -30,18 +35,17 @@
 }
 .live-big.hidden + .live-sub:not(.hidden) { transform: translateY(-50%); font-size: clamp(18px, 4vh, 36px); color: var(--noct-text); }
 .live-status { position: absolute; left: 0; right: 0; top: 12px; text-align: center; }
-.live-status .n { font-weight: 700; font-size: clamp(32px, 9vh, 80px); line-height: 1; color: var(--noct-text); min-height: 1em; }
+.live-status .n { font-weight: 700; font-size: clamp(40px, 13vh, 120px); line-height: 1; color: var(--noct-text); min-height: 1em; font-variant-numeric: tabular-nums; }
 .live-status .t { font-size: clamp(11px, 1.8vh, 15px); text-transform: uppercase; letter-spacing: .25em; color: var(--noct-text-muted); margin-top: 8px; }
-.live-status.large .n { font-size: clamp(40px, 13vh, 120px); color: var(--noct-primary); text-shadow: 0 0 30px rgba(var(--noct-primary-rgb), .45); }
+.live-status.large .n { color: var(--noct-primary); text-shadow: 0 0 30px rgba(var(--noct-primary-rgb), .45); }
 .live-status.large .t { color: var(--noct-text); }
 .live.playing .live-status .n { font-size: clamp(24px, 5vh, 44px); }
 .live-status.hidden, .live-big.hidden, .live-sub.hidden, .live-next.hidden, .live-legend.hidden, .live-bar.hidden,
 .live-film.hidden, .live-stage.hidden { display: none; }
 
 /* Câmeras na ordem do rig (arco, círculo ou linha) */
-.live-rig { position: absolute; left: 6%; right: 6%; top: calc(var(--live-top) + 12vh); bottom: calc(var(--live-bottom) + 2vh); display: none; --cam-size: 48px; }
+.live-rig { position: absolute; left: 6%; right: 6%; top: calc(var(--live-top) + 21vh); bottom: calc(var(--live-bottom) + 2vh); display: none; --cam-size: 48px; }
 .live.has-rig .live-rig { display: block; }
-.live.large-status .live-rig { top: calc(var(--live-top) + 21vh); }
 .live-rig::after {
   /* o assunto, no centro do arco */
   content: "◉"; position: absolute; left: 50%; top: 62%; transform: translate(-50%, -50%);
@@ -74,7 +78,19 @@
 /* Barra do plano: do primeiro ao último disparo, com um traço por grupo */
 .live-bar { position: absolute; left: 28px; right: 28px; bottom: 52px; height: 6px; background: #0a1a0e; border: 1px solid var(--noct-border); }
 .live-bar .fill { height: 100%; width: 0; background: var(--noct-primary); box-shadow: 0 0 10px rgba(var(--noct-primary-rgb), .6); }
-.live-bar .ticks i { position: absolute; top: -5px; width: 1px; height: 16px; background: var(--noct-border-strong); }
+.live-bar .ticks i { position: absolute; top: -8px; width: 2px; height: 22px; margin-left: -1px; background: var(--noct-border-strong); }
+.live-bar .ticks i.done { background: var(--noct-primary); }
+.live-bar .ticks i.next { background: var(--noct-pending); box-shadow: 0 0 8px rgba(var(--noct-pending-rgb), .8); }
+.live-bar .ticks i span {
+  position: absolute; top: 24px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font: 700 11px var(--noct-font-mono); color: var(--noct-text-muted); letter-spacing: .04em;
+}
+.live-bar .ticks i.next span { color: var(--noct-pending); }
+.live-bar .ticks i.done span { color: var(--noct-primary); }
+.live-bar .ticks i:first-child span { transform: none; left: 0; }
+.live-bar .ticks i:last-child span { transform: none; left: auto; right: 0; }
+.live-bar.crowded .ticks i span { display: none; }
+.live-bar { bottom: 64px; }
 .live.audience .live-bar { left: 20%; right: 20%; bottom: 46px; }
 
 /* Fim: a sequência tocando (tira de fotos em cima, a foto grande embaixo) */
@@ -103,7 +119,6 @@
   background: rgba(var(--noct-bg-rgb), .92); border: 1px solid var(--noct-border); opacity: 0; pointer-events: none; transition: opacity .25s; font-size: 12px;
 }
 .live.tools-visible .live-play { opacity: 1; pointer-events: auto; }
-.live.tools-visible .live-top .r { opacity: 0; }
 .live-tools { z-index: 6; }
 .live-speed { display: inline-flex; align-items: center; gap: 4px; }
 .live-speed .btn-icon { width: 28px; height: 28px; font-size: 16px; line-height: 1; }

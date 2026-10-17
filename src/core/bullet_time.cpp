@@ -224,13 +224,28 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
         else
         {
             const auto groupAudio = GetAssetAudioPath("group.wav");
+            const auto countdownAudio = GetAssetAudioPath("countdown.wav");
             const auto& plan = settings.schedule;
+            const bool sounds = settings.groupSounds && settings.playSounds;
+            // Contagem com som antes de cada grupo (intervalo maior que 1,5 s): um toque a
+            // 3, 2 e 1 s do grupo, como a contagem inicial; e o som do grupo quando ele sai
+            int tickedIndex = 0, tickedSecond = 0;
             controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
             {
-                // Som curto quando começa um grupo novo (instante diferente do item anterior)
-                if (settings.groupSounds && settings.playSounds && index > 1 && plan[index - 1].atMs != plan[index - 2].atMs)
+                if (sounds && index > 1 && plan[index - 1].atMs != plan[index - 2].atMs)
                     AudioPlayer::PlayWavAsync(groupAudio.string());
                 listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
+            }, [&](int next, long long msRemaining)
+            {
+                if (!sounds || next < 2 || plan[next - 1].atMs - plan[next - 2].atMs <= 1500)
+                    return;
+                const int second = static_cast<int>((msRemaining + 999) / 1000);
+                if (second >= 1 && second <= 3 && (next != tickedIndex || second != tickedSecond))
+                {
+                    tickedIndex = next;
+                    tickedSecond = second;
+                    AudioPlayer::PlayWavAsync(countdownAudio.string());
+                }
             });
         }
 

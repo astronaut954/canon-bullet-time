@@ -364,8 +364,11 @@ Full screen — com mais de um monitor, pergunta qual), Always on top, Another w
       No fim: "17 / 17 received" e a sequência toca em loop (tira de fotos em cima, foto grande
       embaixo). Space dispara de novo.
 - [ ] Groups 3 × 2 s: entre os grupos aparece a contagem em números ("1.4 s", "Next group: cameras
-      4, 5, 6") e as três câmeras do próximo grupo tracejadas. Com Group sounds ligado, um bip curto
-      no começo do 2º e do 3º grupo; desligado, só o som do disparo.
+      4, 5, 6") e as três câmeras do próximo grupo tracejadas; o número e as câmeras não mudam de
+      lugar de um grupo para outro. Na linha do tempo embaixo, um traço por rodada com as câmeras
+      ("1–3", "4–6", "7–9"); o próximo em âmbar, os passados em verde. Com Group sounds ligado e
+      Groups 3 × 4 s: toques a 3, 2 e 1 s de cada grupo e o som de duas notas quando o grupo sai;
+      desligado, só o som do disparo.
 - [ ] Som desligado na barra de cima: o disparo seguinte sai sem nenhum som (nem contagem); ligado
       volta tudo. Group sounds na Live muda só o bip. Depois de clicar num botão, Space ainda dispara.
 - [ ] Speed e Reverse loop na Live mudam a sequência tocando na hora (0,25x a 5x; vai e volta ou

@@ -1322,6 +1322,8 @@ namespace
                 listener.OnWaitingForDownloads();
                 const auto start = std::chrono::steady_clock::now();
                 int done = 0;
+                const bool groupSounds = settings.groupSounds && settings.playSounds;
+                int tickedIndex = 0, tickedSecond = 0;
                 for (size_t i = 0; i < plan.size(); ++i)
                 {
                     const bool scheduled = !settings.schedule.empty();
@@ -1331,6 +1333,17 @@ namespace
                         const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
                         if (elapsed >= plan[i].atMs)
                             break;
+                        // Contagem com som a 3, 2 e 1 s de um grupo (intervalo maior que 1,5 s), como no núcleo
+                        if (groupSounds && scheduled && i > 0 && plan[i].atMs - plan[i - 1].atMs > 1500)
+                        {
+                            const int second = static_cast<int>((plan[i].atMs - elapsed + 999) / 1000);
+                            if (second >= 1 && second <= 3 && (static_cast<int>(i) != tickedIndex || second != tickedSecond))
+                            {
+                                tickedIndex = static_cast<int>(i);
+                                tickedSecond = second;
+                                AudioPlayer::PlayWavAsync(GetAssetAudioPath("countdown.wav").string());
+                            }
+                        }
                         std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(20, plan[i].atMs - elapsed)));
                     }
                     if (!completed)

@@ -91,8 +91,11 @@ public:
     // disparo (índice 1..n, câmera, se o comando saiu). Retorna quantos disparos saíram.
     struct ScheduledShot { std::string shortName; int atMs = 0; };
     using ShotCallback = std::function<void(int index, const CameraContext& camera, bool ok)>;
+    // onWait: chamado repetidamente enquanto espera a hora do próximo item (índice 1..n,
+    // ms que faltam) — serve para a contagem com som entre os grupos.
+    using WaitCallback = std::function<void(int nextIndex, long long msRemaining)>;
     int ShootScheduled(const std::vector<ScheduledShot>& shots, const std::atomic<bool>* cancelled,
-                       const ShotCallback& onShot = {});
+                       const ShotCallback& onShot = {}, const WaitCallback& onWait = {});
     void CloseSessions();
 
     void SetOutputFolder(const std::string& folderPath);

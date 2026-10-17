@@ -299,13 +299,26 @@ window.Live = (function () {
     el.bar.classList.remove("hidden");
     const total = Math.max(1, p.shots[p.shots.length - 1].t);
     if (el.ticks.childElementCount !== p.groups.length) {
+      // Um traço por rodada (grupo), com as câmeras dela embaixo ("1–3", "4", "7–9")
       el.ticks.innerHTML = "";
       p.groups.forEach((g) => {
         const i = document.createElement("i");
         i.style.left = (100 * g.t) / total + "%";
+        const nums = g.idx.map((k) => p.shots[k - 1].number).sort((a, b) => a - b);
+        const consecutive = nums.every((n, j) => j === 0 || n === nums[j - 1] + 1);
+        const label = document.createElement("span");
+        label.textContent = nums.length === 1 ? String(nums[0]) : consecutive ? nums[0] + "–" + nums[nums.length - 1] : nums.join(",");
+        i.appendChild(label);
         el.ticks.appendChild(i);
       });
+      el.bar.classList.toggle("crowded", el.bar.clientWidth / p.groups.length < 30);
     }
+    const ni = nextGroupIndex();
+    Array.from(el.ticks.children).forEach((i, k) => {
+      const done = p.groups[k].idx.every((idx) => S.fired.has(idx));
+      i.classList.toggle("done", done);
+      i.classList.toggle("next", S.phase === "firing" && k === ni);
+    });
     let pct = 0;
     if (S.phase === "firing") pct = Math.min(100, (100 * (performance.now() - S.t0)) / total);
     else if (S.phase === "receiving" || S.phase === "done") pct = 100;

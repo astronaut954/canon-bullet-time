@@ -1411,7 +1411,7 @@ bool CanonController::ShootAll()
 }
 
 int CanonController::ShootScheduled(const std::vector<ScheduledShot>& shots, const std::atomic<bool>* cancelled,
-                                    const ShotCallback& onShot)
+                                    const ShotCallback& onShot, const WaitCallback& onWait)
 {
     expectedDownloads = 0;
     completedDownloads = 0;
@@ -1459,6 +1459,8 @@ int CanonController::ShootScheduled(const std::vector<ScheduledShot>& shots, con
             const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
             if (elapsed >= shots[i].atMs)
                 break;
+            if (onWait)
+                onWait(static_cast<int>(i) + 1, shots[i].atMs - elapsed);
             EdsGetEvent();
             std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(5, shots[i].atMs - elapsed)));
         }

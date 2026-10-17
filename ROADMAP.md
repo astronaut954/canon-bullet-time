@@ -488,6 +488,12 @@ Windows):
   própria no alto, à direita). Contagem entre grupos: o relógio da página só anda para a frente
   com um disparo atrasado (não volta); timer fixo em vez de requestAnimationFrame; nas câmeras
   simuladas o "download" acontece depois dos disparos, para não atrasar o plano.
+- Ajustes de 2026-10-17 (madrugada): número grande sempre do mesmo tamanho e o rig fixo abaixo
+  dele (sem pulo de um grupo para outro); Speed/Reverse na linha de cima; linha do tempo com um
+  traço por rodada e as câmeras dela embaixo ("1–3", "4–6"), traço da próxima em âmbar; contagem
+  com som a 3, 2 e 1 s de cada grupo (intervalo > 1,5 s; `WaitCallback` no `ShootScheduled` e
+  nas simuladas) e `group.wav` mais alto (duas notas); imagem da foto grande posicionada de
+  forma absoluta (`.stage img`), para não deslocar ao entrar em tela cheia na sessão.
 - Conferido no navegador (live.html com funções simuladas): opções, display, som, sequência.
   Não compilado: risco maior na parte nativa (Mac e Windows).
 
