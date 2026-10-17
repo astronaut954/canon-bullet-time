@@ -166,7 +166,13 @@ bool BulletTime::RunCountdown(int seconds, bool playSounds, bool mixed)
 
     listener.OnTrigger();
     if (playSounds)
+    {
+        // Na interface, o toque do "0" entra junto com o "it's bullet time" (pedido do dono
+        // do projeto, 2026-10-17); o terminal segue como sempre, só com o "it's bullet time"
+        if (mixed)
+            play(countdownAudio);
         play(bulletTimeAudio, true);  // dominante: abaixa os toques enquanto toca
+    }
     return true;
 }
 
