@@ -344,7 +344,8 @@ window.Live = (function () {
         else status("", S.cams.length ? "Ready · " + planSummary() : "Waiting for cameras");
         break;
       case "countdown":
-        big(String(S.countdown), "Get ready");
+        // "Preparar, apontar, fogo": Ready nos primeiros segundos, Aim a 2 s, Fire! no último
+        big(String(S.countdown), S.countdown >= 3 ? "Ready" : S.countdown === 2 ? "Aim" : "Fire!");
         break;
       case "firing": {
         const n = p.shots.length;
@@ -359,11 +360,11 @@ window.Live = (function () {
           // Para quem é fotografado, grupos com pausa são poses diferentes: "Next pose" na
           // contagem e "Hold still" só no último meio segundo antes de disparar
           const label = nextCams.length > 1 ? "Next group: cameras " + camList(nextCams) : "Next: camera " + nextCams[0];
-          if (audience) big(fmtS(nextIn), nextIn <= 500 ? "Firing!" : "Next pose");
+          if (audience) big(fmtS(nextIn), nextIn <= 500 ? "Fire!" : "Next pose");
           else status(fmtS(nextIn), label, true);
         } else if (audience) {
           // Disparos seguidos (intervalos curtos) ou todas de uma vez
-          big("Firing!", "", true);
+          big("Fire!", "", true);
         } else {
           const k = S.fired.size;
           status(k + " / " + n, k ? "Firing · camera " + camNumber(p.shots[Math.max(...S.fired) - 1].cam) : "Firing");

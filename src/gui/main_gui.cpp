@@ -938,7 +938,9 @@ namespace
 
         webview::webview window(false, nullptr);
         window.set_title("Stillpoint");
-        window.set_size(1200, 840, WEBVIEW_HINT_NONE);
+        // Largura de abertura em que os modos do Timing (At once … Custom) cabem numa linha
+        // só (496 px no painel Bullet time); não é um mínimo, a janela pode ficar menor
+        window.set_size(1300, 840, WEBVIEW_HINT_NONE);
         window.set_size(960, 680, WEBVIEW_HINT_MIN);
 
         GuiListener listener(window);
