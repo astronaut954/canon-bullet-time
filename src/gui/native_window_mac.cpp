@@ -264,4 +264,72 @@ namespace NativeWindow
         Send<void>(window, "setLevel:", alwaysOnTop ? 3l : 0l);  // NSFloatingWindowLevel : NSNormalWindowLevel
         Send<void>(window, "makeKeyAndOrderFront:", nullptr);
     }
+
+    void InstallAppMenu(void* nativeWindow, std::function<void(const std::string&)> onItem)
+    {
+        g_onMenuItem = std::move(onItem);
+        g_menuItems.clear();
+        g_window = static_cast<id>(nativeWindow);
+        id app = Send<id>(GetClass("NSApplication"), "sharedApplication");
+        // Uma janela só: sem abas (o Mac acrescentaria "Show Tab Bar" no menu View)
+        Send<void>(GetClass("NSWindow"), "setAllowsAutomaticWindowTabbing:", NO);
+        id bar = NewMenu("");
+
+        // Stillpoint
+        id appMenu = NewMenu("Stillpoint");
+        AddAppItem(appMenu, "About Stillpoint", "about");
+        AddAppItem(appMenu, "Check for Updates…", "updates");
+        AddSeparator(appMenu);
+        AddAppItem(appMenu, "Settings…", "settings", ",");
+        AddSeparator(appMenu);
+        id services = NewMenu("Services");
+        id servicesItem = AddItem(appMenu, "Services", nullptr);
+        Send<void>(servicesItem, "setSubmenu:", services);
+        Send<void>(app, "setServicesMenu:", services);
+        AddSeparator(appMenu);
+        AddItem(appMenu, "Hide Stillpoint", "hide:", "h");
+        AddItem(appMenu, "Hide Others", "hideOtherApplications:", "h", kCommand | kOption);
+        AddItem(appMenu, "Show All", "unhideAllApplications:");
+        AddSeparator(appMenu);
+        // Quit: como clicar no botão de fechar (com os mesmos avisos de fotos não salvas)
+        AddAppItem(appMenu, "Quit Stillpoint", "quit", "q");
+        AddToBar(bar, appMenu);
+
+        // Edit: sem ele o Mac não aceita ⌘C, ⌘V e ⌘A nos campos de texto
+        id edit = NewMenu("Edit");
+        AddItem(edit, "Undo", "undo:", "z");
+        AddItem(edit, "Redo", "redo:", "Z");
+        AddSeparator(edit);
+        AddItem(edit, "Cut", "cut:", "x");
+        AddItem(edit, "Copy", "copy:", "c");
+        AddItem(edit, "Paste", "paste:", "v");
+        AddItem(edit, "Select All", "selectAll:", "a");
+        AddToBar(bar, edit);
+
+        // View
+        id view = NewMenu("View");
+        AddItem(view, "Enter Full Screen", "toggleFullScreen:", "f", kCommand | kControl);
+        AddToBar(bar, view);
+
+        // Window
+        id windowMenu = NewMenu("Window");
+        AddItem(windowMenu, "Minimize", "performMiniaturize:", "m");
+        AddItem(windowMenu, "Zoom", "performZoom:");
+        AddSeparator(windowMenu);
+        AddItem(windowMenu, "Bring All to Front", "arrangeInFront:");
+        AddToBar(bar, windowMenu);
+        Send<void>(app, "setWindowsMenu:", windowMenu);
+
+        // Help
+        id help = NewMenu("Help");
+        AddAppItem(help, "Stillpoint Help", "help");
+        AddAppItem(help, "Compatible Cameras", "cameras");
+        AddAppItem(help, "What's New", "whatsnew");
+        AddSeparator(help);
+        AddAppItem(help, "Report a Problem", "report");
+        AddToBar(bar, help);
+        Send<void>(app, "setHelpMenu:", help);
+
+        Send<void>(app, "setMainMenu:", bar);
+    }
 }
