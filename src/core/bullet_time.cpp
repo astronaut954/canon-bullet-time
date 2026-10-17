@@ -136,9 +136,9 @@ bool BulletTime::RunCountdown(int seconds, bool playSounds, bool mixed)
 {
     const auto countdownAudio = GetAssetAudioPath("countdown.wav");
     const auto bulletTimeAudio = GetAssetAudioPath("itsbullettime.wav");
-    auto play = [mixed](const std::filesystem::path& file)
+    auto play = [mixed](const std::filesystem::path& file, bool dominant = false)
     {
-        if (mixed) AudioPlayer::PlayWavMixed(file.string());
+        if (mixed) AudioPlayer::PlayWavMixed(file.string(), dominant);
         else AudioPlayer::PlayWavAsync(file.string());
     };
 
@@ -165,7 +165,7 @@ bool BulletTime::RunCountdown(int seconds, bool playSounds, bool mixed)
 
     listener.OnTrigger();
     if (playSounds)
-        play(bulletTimeAudio);
+        play(bulletTimeAudio, true);  // dominante: abaixa os toques enquanto toca
     return true;
 }
 

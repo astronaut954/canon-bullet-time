@@ -1,8 +1,10 @@
 #include "audio_player.h"
+#include "audio_sidechain.h"
 
 #include <windows.h>
 #include <mmsystem.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <fstream>
@@ -20,28 +22,26 @@ namespace
     {
         WAVEFORMATEX format{};
         std::vector<char> samples;
+        AudioSidechain::Envelope envelope;   // nível ao longo do tempo (para o ducking)
     };
     struct Voice
     {
         HWAVEOUT handle = nullptr;
         WAVEHDR header{};
+        const Wav* wav = nullptr;
+        bool dominant = false;               // abaixa os outros enquanto toca
+        std::chrono::steady_clock::time_point start;
     };
     std::mutex g_mixMutex;
     std::map<std::string, std::shared_ptr<Wav>> g_mixWavs;
     std::vector<std::unique_ptr<Voice>> g_mixVoices;
-    int g_duckDepth = 0;
-    const float kDuckVolume = 0.25f;
+    bool g_duckerRunning = false;
+    AudioSidechain::Compressor g_compressor;
 
     void SetVolume(HWAVEOUT handle, float volume)
     {
         const DWORD v = static_cast<DWORD>(volume * 0xFFFF);
         waveOutSetVolume(handle, (v << 16) | v);  // esquerdo e direito
-    }
-    void SetVolumes(float volume, HWAVEOUT except)
-    {
-        for (auto& voice : g_mixVoices)
-            if (voice->handle != except)
-                SetVolume(voice->handle, volume);
     }
 
     // Lê um WAV PCM simples (RIFF: "fmt " e "data")
@@ -79,6 +79,7 @@ namespace
         }
         if (!haveFormat || wav->samples.empty())
             return nullptr;
+        wav->envelope = AudioSidechain::ComputeWavEnvelope(bytes);
         g_mixWavs[filePath] = wav;
         return wav;
     }
@@ -98,6 +99,41 @@ namespace
                 ++it;
         }
     }
+
+    // Sidechain: a cada 40 ms, o nível do som dominante naquele instante define o volume
+    // dos outros. Roda enquanto houver som dominante tocando.
+    void DuckerLoop()
+    {
+        using namespace std::chrono;
+        auto last = steady_clock::now();
+        while (true)
+        {
+            std::this_thread::sleep_for(milliseconds(40));
+            std::lock_guard<std::mutex> lock(g_mixMutex);
+            ReapVoices();
+            const auto now = steady_clock::now();
+            const double dt = duration<double>(now - last).count();
+            last = now;
+            float key = 0.0f;
+            bool anyDominant = false;
+            for (const auto& v : g_mixVoices)
+                if (v->dominant)
+                {
+                    anyDominant = true;
+                    key = (std::max)(key, v->wav->envelope.At(duration<double>(now - v->start).count()));
+                }
+            const float gain = g_compressor.Update(key, dt);
+            for (const auto& v : g_mixVoices)
+                if (!v->dominant)
+                    SetVolume(v->handle, gain);
+            if (!anyDominant && gain >= 0.999f)
+            {
+                g_compressor.Reset();
+                g_duckerRunning = false;
+                return;
+            }
+        }
+    }
 }
 
 namespace AudioPlayer
@@ -112,11 +148,12 @@ namespace AudioPlayer
         auto voice = std::make_unique<Voice>();
         if (waveOutOpen(&voice->handle, WAVE_MAPPER, &wav->format, 0, 0, CALLBACK_NULL) != MMSYSERR_NOERROR)
             return false;
+        voice->wav = wav.get();
+        voice->dominant = duckOthers;
+        voice->start = std::chrono::steady_clock::now();
         voice->header.lpData = wav->samples.data();
         voice->header.dwBufferLength = static_cast<DWORD>(wav->samples.size());
-        if (duckOthers)
-            SetVolumes(kDuckVolume, voice->handle);
-        SetVolume(voice->handle, !duckOthers && g_duckDepth > 0 ? kDuckVolume : 1.0f);
+        SetVolume(voice->handle, duckOthers ? 1.0f : g_compressor.Gain());
         if (waveOutPrepareHeader(voice->handle, &voice->header, sizeof(voice->header)) != MMSYSERR_NOERROR
             || waveOutWrite(voice->handle, &voice->header, sizeof(voice->header)) != MMSYSERR_NOERROR)
         {
@@ -124,20 +161,10 @@ namespace AudioPlayer
             return false;
         }
         g_mixVoices.push_back(std::move(voice));
-        if (duckOthers)
+        if (duckOthers && !g_duckerRunning)
         {
-            ++g_duckDepth;
-            const double seconds = wav->format.nAvgBytesPerSec ? static_cast<double>(wav->samples.size()) / wav->format.nAvgBytesPerSec : 1.0;
-            std::thread([seconds]
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(seconds * 1000)));
-                std::lock_guard<std::mutex> lock(g_mixMutex);
-                if (--g_duckDepth <= 0)
-                {
-                    g_duckDepth = 0;
-                    SetVolumes(1.0f, nullptr);
-                }
-            }).detach();
+            g_duckerRunning = true;
+            std::thread(DuckerLoop).detach();
         }
         return true;
     }

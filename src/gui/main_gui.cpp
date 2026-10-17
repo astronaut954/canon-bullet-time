@@ -1315,7 +1315,7 @@ namespace
                 }
                 listener.OnTrigger();
                 if (settings.playSounds)
-                    AudioPlayer::PlayWavMixed(GetAssetAudioPath("itsbullettime.wav").string());
+                    AudioPlayer::PlayWavMixed(GetAssetAudioPath("itsbullettime.wav").string(), true);
                 // Plano: vazio = todas ao mesmo tempo, uma foto por câmera
                 std::vector<CanonController::ScheduledShot> plan = settings.schedule;
                 if (plan.empty())

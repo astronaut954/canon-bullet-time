@@ -1,4 +1,5 @@
 #include "audio_player.h"
+#include "audio_sidechain.h"
 
 #include <csignal>
 #include <spawn.h>
@@ -7,6 +8,7 @@
 #include <objc/message.h>
 #include <objc/runtime.h>
 
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <map>
@@ -50,49 +52,90 @@ namespace
         return reinterpret_cast<Fn>(objc_msgSend)(object, sel_registerName(selector), args...);
     }
 
+    struct MixFile
+    {
+        id data = nullptr;                   // NSData com o arquivo
+        AudioSidechain::Envelope envelope;   // nível ao longo do tempo (para o ducking)
+    };
+    struct MixVoice
+    {
+        id player = nullptr;
+        const MixFile* file = nullptr;
+        bool dominant = false;               // abaixa os outros enquanto toca
+        std::chrono::steady_clock::time_point start;
+    };
     std::mutex g_mixMutex;
-    std::map<std::string, id> g_mixData;      // caminho -> NSData com o arquivo
-    std::vector<id> g_mixPlayers;             // tocadores em curso (liberados quando terminam)
-    int g_duckDepth = 0;                      // sons com ducking em curso
-    const float kDuckVolume = 0.25f;
+    std::map<std::string, MixFile> g_mixFiles;
+    std::vector<MixVoice> g_mixVoices;
+    bool g_duckerRunning = false;
+    AudioSidechain::Compressor g_compressor;
 
-    void SetVolumes(float volume, id except)
+    const MixFile* LoadFile(const std::string& filePath)
     {
-        for (id p : g_mixPlayers)
-            if (p != except)
-                Send<void>(p, "setVolume:fadeDuration:", volume, 0.08);
-    }
-
-    id LoadData(const std::string& filePath)
-    {
-        auto it = g_mixData.find(filePath);
-        if (it != g_mixData.end())
-            return it->second;
+        auto it = g_mixFiles.find(filePath);
+        if (it != g_mixFiles.end())
+            return &it->second;
         std::ifstream file(filePath, std::ios::binary);
         std::stringstream content;
         content << file.rdbuf();
         const std::string bytes = content.str();
         if (bytes.empty())
             return nullptr;
+        MixFile mf;
         id cls = reinterpret_cast<id>(objc_getClass("NSData"));
-        id data = Send<id>(cls, "dataWithBytes:length:", static_cast<const void*>(bytes.data()),
+        mf.data = Send<id>(cls, "dataWithBytes:length:", static_cast<const void*>(bytes.data()),
                            static_cast<unsigned long>(bytes.size()));
-        Send<id>(data, "retain");
-        g_mixData[filePath] = data;
-        return data;
+        Send<id>(mf.data, "retain");
+        mf.envelope = AudioSidechain::ComputeWavEnvelope(bytes);
+        return &(g_mixFiles[filePath] = mf);
     }
 
-    void ReapMixPlayers()
+    void ReapMixVoices()
     {
-        for (auto it = g_mixPlayers.begin(); it != g_mixPlayers.end();)
+        for (auto it = g_mixVoices.begin(); it != g_mixVoices.end();)
         {
-            if (!Send<BOOL>(*it, "isPlaying"))
+            if (!Send<BOOL>(it->player, "isPlaying"))
             {
-                Send<void>(*it, "release");
-                it = g_mixPlayers.erase(it);
+                Send<void>(it->player, "release");
+                it = g_mixVoices.erase(it);
             }
             else
                 ++it;
+        }
+    }
+
+    // Sidechain: a cada 40 ms, o nível do som dominante naquele instante define o volume
+    // dos outros. Roda enquanto houver som dominante tocando.
+    void DuckerLoop()
+    {
+        using namespace std::chrono;
+        auto last = steady_clock::now();
+        while (true)
+        {
+            std::this_thread::sleep_for(milliseconds(40));
+            std::lock_guard<std::mutex> lock(g_mixMutex);
+            ReapMixVoices();
+            const auto now = steady_clock::now();
+            const double dt = duration<double>(now - last).count();
+            last = now;
+            float key = 0.0f;
+            bool anyDominant = false;
+            for (const auto& v : g_mixVoices)
+                if (v.dominant)
+                {
+                    anyDominant = true;
+                    key = std::max(key, v.file->envelope.At(duration<double>(now - v.start).count()));
+                }
+            const float gain = g_compressor.Update(key, dt);
+            for (const auto& v : g_mixVoices)
+                if (!v.dominant)
+                    Send<void>(v.player, "setVolume:", gain);
+            if (!anyDominant && gain >= 0.999f)
+            {
+                g_compressor.Reset();
+                g_duckerRunning = false;
+                return;
+            }
         }
     }
 }
@@ -102,42 +145,29 @@ namespace AudioPlayer
     bool PlayWavMixed(const std::string& filePath, bool duckOthers)
     {
         std::lock_guard<std::mutex> lock(g_mixMutex);
-        ReapMixPlayers();
-        id data = LoadData(filePath);
-        if (!data)
+        ReapMixVoices();
+        const MixFile* file = LoadFile(filePath);
+        if (!file)
             return false;
         id cls = reinterpret_cast<id>(objc_getClass("AVAudioPlayer"));
         if (!cls)
             return false;
-        id player = Send<id>(Send<id>(cls, "alloc"), "initWithData:error:", data, static_cast<id*>(nullptr));
+        id player = Send<id>(Send<id>(cls, "alloc"), "initWithData:error:", file->data, static_cast<id*>(nullptr));
         if (!player)
             return false;
         Send<BOOL>(player, "prepareToPlay");
-        if (duckOthers)
-            SetVolumes(kDuckVolume, player);
-        else if (g_duckDepth > 0)
-            Send<void>(player, "setVolume:", kDuckVolume);  // entra já baixo, por baixo do toque
+        if (!duckOthers)
+            Send<void>(player, "setVolume:", g_compressor.Gain());  // entra no volume atual do ducking
         if (!Send<BOOL>(player, "play"))
         {
             Send<void>(player, "release");
             return false;
         }
-        g_mixPlayers.push_back(player);
-        if (duckOthers)
+        g_mixVoices.push_back({ player, file, duckOthers, std::chrono::steady_clock::now() });
+        if (duckOthers && !g_duckerRunning)
         {
-            // Volta o volume dos outros quando este som terminar
-            ++g_duckDepth;
-            const double seconds = Send<double>(player, "duration");
-            std::thread([seconds]
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(seconds * 1000)));
-                std::lock_guard<std::mutex> lock(g_mixMutex);
-                if (--g_duckDepth <= 0)
-                {
-                    g_duckDepth = 0;
-                    SetVolumes(1.0f, nullptr);
-                }
-            }).detach();
+            g_duckerRunning = true;
+            std::thread(DuckerLoop).detach();
         }
         return true;
     }
