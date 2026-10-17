@@ -21,6 +21,8 @@ struct SequenceSettings
     // num instante (ms depois do primeiro disparo), em ordem de tempo. Vazio = todas
     // ao mesmo tempo, como sempre (a versão de terminal só usa isso).
     std::vector<CanonController::ScheduledShot> schedule;
+    // Som curto a cada grupo do plano depois do primeiro (janela Live); nada no terminal
+    bool groupSounds = false;
 };
 
 // Avisos do núcleo para a interface. Todos têm implementação vazia por padrão.
@@ -42,6 +44,9 @@ public:
     virtual void OnCountdownStarted(int /*seconds*/) {}
     virtual void OnCountdownTick(int /*secondsLeft*/) {}
     virtual void OnTrigger() {}
+    // Disparo com plano: uma câmera acabou de disparar (índice 1..total no plano);
+    // ok = false quando o comando falhou. Não é chamado no disparo de todas juntas.
+    virtual void OnShotFired(const CameraContext& /*camera*/, int /*index*/, int /*total*/, bool /*ok*/) {}
     virtual void OnShotFailed(const CameraContext& /*camera*/, long /*error*/) {}
     virtual void OnWaitingForDownloads() {}
     virtual void OnDownloadProgress(int /*done*/, int /*total*/) {}

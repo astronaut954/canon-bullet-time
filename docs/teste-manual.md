@@ -343,6 +343,34 @@ geram fotos de teste com o número da câmera e "#n" (número da foto na sessão
 - [ ] Com câmeras de verdade (quando houver): Sequence 1 s com 2 câmeras: fotos chegam e a sessão
       tem a ordem certa; terminal app sem mudança.
 
+## 19. Janela Live (etapa 15)
+
+Sem câmeras: abra com câmeras simuladas (como na seção 18). O botão **Live view** fica na barra
+de cima, ao lado de Save sessions. Esc fecha (ou cancela o disparo, se estiver no meio); Space
+dispara de novo. Mexendo o mouse aparecem as opções embaixo: Mode (Operator / Audience), Layout
+(Arc / Circle / Line) e Group sounds.
+
+- [ ] Live view abre o palco escuro com as 9 câmeras em arco (número de cada uma), "Ready · 9 cameras"
+      e as teclas embaixo. Close ou Esc volta à janela normal.
+- [ ] Countdown 3 e Sequence 1 s 1 → 9 → 1; abrir a Live view e apertar Space: a contagem 3, 2, 1
+      aparece grande com "Get ready" (o som continua); depois cada câmera fica branca na hora do
+      disparo e verde logo depois, a próxima fica tracejada (âmbar), "k / 17" em cima, "Next: camera
+      n in 0,x s" embaixo à esquerda e a barra do plano avança. No fim: "17 / 17 received" e a
+      sequência toca em loop (tira de fotos em cima, foto grande embaixo). Space dispara de novo.
+- [ ] Groups 3 × 2 s: entre os grupos aparece a contagem em números ("1.4 s", "Next group: cameras
+      4, 5, 6") e as três câmeras do próximo grupo tracejadas. Com Group sounds ligado, um bip curto
+      no começo do 2º e do 3º grupo; desligado, só o som do disparo.
+- [ ] Layout Circle e Line mudam a disposição das câmeras na hora; a escolha, o modo e o som ficam
+      guardados ao fechar e abrir o app.
+- [ ] Mode Audience: só a contagem grande, "Hold still" (com a contagem em números entre grupos
+      longos), e a foto grande tocando em loop no fim; sem câmeras, sem números de fotos, sem plano.
+- [ ] All at once: na hora do disparo todas as câmeras piscam brancas e ficam verdes; "k / 9" das
+      fotos chegando; sequência no fim.
+- [ ] Cancelar (Esc) no meio: "Cancelled"; Esc de novo fecha a Live view.
+- [ ] Sessions 2: a Live view mostra "Session 1 of 2"; a segunda sessão começa sozinha e a sequência
+      da primeira para de tocar.
+- [ ] A janela principal continua igual por baixo: contagem própria, log e a sessão nova.
+
 ## Resultado
 
 | Data | Sistema | Branch/versão | Câmeras | Passou? | Observações |

@@ -36,6 +36,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
 | 13 | Match colors | Picture Style pelo app (botão "±": contraste, saturação, tom de cor) e igualado pelo Match; brilho medido como o olho vê; "Use gray card" (acha o cartão, a pessoa confere, cinza neutro); "Calibrate with chart" (cartela impressa, diferença por modelo); modo debug; perguntar se descarta as sessões depois de salvar. Testado no Mac com SL3 + T7 até o cartão cinza (2026-10-16); a cartela ainda não foi testada com câmeras. Versão 2.8.0. | feito |
 | 14 | Disparo com intervalos (Timing) | Campo Timing no painel Bullet time (botão Advanced): todas juntas, uma depois da outra (intervalo, direção 1→N / N→1 / ida e volta, loops), grupos, ímpar/par e custom (passos: câmeras + tempo). Linha do tempo. Disparo com plano no núcleo (uma foto por item; o número da foto é a posição no plano). Câmeras simuladas para testar sem câmeras (STILLPOINT_FAKE_CAMERAS). Testado no Mac com câmeras simuladas (2026-10-16); com câmeras de verdade, ainda não. Versão 2.9.0. | feito |
+| 15 | Janela Live | Palco em tela cheia para um segundo monitor (ou janela flutuante): contagem inicial (a da janela principal continua), câmeras na ordem do rig disparando (branca → verde, próxima tracejada), contagem entre grupos, fotos chegando e a sequência em loop no fim. Modos Operator e Audience; layout arco (padrão), círculo ou linha; bip por grupo (opcional, ligado). Primeiro como página dentro da janela principal (botão Live view), depois janela nativa separada no Mac e no Windows. | em andamento |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -419,6 +420,40 @@ seguidas a mesma câmera). O plano fica salvo em settings.txt (`timing=`).
 - Conferido: interface no navegador e no app (Mac) com 9 câmeras simuladas: 33 fotos na ordem
   certa com ida e volta ×2, custom por passos, cancelar, layout sem rolagem, Timeline fixa. Falta:
   disparo com plano em câmeras de verdade (ShootScheduled) e o teste no Windows.
+
+### Etapa 15: Janela Live (iniciada em 2026-10-17)
+
+Pedido do dono do projeto (2026-10-16): com o Timing, as câmeras podem disparar de jeitos
+diferentes; precisa de um retorno visual numa outra janela (tela cheia num segundo monitor ou
+flutuando) com quantas câmeras disparam, os grupos, quando, a contagem inicial (mantendo a da
+janela principal) e as contagens entre câmeras/grupos. Decisões (2026-10-16, sobre o protótipo
+`scratchpad/stage/stage.png`): modos Operator e Audience desde o início; layout das câmeras em
+arco (padrão), círculo ou linha; som por grupo opcional, ligado por padrão; começa pela página
+(testável com câmeras simuladas) e depois a janela nativa no Mac e no Windows.
+
+Parte 1 (página, feita em 2026-10-17):
+- Núcleo: `BulletTimeListener::OnShotFired(câmera, índice, total, ok)` a cada disparo do plano
+  (`ShootScheduled` ganhou um callback; o terminal não muda). `SequenceSettings::groupSounds`
+  toca `assets/audio/group.wav` (bip curto, gerado no projeto) quando começa um grupo novo (instante
+  diferente do item anterior); só com plano e só pela interface gráfica.
+- App: evento `livePlan` antes de cada disparo (plano com câmera, número e instante; `all` = todas
+  juntas), `shoot` com 5º argumento (sons por grupo), `saveLive` (settings.txt `live=`: modo,
+  layout, sons), `uiReady.live`. `LoadUi` embute `assets/ui/live.css` e `live.js`.
+- Página: `assets/ui/live.js` (objeto `Live`: init, setCameras, open, close, handle, playback) e
+  `live.css`; botão "Live view" na barra de cima; a página principal repassa os avisos do núcleo
+  (`onCoreEvent`) e as fotos da sessão nova. Regras: contagem em números entre grupos só com
+  intervalo maior que 1,5 s (senão barra + "Next: camera n in 0,x s"); câmera disparando fica
+  branca 0,3 s; falha de disparo e foto que não chegou em vermelho (Operator); Audience mostra só
+  a contagem, "Hold still", a contagem entre grupos longos e a sequência no fim. Esc cancela o
+  disparo ou fecha; Space dispara de novo. O relógio da página se acerta pelo `shotFired` que chega.
+- Conferido no navegador (Playwright, 9 câmeras simuladas, 1280×720 e 900×560): ida e volta 17
+  fotos, grupos com contagem, falha, layouts, Audience. Falta: teste no app (Mac) com
+  `STILLPOINT_FAKE_CAMERAS=9` e o som por grupo.
+
+Parte 2 (janela nativa separada): segunda janela com a mesma página (`assets/ui/live.html`),
+tela cheia no monitor escolhido (lembrar o monitor), flutuante/sempre à frente; os avisos do
+núcleo vão para as duas janelas; a janela Live pede as fotos da sessão pelo mesmo `getPhoto`.
+Mac (NSWindow/WKWebView) e Windows (WebView2). Ainda não começou.
 
 ## Futuro (não planejado ainda)
 

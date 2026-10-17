@@ -376,6 +376,10 @@ namespace
         void OnCountdownStarted(int seconds) override { Emit(Json("countdownStarted").Add("seconds", seconds)); }
         void OnCountdownTick(int secondsLeft) override { Emit(Json("countdownTick").Add("seconds", secondsLeft)); }
         void OnTrigger() override { Emit(Json("trigger")); }
+        void OnShotFired(const CameraContext& camera, int index, int total, bool ok) override
+        {
+            Emit(Json("shotFired").Add("camera", camera.shortName).Add("index", index).Add("total", total).Add("ok", ok));
+        }
         void OnShotFailed(const CameraContext& camera, long error) override
         {
             Emit(Json("shotFailed").Add("camera", camera.shortName).Add("error", error)
@@ -892,7 +896,9 @@ namespace
         if (css.empty())
             css = read(dir / "themes" / (std::string(kDefaultTheme) + ".css"));
         replace("/*__THEME__*/", embedFonts(css));
+        replace("/*__LIVE_CSS__*/", read(dir / "live.css"));
         replace("/*__SCRIPT__*/", read(dir / "app.js"));
+        replace("/*__LIVE_SCRIPT__*/", read(dir / "live.js"));
         return html;
     }
 
@@ -1140,6 +1146,7 @@ namespace
                 .Add("language", language)
                 .Add("debug", debugMode.load())
                 .Add("timing", settings.count("timing") ? settings.at("timing") : std::string())
+                .Add("live", settings.count("live") ? settings.at("live") : std::string())
                 .Add("fakeCameras", fakeCount).Str();
         });
 
@@ -1200,6 +1207,17 @@ namespace
                 return Json("settings").Add("ok", false).Str();
             auto current = LoadSettings();
             current["timing"] = args[0];
+            return Json("settings").Add("ok", SaveSettings(current)).Str();
+        });
+
+        // saveLive(texto): opções da janela Live (modo, layout, sons), JSON numa linha
+        window.bind("saveLive", [&](const std::string& request) -> std::string
+        {
+            const auto args = ParseStringArgs(request);
+            if (args.empty() || args[0].find('\n') != std::string::npos)
+                return Json("settings").Add("ok", false).Str();
+            auto current = LoadSettings();
+            current["live"] = args[0];
             return Json("settings").Add("ok", SaveSettings(current)).Str();
         });
 
@@ -1284,6 +1302,7 @@ namespace
                 int done = 0;
                 for (size_t i = 0; i < plan.size(); ++i)
                 {
+                    const bool scheduled = !settings.schedule.empty();
                     while (true)
                     {
                         if (fakeCancel) { completed = false; break; }
@@ -1297,7 +1316,15 @@ namespace
                     int number = 0;
                     for (const auto& cam : controller.GetCameras())
                         if (cam.shortName == plan[i].shortName)
+                        {
                             number = cam.orderPrefix;
+                            if (scheduled)
+                            {
+                                if (settings.groupSounds && settings.playSounds && i > 0 && plan[i].atMs != plan[i - 1].atMs)
+                                    AudioPlayer::PlayWavAsync(GetAssetAudioPath("group.wav").string());
+                                listener.OnShotFired(cam, static_cast<int>(i) + 1, static_cast<int>(plan.size()), true);
+                            }
+                        }
                     char prefix[8];
                     std::snprintf(prefix, sizeof(prefix), "%02d", static_cast<int>(i) + 1);
                     WriteTestPhoto(dir / (std::string(prefix) + "_" + plan[i].shortName + "_IMG_" + std::to_string(1000 + i) + ".jpg"), number, static_cast<int>(i) + 1);
@@ -1347,6 +1374,33 @@ namespace
             }
             if (args.size() > 3)
                 settings.schedule = parseSchedule(args[3]);
+            if (args.size() > 4)
+                settings.groupSounds = args[4] == "1";
+            // A janela Live recebe o plano inteiro antes de começar: cada item com a
+            // câmera (nome e número) e o instante em ms. Plano vazio = todas juntas no 0.
+            {
+                std::string items;
+                auto addItem = [&](const std::string& shortName, int atMs)
+                {
+                    int number = 0;
+                    for (const auto& cam : controller.GetCameras())
+                        if (cam.shortName == shortName)
+                            number = cam.orderPrefix;
+                    items += std::string(items.empty() ? "" : ",") + "{\"cam\":" + JsonString(shortName)
+                        + ",\"number\":" + std::to_string(number) + ",\"t\":" + std::to_string(atMs) + "}";
+                };
+                if (settings.schedule.empty())
+                {
+                    for (const auto& cam : controller.GetCameras())
+                        if (cam.sessionOpen)
+                            addItem(cam.shortName, 0);
+                }
+                else
+                    for (const auto& item : settings.schedule)
+                        addItem(item.shortName, item.atMs);
+                listener.Emit(Json("livePlan").Add("countdown", settings.countdownSeconds).Add("sessions", settings.sessionCount)
+                    .Add("all", settings.schedule.empty()).Raw("shots", "[" + items + "]"));
+            }
             run("shoot", [&, settings]
             {
                 if (fakeCount) { fakeRun(settings); emitSessions(); return; }

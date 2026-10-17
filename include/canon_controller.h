@@ -9,6 +9,7 @@
 #include <thread>
 #include <vector>
 #include <set>
+#include <functional>
 #include <string>
 #include <filesystem>
 
@@ -86,9 +87,12 @@ public:
     // Disparo com intervalos: uma foto por item, no instante pedido (ms depois do
     // primeiro). Itens em ordem de tempo; o número da foto na sessão é a posição do
     // item (1, 2, 3...). Dispara a câmera pelo nome. cancelled: a pessoa pediu para
-    // parar (os itens que faltam não disparam). Retorna quantos disparos saíram.
+    // parar (os itens que faltam não disparam). onShot: chamado logo depois de cada
+    // disparo (índice 1..n, câmera, se o comando saiu). Retorna quantos disparos saíram.
     struct ScheduledShot { std::string shortName; int atMs = 0; };
-    int ShootScheduled(const std::vector<ScheduledShot>& shots, const std::atomic<bool>* cancelled);
+    using ShotCallback = std::function<void(int index, const CameraContext& camera, bool ok)>;
+    int ShootScheduled(const std::vector<ScheduledShot>& shots, const std::atomic<bool>* cancelled,
+                       const ShotCallback& onShot = {});
     void CloseSessions();
 
     void SetOutputFolder(const std::string& folderPath);

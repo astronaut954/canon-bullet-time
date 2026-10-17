@@ -222,7 +222,17 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
         if (settings.schedule.empty())
             controller.ShootAll();
         else
-            controller.ShootScheduled(settings.schedule, &cancelRequested);
+        {
+            const auto groupAudio = GetAssetAudioPath("group.wav");
+            const auto& plan = settings.schedule;
+            controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
+            {
+                // Som curto quando começa um grupo novo (instante diferente do item anterior)
+                if (settings.groupSounds && settings.playSounds && index > 1 && plan[index - 1].atMs != plan[index - 2].atMs)
+                    AudioPlayer::PlayWavAsync(groupAudio.string());
+                listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
+            });
+        }
 
         for (const auto& cam : controller.GetCameras())
         {

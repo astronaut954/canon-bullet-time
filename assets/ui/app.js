@@ -1818,6 +1818,7 @@
       renderCameras();
       readyStatus();
       refreshSessionTitles();
+      if (window.Live) window.Live.setCameras(cameras);
 
       renderActivity();
     },
@@ -2026,7 +2027,12 @@
     },
 
     // Fotos guardadas
-    sessions(e) { setSessions(e.sessions); },
+    sessions(e) {
+      setSessions(e.sessions);
+      const newest = sessions[0];
+      if (window.Live && window.Live.isOpen() && newest && newest.photos.length)
+        window.Live.playback(newest.photos, (file) => sessionPhoto(newest.name, file, 800));
+    },
     saving() { activity.saving = true; renderActivity(); },
     exportProgress(e) { showProgress(e); },
     saveCancelled() {
@@ -2119,6 +2125,7 @@
   window.onCoreEvent = function (event) {
     const handler = handlers[event.type];
     if (handler) handler(event);
+    if (window.Live && !orderCapture()) window.Live.handle(event);
   };
 
   // Sem o menu do botão direito do navegador ("Reload" deixava a janela em branco);
@@ -3237,8 +3244,14 @@
     const plan = timingPlan();
     if (plan.warn && !plan.shots.length) { toast(plan.warn, 6000); return; }
     const schedule = timing.mode === "all" ? "" : plan.shots.map((s) => s.cam + ":" + s.t).join(",");
-    window.shoot(String(intValue(ui.countdown, 0, 0)), String(intValue(ui.sessions, 1, 1)), String(intValue(ui.downloadWait, 1, 10)), schedule);
+    const sounds = window.Live && window.Live.options().sounds ? "1" : "0";
+    window.shoot(String(intValue(ui.countdown, 0, 0)), String(intValue(ui.sessions, 1, 1)), String(intValue(ui.downloadWait, 1, 10)), schedule, sounds);
   });
+
+  // =================== Live view (assets/ui/live.js) ===================
+  // Palco em tela cheia com a contagem, as câmeras disparando e a sequência no fim.
+  // As opções (modo, layout, sons) ficam em settings.txt (live=).
+  $("liveBtn").addEventListener("click", () => { if (window.Live) window.Live.open(); });
 
   // =================== Timing: como as câmeras disparam ===================
   // Modos: todas juntas; uma depois da outra (intervalo, direção, loops); grupos;
@@ -3502,6 +3515,14 @@
     upd.info = info || null;
     timingLoad(info && info.timing);
     renderTiming();
+    if (window.Live) {
+      window.Live.init({
+        shoot: () => { if (!ui.shootBtn.disabled && !(busy && busyAction === "shoot")) ui.shootBtn.click(); },
+        cancel: cancelShoot,
+        save: (opts) => window.saveLive(JSON.stringify(opts)),
+      }, info && info.live);
+      window.Live.setCameras(cameras);
+    }
     if (info && info.fakeCameras) log("Fake cameras: " + info.fakeCameras + " (STILLPOINT_FAKE_CAMERAS). Shots make test photos.", "warn");
     if (info && info.os === "windows") menuEl.btn.classList.remove("hidden");
     if (info && info.version) {

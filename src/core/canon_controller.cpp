@@ -1410,7 +1410,8 @@ bool CanonController::ShootAll()
     return anySuccess;
 }
 
-int CanonController::ShootScheduled(const std::vector<ScheduledShot>& shots, const std::atomic<bool>* cancelled)
+int CanonController::ShootScheduled(const std::vector<ScheduledShot>& shots, const std::atomic<bool>* cancelled,
+                                    const ShotCallback& onShot)
 {
     expectedDownloads = 0;
     completedDownloads = 0;
@@ -1479,6 +1480,8 @@ int CanonController::ShootScheduled(const std::vector<ScheduledShot>& shots, con
                 if (*it == static_cast<int>(i) + 1) { cam->pendingPrefixes.erase(it); break; }
             expectedDownloads--;
         }
+        if (onShot)
+            onShot(static_cast<int>(i) + 1, *cam, errDown == EDS_ERR_OK);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         EdsError errOff = EdsSendCommand(cam->camera, kEdsCameraCommand_PressShutterButton, kEdsCameraCommand_ShutterButton_OFF);
         LogMessage("PressShutter OFF [" + cam->shortName + "]: " + std::to_string(errOff));
