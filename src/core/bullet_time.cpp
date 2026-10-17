@@ -238,14 +238,14 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 else AudioPlayer::PlayWavAsync(file.string());
             };
             // Contagem com som antes de cada grupo (intervalo maior que 1,5 s): um toque a cada
-            // segundo inteiro que falta, desde logo depois do grupo anterior, com
-            // ducking do som do grupo; e o som do grupo quando ele sai (só com intervalo de
+            // segundo inteiro que falta, desde logo depois do grupo anterior (mais
+            // baixos enquanto o som do grupo toca: ducking); e o som do grupo quando ele sai (só com intervalo de
             // pelo menos 0,5 s: mais rápido que isso vira ruído)
             int tickedIndex = 0, tickedSecond = 0;
             controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
             {
                 if (sounds && index > 1 && plan[index - 1].atMs - plan[index - 2].atMs >= 500)
-                    play(groupAudio);
+                    play(groupAudio, true);  // o som do grupo manda: os toques ficam por baixo
                 listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
             }, [&](int next, long long msRemaining)
             {
@@ -257,7 +257,7 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 {
                     tickedIndex = next;
                     tickedSecond = second;
-                    play(countdownAudio, true);
+                    play(countdownAudio);
                 }
             });
         }

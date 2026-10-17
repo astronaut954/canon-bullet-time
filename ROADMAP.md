@@ -499,7 +499,8 @@ Windows):
   curso; Windows: uma voz waveOut por som). `SequenceSettings::mixedAudio` (a interface liga; o
   terminal segue com `PlayWavAsync`, um som por vez). Som de grupo só com intervalo ≥ 0,5 s.
   Ducking (pedido de 2026-10-17): `PlayWavMixed(arquivo, duckOthers)` abaixa os sons em curso
-  (25 %) enquanto o toque da contagem toca e devolve o volume quando ele termina (Mac:
+  (25 %) enquanto o som do grupo toca — os toques da contagem ficam por baixo dele — e devolve o
+  volume quando ele termina (Mac:
   `setVolume:fadeDuration:`; Windows: `waveOutSetVolume` por voz). Toques a cada segundo do
   intervalo, desde logo depois do grupo. Live (Operator): legenda e linha do tempo somem com a sequência tocando; Audience: "Firing!" nos
   disparos, "Next pose" na contagem, "Got it!" centralizado.

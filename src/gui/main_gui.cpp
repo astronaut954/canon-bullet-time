@@ -1335,8 +1335,8 @@ namespace
                         const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
                         if (elapsed >= plan[i].atMs)
                             break;
-                        // Contagem com som a cada segundo até o grupo (intervalo maior que 1,5 s), com
-                        // ducking do som do grupo, como no núcleo
+                        // Contagem com som a cada segundo até o grupo (intervalo maior que 1,5 s); os
+                        // toques ficam mais baixos enquanto o som do grupo toca, como no núcleo
                         const int gap = i > 0 ? plan[i].atMs - plan[i - 1].atMs : 0;
                         if (groupSounds && scheduled && gap > 1500)
                         {
@@ -1345,7 +1345,7 @@ namespace
                             {
                                 tickedIndex = static_cast<int>(i);
                                 tickedSecond = second;
-                                AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string(), true);
+                                AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string());
                             }
                         }
                         std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(20, plan[i].atMs - elapsed)));
@@ -1360,7 +1360,7 @@ namespace
                             if (scheduled)
                             {
                                 if (settings.groupSounds && settings.playSounds && i > 0 && plan[i].atMs - plan[i - 1].atMs >= 500)
-                                    AudioPlayer::PlayWavMixed(GetAssetAudioPath("group.wav").string());
+                                    AudioPlayer::PlayWavMixed(GetAssetAudioPath("group.wav").string(), true);
                                 listener.OnShotFired(cam, static_cast<int>(i) + 1, static_cast<int>(plan.size()), true);
                             }
                         }
