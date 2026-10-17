@@ -794,8 +794,8 @@
   reverseLoopOption.innerHTML = '<input type="checkbox" checked> Reverse loop';
   const reverseLoop = reverseLoopOption.querySelector("input");
 
-  // Velocidade do play: de 0,5x a 2x (sem extremos); 1x = 220 ms por foto
-  const PLAY_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  // Velocidade do play: de 0,25x a 5x; 1x = 220 ms por foto
+  const PLAY_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5];
   let speedIndex = PLAY_SPEEDS.indexOf(1);
   const speedLabel = document.createElement("span");
   speedLabel.className = "play-speed";

@@ -46,15 +46,21 @@ namespace
         return it->second() ? YES : NO;
     }
 
-    // Botões da barra de título (fechar, minimizar, zoom): escondidos na tela cheia
-    void SetTitleButtonsHidden(id window, bool hidden)
+    // Subclasse de NSWindow que aceita ser a janela com foco mesmo sem borda
+    void MakeKeyable(id window)
     {
-        for (unsigned long button = 0; button < 3; ++button)
+        static ::Class cls = nullptr;
+        if (!cls)
         {
-            id b = Send<id>(window, "standardWindowButton:", button);
-            if (b)
-                Send<void>(b, "setHidden:", hidden ? YES : NO);
+            cls = objc_allocateClassPair(objc_getClass("NSWindow"), "StillpointLiveWindow", 0);
+            class_addMethod(cls, sel_registerName("canBecomeKeyWindow"),
+                            reinterpret_cast<IMP>(+[](id, SEL) -> BOOL { return YES; }), "B@:");
+            class_addMethod(cls, sel_registerName("canBecomeMainWindow"),
+                            reinterpret_cast<IMP>(+[](id, SEL) -> BOOL { return YES; }), "B@:");
+            objc_registerClassPair(cls);
         }
+        if (object_getClass(window) != cls)
+            object_setClass(window, cls);
     }
 
     id ScreenNamed(const std::string& name)
@@ -235,18 +241,18 @@ namespace NativeWindow
             return false;
         const CGRect frame = Send<CGRect>(screen, "frame");
 
-        // Mantém a barra de título (uma janela sem borda não recebe teclado), mas
-        // transparente, sem título nem botões, com a página ocupando tudo; a janela
-        // fica por cima da barra de menus e do Dock desse monitor e não se move.
-        const unsigned long titled = 1ul << 0, fullSizeContent = 1ul << 15;
-        Send<void>(window, "setStyleMask:", titled | fullSizeContent);
-        Send<void>(window, "setTitlebarAppearsTransparent:", YES);
-        Send<void>(window, "setTitleVisibility:", 1l);  // NSWindowTitleHidden
-        SetTitleButtonsHidden(window, true);
+        // Janela sem borda cobrindo o monitor inteiro. Uma NSWindow sem borda não
+        // recebe teclado (canBecomeKeyWindow devolve NO), então a janela passa a ser de
+        // uma subclasse nossa que devolve YES (troca de classe do objeto, como o
+        // próprio sistema faz no KVO). Com barra de título o sistema encolhia a janela
+        // para caber abaixo da barra de menus (observado em 2026-10-16).
+        MakeKeyable(window);
+        Send<void>(window, "setStyleMask:", 0ul);  // NSWindowStyleMaskBorderless
         Send<void>(window, "setMovable:", NO);
+        Send<void>(window, "setHasShadow:", NO);
         // canJoinAllSpaces (1) + fullScreenAuxiliary (1 << 8): aparece em qualquer espaço
         Send<void>(window, "setCollectionBehavior:", (1ul << 0) | (1ul << 8));
-        Send<void>(window, "setLevel:", 25l);  // NSMainMenuWindowLevel (24) + 1
+        Send<void>(window, "setLevel:", 25l);  // NSMainMenuWindowLevel (24) + 1: por cima da barra de menus e do Dock
         Send<void>(window, "setFrame:display:", frame, YES);
         Send<void>(window, "makeKeyAndOrderFront:", nullptr);
         return true;
@@ -257,10 +263,8 @@ namespace NativeWindow
         id window = static_cast<id>(nativeWindow);
         const unsigned long titled = 1ul << 0, closable = 1ul << 1, miniaturizable = 1ul << 2, resizable = 1ul << 3;
         Send<void>(window, "setStyleMask:", titled | closable | miniaturizable | resizable);
-        Send<void>(window, "setTitlebarAppearsTransparent:", NO);
-        Send<void>(window, "setTitleVisibility:", 0l);  // NSWindowTitleVisible
-        SetTitleButtonsHidden(window, false);
         Send<void>(window, "setMovable:", YES);
+        Send<void>(window, "setHasShadow:", YES);
         Send<void>(window, "setCollectionBehavior:", 0ul);
         Send<void>(window, "setLevel:", alwaysOnTop ? 3l : 0l);  // NSFloatingWindowLevel : NSNormalWindowLevel
         // Tamanho de janela, no monitor principal, se estava cobrindo um monitor

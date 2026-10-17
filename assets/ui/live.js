@@ -16,10 +16,10 @@
 window.Live = (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const DEFAULTS = { mode: "operator", layout: "arc", display: "window", screen: "", onTop: false };
+  const DEFAULTS = { mode: "operator", layout: "arc", display: "window", screen: "", onTop: false, speed: 1, reverse: true };
+  const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5];  // 1x = 220 ms por foto, como na janela principal
   const NUMERIC_GAP_MS = 1500;   // contagem em números só para intervalos maiores que isto
   const FLASH_MS = 320;          // quanto tempo a câmera fica branca depois de disparar
-  const PLAY_FPS = 8;
 
   const S = {
     open: false,
@@ -37,7 +37,7 @@ window.Live = (function () {
     lost: new Set(),           // câmeras cuja foto não chegou
     received: { done: 0, total: 0 },
     elapsedMs: 0,              // duração do disparo (do primeiro ao último)
-    play: { urls: [], i: 0, timer: 0, waiting: false },
+    play: { urls: [], i: 0, dir: 1, timer: 0, waiting: false },
     raf: 0,
     hideTimer: 0,
     rigVisible: false,
@@ -90,15 +90,19 @@ window.Live = (function () {
       modeBtns: Array.from(document.querySelectorAll("#liveTools [data-mode]")),
       layoutBtns: Array.from(document.querySelectorAll("#liveTools [data-layout]")),
       displayBtns: Array.from(document.querySelectorAll("#liveTools [data-display]")),
-      screen: $("liveScreen"), onTop: $("liveOnTop"), onTopLabel: $("liveOnTopLabel"), another: $("liveAnother"),
-      sounds: $("liveSounds"), close: $("liveClose"), sound: $("liveSound"),
+      onTop: $("liveOnTop"), onTopLabel: $("liveOnTopLabel"), another: $("liveAnother"),
+      sounds: $("liveSounds"), close: $("liveClose"),
+      slower: $("liveSlower"), faster: $("liveFaster"), speed: $("liveSpeed"), reverse: $("liveReverse"),
+      screens: $("liveScreens"), screensList: $("liveScreensList"), screensCancel: $("liveScreensCancel"),
     };
-    el.sound.addEventListener("click", () => setSound({ sound: !S.sound.sound }));
     el.sounds.addEventListener("change", () => setSound({ sounds: el.sounds.checked }));
+    el.slower.addEventListener("click", () => changeSpeed(-1));
+    el.faster.addEventListener("click", () => changeSpeed(1));
+    el.reverse.addEventListener("change", () => setOpts({ reverse: el.reverse.checked }));
+    el.screensCancel.addEventListener("click", () => el.screens.classList.add("hidden"));
     el.modeBtns.forEach((b) => b.addEventListener("click", () => setOpts({ mode: b.dataset.mode })));
     el.layoutBtns.forEach((b) => b.addEventListener("click", () => setOpts({ layout: b.dataset.layout })));
-    el.displayBtns.forEach((b) => b.addEventListener("click", () => setOpts({ display: b.dataset.display })));
-    el.screen.addEventListener("change", () => setOpts({ display: "full", screen: el.screen.value }));
+    el.displayBtns.forEach((b) => b.addEventListener("click", () => { if (b.dataset.display === "full") askFullScreen(); else setOpts({ display: "window" }); }));
     el.onTop.addEventListener("change", () => setOpts({ onTop: el.onTop.checked }));
     el.another.addEventListener("click", () => { if (cb.another) cb.another(); });
     el.close.addEventListener("click", close);
@@ -121,19 +125,38 @@ window.Live = (function () {
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopImmediatePropagation();
-      if (S.phase === "countdown" || S.phase === "firing" || S.phase === "receiving") { if (cb.cancel) cb.cancel(); }
+      if (!el.screens.classList.contains("hidden")) el.screens.classList.add("hidden");
+      else if (S.phase === "countdown" || S.phase === "firing" || S.phase === "receiving") { if (cb.cancel) cb.cancel(); }
       else if (S.opts.display === "full") setOpts({ display: "window" });
       else close();
     } else if (e.key === "f" || e.key === "F") {
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
       e.preventDefault();
-      setOpts({ display: S.opts.display === "full" ? "window" : "full" });
+      if (S.opts.display === "full") setOpts({ display: "window" }); else askFullScreen();
     } else if (e.key === " ") {
       if (e.target.tagName === "INPUT") return;
       e.preventDefault();
       e.stopImmediatePropagation();
       if ((S.phase === "idle" || S.phase === "done" || S.phase === "cancelled" || S.phase === "failed") && cb.shoot) cb.shoot();
     }
+  }
+
+  // Tela cheia: com mais de um monitor, pergunta em qual; com um só, vai direto
+  function askFullScreen() {
+    if (S.screens.length < 2) { setOpts({ display: "full", screen: S.screens[0] ? S.screens[0].name : "" }); return; }
+    el.screensList.innerHTML = "";
+    S.screens.forEach((sc) => {
+      const b = document.createElement("button");
+      b.className = "btn btn-secondary" + (sc.name === S.opts.screen ? " current" : "");
+      b.textContent = sc.name + (sc.primary ? "  ·  main display" : "");
+      b.addEventListener("click", () => { el.screens.classList.add("hidden"); setOpts({ display: "full", screen: sc.name }); });
+      el.screensList.appendChild(b);
+    });
+    el.screens.classList.remove("hidden");
+  }
+  function changeSpeed(delta) {
+    const i = Math.max(0, Math.min(SPEEDS.length - 1, SPEEDS.indexOf(S.opts.speed) + delta));
+    setOpts({ speed: SPEEDS[i] });
   }
 
   function setOpts(change, silent) {
@@ -146,6 +169,9 @@ window.Live = (function () {
     if (!["window", "full"].includes(S.opts.display)) S.opts.display = "window";
     S.opts.onTop = !!S.opts.onTop;
     S.opts.screen = String(S.opts.screen || "");
+    if (!SPEEDS.includes(Number(S.opts.speed))) S.opts.speed = 1;
+    S.opts.speed = Number(S.opts.speed);
+    S.opts.reverse = S.opts.reverse !== false;
     if (S.opts.display === "full" && !S.screens.some((sc) => sc.name === S.opts.screen))
       S.opts.screen = (S.screens.find((sc) => !sc.primary) || S.screens[0] || { name: "" }).name;
     if (!silent && cb.save) cb.save(Object.assign({}, S.opts));
@@ -153,6 +179,7 @@ window.Live = (function () {
     if (((!silent && before !== after) || applyDisplay) && cb.display) cb.display(Object.assign({}, S.opts));
     renderOpts();
     if (el && S.open) layoutRig();
+    if (S.play.urls.length) restartPlayTimer();
     render();
   }
   function setSound(change) {
@@ -166,18 +193,15 @@ window.Live = (function () {
     el.modeBtns.forEach((b) => b.classList.toggle("on", b.dataset.mode === S.opts.mode));
     el.layoutBtns.forEach((b) => b.classList.toggle("on", b.dataset.layout === S.opts.layout));
     el.displayBtns.forEach((b) => b.classList.toggle("on", b.dataset.display === S.opts.display));
-    if (el.screen.options.length !== S.screens.length || Array.from(el.screen.options).some((o, i) => o.value !== S.screens[i].name)) {
-      el.screen.innerHTML = "";
-      S.screens.forEach((sc) => { const o = document.createElement("option"); o.value = sc.name; o.textContent = sc.name; el.screen.appendChild(o); });
-    }
-    el.screen.value = S.opts.screen;
-    el.screen.classList.toggle("hidden", S.opts.display !== "full" || S.screens.length < 2);
     el.onTop.checked = S.opts.onTop;
+    const v = S.opts.speed;
+    el.speed.textContent = (v % 1 === 0 ? v.toFixed(1) : String(v)) + "x";
+    el.slower.disabled = SPEEDS.indexOf(v) === 0;
+    el.faster.disabled = SPEEDS.indexOf(v) === SPEEDS.length - 1;
+    el.reverse.checked = S.opts.reverse;
     el.onTopLabel.classList.toggle("hidden", S.opts.display === "full");
     el.another.classList.toggle("hidden", !cb.another);
     el.sounds.checked = S.sound.sounds;
-    el.sound.classList.toggle("off", !S.sound.sound);
-    el.sound.querySelector("span").textContent = S.sound.sound ? "Sound on" : "Sound off";
   }
 
   // ---------------------------------------------------------------- câmeras (rig)
@@ -397,7 +421,7 @@ window.Live = (function () {
   // ---------------------------------------------------------------- sequência tocando em loop
   function stopPlayback() {
     clearInterval(S.play.timer);
-    S.play = { urls: [], i: 0, timer: 0, waiting: false };
+    S.play = { urls: [], i: 0, dir: 1, timer: 0, waiting: false };
     if (el) { el.film.innerHTML = ""; el.stageImg.removeAttribute("src"); }
   }
   function renderPlayback() {
@@ -418,6 +442,23 @@ window.Live = (function () {
     const url = urls[S.play.i];
     if (el.stageImg.getAttribute("src") !== url) el.stageImg.src = url;
   }
+  // Vai e volta (1, 2, 3, 2, 1...) com Reverse loop; senão recomeça do início
+  function restartPlayTimer() {
+    clearInterval(S.play.timer);
+    S.play.timer = 0;
+    const n = S.play.urls.length;
+    if (n < 2) return;
+    S.play.timer = setInterval(() => {
+      if (S.opts.reverse) {
+        let next = S.play.i + (S.play.dir || 1);
+        if (next >= n) { S.play.dir = -1; next = n - 2; }
+        else if (next < 0) { S.play.dir = 1; next = 1; }
+        S.play.i = next;
+      } else
+        S.play.i = (S.play.i + 1) % n;
+      renderPlayback();
+    }, Math.round(220 / S.opts.speed));
+  }
   // fotos: [{file, order}] da sessão nova; load(file) -> Promise<url>
   function playback(photos, load) {
     if (!S.open || !S.play.waiting) return;
@@ -427,9 +468,8 @@ window.Live = (function () {
       if (!S.open || S.phase !== "done") return;
       S.play.urls = urls.filter(Boolean);
       S.play.i = 0;
-      clearInterval(S.play.timer);
-      if (S.play.urls.length > 1)
-        S.play.timer = setInterval(() => { S.play.i = (S.play.i + 1) % S.play.urls.length; renderPlayback(); }, 1000 / PLAY_FPS);
+      S.play.dir = 1;
+      restartPlayTimer();
       render();
     });
   }

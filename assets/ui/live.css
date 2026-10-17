@@ -98,7 +98,17 @@
 .live-tools-label { text-transform: uppercase; letter-spacing: .1em; color: var(--noct-text-muted); font-size: 11px; margin-left: 6px; }
 .live-tools .segmented button { height: 28px; padding: 0 10px; white-space: nowrap; }
 .live-tools .btn { white-space: nowrap; }
-.live-screen { max-width: 160px; }
+.live-speed { display: inline-flex; align-items: center; gap: 4px; }
+.live-speed .btn-icon { width: 28px; height: 28px; font-size: 16px; line-height: 1; }
+/* Escolha do monitor para a tela cheia */
+.live-screens { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: rgba(var(--noct-bg-rgb), .8); }
+.live-screens.hidden { display: none; }
+.live-screens-box { min-width: 320px; max-width: 90%; padding: 20px 24px; border: 1px solid var(--noct-border-strong); background: var(--noct-surface, #0a0f0c); display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.live-screens-box h3 { margin: 0 0 4px; font: 700 13px var(--noct-font-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--noct-text); }
+.live-screens-list { display: flex; flex-direction: column; gap: 8px; }
+.live-screens-list .btn { height: 40px; font-size: 13px; justify-content: flex-start; }
+.live-screens-list .btn.current { border-color: var(--noct-primary); color: var(--noct-primary); }
+.live-screens-box > .btn { align-self: flex-end; }
 .live-key { margin-left: 8px; padding: 1px 5px; border: 1px solid var(--noct-border-strong); font-size: 10px; color: var(--noct-text-dim); }
 
 /* Botão grande do som (canto de cima, à direita). O ícone é o mesmo do botão da barra

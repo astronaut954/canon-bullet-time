@@ -348,11 +348,11 @@ geram fotos de teste com o número da câmera e "#n" (número da foto na sessão
 Sem câmeras: abra com câmeras simuladas (como na seção 18). O botão **Live view** fica na barra
 de cima, ao lado de Save sessions, e abre uma **janela separada** (a principal continua à vista).
 Esc cancela o disparo (se estiver no meio), sai da tela cheia ou esconde a janela; Space dispara
-de novo; F alterna a tela cheia. O botão grande **Sound on / Sound off** (canto de cima, à
-direita; também na barra de cima da janela principal) liga e desliga todos os sons do disparo
-(contagem, "it's bullet time" e o bip dos grupos). Mexendo o mouse aparecem as opções embaixo:
-Mode (Operator / Audience), Layout (Arc / Circle / Line), Group sounds, Display (Window / Full
-screen, com o monitor quando há mais de um), Always on top, Another window e Close.
+de novo; F alterna a tela cheia. O botão de som da barra de cima da janela principal liga e
+desliga todos os sons do disparo (contagem, "it's bullet time" e o bip dos grupos). Mexendo o
+mouse na Live aparecem as opções embaixo: Mode (Operator / Audience), Layout (Arc / Circle /
+Line), Group sounds, Speed (0,25x a 5x) e Reverse loop (da sequência no fim), Display (Window /
+Full screen — com mais de um monitor, pergunta qual), Always on top, Another window e Close.
 
 - [ ] Live view abre a janela "Stillpoint · Live" com as 9 câmeras em arco (número de cada uma),
       "Ready · 9 cameras" e as teclas embaixo. A janela principal continua funcionando. Fechar a
@@ -366,11 +366,14 @@ screen, com o monitor quando há mais de um), Always on top, Another window e Cl
 - [ ] Groups 3 × 2 s: entre os grupos aparece a contagem em números ("1.4 s", "Next group: cameras
       4, 5, 6") e as três câmeras do próximo grupo tracejadas. Com Group sounds ligado, um bip curto
       no começo do 2º e do 3º grupo; desligado, só o som do disparo.
-- [ ] Sound off (em qualquer das janelas): o botão muda nas duas; o disparo seguinte sai sem nenhum
-      som (nem contagem). Sound on volta tudo. Depois de clicar num botão, Space ainda dispara.
-- [ ] Display Full screen: a janela cobre o monitor inteiro (sem borda, por cima da barra de menus /
-      barra de tarefas); com dois monitores, a lista escolhe qual (a TV). Esc ou Window volta a ser
-      janela normal no monitor principal. Always on top: a janela fica à frente da principal.
+- [ ] Som desligado na barra de cima: o disparo seguinte sai sem nenhum som (nem contagem); ligado
+      volta tudo. Group sounds na Live muda só o bip. Depois de clicar num botão, Space ainda dispara.
+- [ ] Speed e Reverse loop na Live mudam a sequência tocando na hora (0,25x a 5x; vai e volta ou
+      recomeça). Na janela principal o play também vai de 0,25x a 5x.
+- [ ] Display Full screen: com dois monitores aparece a pergunta "Full screen on which display?";
+      a janela cobre o monitor escolhido inteiro (sem borda, por cima da barra de menus / barra de
+      tarefas) e o teclado continua funcionando (Esc, Space, F). Esc ou Window volta a ser janela
+      normal no monitor principal. Always on top: a janela fica à frente da principal.
 - [ ] Fechar e abrir o app: Live view volta com o mesmo modo, layout, display e monitor; o som também.
 - [ ] Another window: abre "Stillpoint · Live 2" (ex.: Operator na janela 1, Audience em tela cheia
       na 2). As duas recebem o disparo ao mesmo tempo.

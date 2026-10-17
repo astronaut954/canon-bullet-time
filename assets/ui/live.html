@@ -14,8 +14,6 @@
        Space dispara de novo; F tela cheia. -->
   <div id="live" class="live">
     <div id="liveTop" class="live-top"><b>Stillpoint · Live</b><span id="liveTopInfo"></span><span id="liveTopRight" class="r"></span></div>
-    <!-- Som do disparo (contagem, "it's bullet time" e o bip dos grupos): botão grande, sempre à vista -->
-    <button id="liveSound" class="live-sound sound-btn" title="Turns the countdown, shot and group sounds on or off"><svg width='26' height='26' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'><path class='spk' d='M3 9v6h4l5 4V5L7 9H3z'/><path class='w1' d='M16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z'/><path class='w2' d='M14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z'/><path class='x' d='M15.2 9.2l5.6 5.6M20.8 9.2l-5.6 5.6' stroke='currentColor' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg><span>Sound on</span></button>
     <div class="live-center">
       <div id="liveBig" class="live-big hidden"></div>
       <div id="liveSub" class="live-sub hidden"></div>
@@ -34,12 +32,22 @@
       <span class="live-tools-label">Layout</span>
       <div class="segmented"><button data-layout="arc">Arc</button><button data-layout="circle">Circle</button><button data-layout="line">Line</button></div>
       <label class="log-option live-tools-check"><input id="liveSounds" type="checkbox"> Group sounds</label>
+      <span class="live-tools-label">Speed</span>
+      <div class="live-speed"><button id="liveSlower" class="btn btn-secondary btn-small btn-icon" title="Slower">−</button><span id="liveSpeed" class="play-speed">1.0x</span><button id="liveFaster" class="btn btn-secondary btn-small btn-icon" title="Faster">+</button></div>
+      <label class="log-option live-tools-check" title="Play back and forth (1, 2, 3, 2, 1...)"><input id="liveReverse" type="checkbox" checked> Reverse loop</label>
       <span class="live-tools-label">Display</span>
       <div class="segmented"><button data-display="window">Window</button><button data-display="full">Full screen</button></div>
-      <select id="liveScreen" class="cs-sel live-screen hidden"></select>
       <label id="liveOnTopLabel" class="log-option live-tools-check"><input id="liveOnTop" type="checkbox"> Always on top</label>
       <button id="liveAnother" class="btn btn-secondary btn-small hidden" title="A second Live window, for example Operator here and Audience on the TV">Another window</button>
       <button id="liveClose" class="btn btn-secondary btn-small">Close<span class="live-key">Esc</span></button>
+    </div>
+    <!-- Tela cheia: em qual monitor? (só com mais de um) -->
+    <div id="liveScreens" class="live-screens hidden">
+      <div class="live-screens-box">
+        <h3>Full screen on which display?</h3>
+        <div id="liveScreensList" class="live-screens-list"></div>
+        <button id="liveScreensCancel" class="btn btn-secondary btn-small">Cancel<span class="live-key">Esc</span></button>
+      </div>
     </div>
   </div>
   <script>/*__LIVE_SCRIPT__*/</script>
