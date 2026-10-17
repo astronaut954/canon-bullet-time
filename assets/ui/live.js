@@ -296,7 +296,8 @@ window.Live = (function () {
 
   function renderBar() {
     const p = S.plan;
-    if (!p || p.all || !p.shots.length || S.phase === "cancelled" || S.phase === "failed") { el.bar.classList.add("hidden"); return; }
+    const audience = S.opts.mode === "audience";
+    if (!p || p.all || !p.shots.length || S.phase === "cancelled" || S.phase === "failed" || (audience && S.phase !== "firing")) { el.bar.classList.add("hidden"); return; }
     el.bar.classList.remove("hidden");
     const total = Math.max(1, p.shots[p.shots.length - 1].t);
     if (el.ticks.childElementCount !== p.groups.length) {
@@ -354,11 +355,14 @@ window.Live = (function () {
         const gap = ni >= 0 ? p.groups[ni].t - (prev >= 0 ? p.groups[prev].t : 0) : 0;
         const nextCams = ni >= 0 ? p.groups[ni].idx.map((k) => p.shots[k - 1].number) : [];
         if (ni >= 0 && gap > NUMERIC_GAP_MS && nextIn > 0) {
-          // Intervalo longo: contagem em números (no modo Operator, sem cobrir as câmeras)
+          // Intervalo longo: contagem em números (no modo Operator, sem cobrir as câmeras).
+          // Para quem é fotografado, grupos com pausa são poses diferentes: "Next pose" na
+          // contagem e "Hold still" só no último meio segundo antes de disparar
           const label = nextCams.length > 1 ? "Next group: cameras " + camList(nextCams) : "Next: camera " + nextCams[0];
-          if (audience) big(fmtS(nextIn), "Hold still");
+          if (audience) big(fmtS(nextIn), nextIn <= 500 ? "Hold still" : "Next pose");
           else status(fmtS(nextIn), label, true);
         } else if (audience) {
+          // Disparos seguidos (intervalos curtos) ou todas de uma vez: não se mexer
           big("", "Hold still");
         } else {
           const k = S.fired.size;
