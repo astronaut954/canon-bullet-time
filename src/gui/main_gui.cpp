@@ -1559,7 +1559,10 @@ namespace
                 const std::string file = args.size() > 1 ? args[1] : "";
                 const int size = numbers.empty() ? 1600 : std::clamp(numbers.back(), 64, 4000);
 
-                previews.Post([&, from, id, session, file, size]
+                // from e to por cópia: a biblioteca chama esta função numa cópia temporária
+                // do fecho, então uma referência a eles ficaria pendurada quando a thread
+                // das prévias rodasse (foi um travamento no Mac em 2026-10-16)
+                previews.Post([&, from, to, id, session, file, size]
                 {
                     const std::string jpeg = from->Preview(session, file, size);
                     to->resolve(id, 0, jpeg.empty() ? "null" : JsonString("data:image/jpeg;base64," + Base64Encode(jpeg)));
