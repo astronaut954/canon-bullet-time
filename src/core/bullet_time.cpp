@@ -232,14 +232,15 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             const auto countdownAudio = GetAssetAudioPath("countdown.wav");
             const auto& plan = settings.schedule;
             const bool sounds = settings.groupSounds && settings.playSounds;
-            auto play = [&](const std::filesystem::path& file)
+            auto play = [&](const std::filesystem::path& file, bool duck = false)
             {
-                if (settings.mixedAudio) AudioPlayer::PlayWavMixed(file.string());
+                if (settings.mixedAudio) AudioPlayer::PlayWavMixed(file.string(), duck);
                 else AudioPlayer::PlayWavAsync(file.string());
             };
-            // Contagem com som antes de cada grupo (intervalo maior que 1,5 s): um toque a
-            // 3, 2 e 1 s do grupo, como a contagem inicial; e o som do grupo quando ele sai
-            // (só com intervalo de pelo menos 0,5 s: mais rápido que isso vira ruído)
+            // Contagem com som antes de cada grupo (intervalo maior que 1,5 s): um toque a cada
+            // segundo inteiro que falta, desde logo depois do grupo anterior, com
+            // ducking do som do grupo; e o som do grupo quando ele sai (só com intervalo de
+            // pelo menos 0,5 s: mais rápido que isso vira ruído)
             int tickedIndex = 0, tickedSecond = 0;
             controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
             {
@@ -248,14 +249,15 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
             }, [&](int next, long long msRemaining)
             {
-                if (!sounds || next < 2 || plan[next - 1].atMs - plan[next - 2].atMs <= 1500)
+                const int gap = next >= 2 ? plan[next - 1].atMs - plan[next - 2].atMs : 0;
+                if (!sounds || gap <= 1500)
                     return;
                 const int second = static_cast<int>((msRemaining + 999) / 1000);
-                if (second >= 1 && second <= 3 && (next != tickedIndex || second != tickedSecond))
+                if (second >= 1 && (next != tickedIndex || second != tickedSecond))
                 {
                     tickedIndex = next;
                     tickedSecond = second;
-                    play(countdownAudio);
+                    play(countdownAudio, true);
                 }
             });
         }

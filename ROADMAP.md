@@ -498,7 +498,10 @@ Windows):
   arquivo na memória (Mac: AVAudioPlayer pelo runtime do Objective-C, um tocador por som em
   curso; Windows: uma voz waveOut por som). `SequenceSettings::mixedAudio` (a interface liga; o
   terminal segue com `PlayWavAsync`, um som por vez). Som de grupo só com intervalo ≥ 0,5 s.
-  Live (Operator): legenda e linha do tempo somem com a sequência tocando; Audience: "Firing!" nos
+  Ducking (pedido de 2026-10-17): `PlayWavMixed(arquivo, duckOthers)` abaixa os sons em curso
+  (25 %) enquanto o toque da contagem toca e devolve o volume quando ele termina (Mac:
+  `setVolume:fadeDuration:`; Windows: `waveOutSetVolume` por voz). Toques a cada segundo do
+  intervalo, desde logo depois do grupo. Live (Operator): legenda e linha do tempo somem com a sequência tocando; Audience: "Firing!" nos
   disparos, "Next pose" na contagem, "Got it!" centralizado.
 - Modo "Sweep" no Timing (aprovado em 2026-10-17): varredura rápida, uma câmera depois da outra
   sem pausa — a Sequence com intervalo por atalhos (0,1 / 0,15 / 0,2 / 0,3 s; `timing.sweep`),

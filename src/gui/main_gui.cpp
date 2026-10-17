@@ -1335,15 +1335,17 @@ namespace
                         const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
                         if (elapsed >= plan[i].atMs)
                             break;
-                        // Contagem com som a 3, 2 e 1 s de um grupo (intervalo maior que 1,5 s), como no núcleo
-                        if (groupSounds && scheduled && i > 0 && plan[i].atMs - plan[i - 1].atMs > 1500)
+                        // Contagem com som a cada segundo até o grupo (intervalo maior que 1,5 s), com
+                        // ducking do som do grupo, como no núcleo
+                        const int gap = i > 0 ? plan[i].atMs - plan[i - 1].atMs : 0;
+                        if (groupSounds && scheduled && gap > 1500)
                         {
                             const int second = static_cast<int>((plan[i].atMs - elapsed + 999) / 1000);
-                            if (second >= 1 && second <= 3 && (static_cast<int>(i) != tickedIndex || second != tickedSecond))
+                            if (second >= 1 && (static_cast<int>(i) != tickedIndex || second != tickedSecond))
                             {
                                 tickedIndex = static_cast<int>(i);
                                 tickedSecond = second;
-                                AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string());
+                                AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string(), true);
                             }
                         }
                         std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(20, plan[i].atMs - elapsed)));

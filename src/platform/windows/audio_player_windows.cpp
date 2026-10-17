@@ -3,8 +3,10 @@
 #include <windows.h>
 #include <mmsystem.h>
 
+#include <chrono>
 #include <cstring>
 #include <fstream>
+#include <thread>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -27,6 +29,20 @@ namespace
     std::mutex g_mixMutex;
     std::map<std::string, std::shared_ptr<Wav>> g_mixWavs;
     std::vector<std::unique_ptr<Voice>> g_mixVoices;
+    int g_duckDepth = 0;
+    const float kDuckVolume = 0.25f;
+
+    void SetVolume(HWAVEOUT handle, float volume)
+    {
+        const DWORD v = static_cast<DWORD>(volume * 0xFFFF);
+        waveOutSetVolume(handle, (v << 16) | v);  // esquerdo e direito
+    }
+    void SetVolumes(float volume, HWAVEOUT except)
+    {
+        for (auto& voice : g_mixVoices)
+            if (voice->handle != except)
+                SetVolume(voice->handle, volume);
+    }
 
     // Lê um WAV PCM simples (RIFF: "fmt " e "data")
     std::shared_ptr<Wav> LoadWav(const std::string& filePath)
@@ -86,7 +102,7 @@ namespace
 
 namespace AudioPlayer
 {
-    bool PlayWavMixed(const std::string& filePath)
+    bool PlayWavMixed(const std::string& filePath, bool duckOthers)
     {
         std::lock_guard<std::mutex> lock(g_mixMutex);
         ReapVoices();
@@ -98,6 +114,9 @@ namespace AudioPlayer
             return false;
         voice->header.lpData = wav->samples.data();
         voice->header.dwBufferLength = static_cast<DWORD>(wav->samples.size());
+        if (duckOthers)
+            SetVolumes(kDuckVolume, voice->handle);
+        SetVolume(voice->handle, !duckOthers && g_duckDepth > 0 ? kDuckVolume : 1.0f);
         if (waveOutPrepareHeader(voice->handle, &voice->header, sizeof(voice->header)) != MMSYSERR_NOERROR
             || waveOutWrite(voice->handle, &voice->header, sizeof(voice->header)) != MMSYSERR_NOERROR)
         {
@@ -105,6 +124,21 @@ namespace AudioPlayer
             return false;
         }
         g_mixVoices.push_back(std::move(voice));
+        if (duckOthers)
+        {
+            ++g_duckDepth;
+            const double seconds = wav->format.nAvgBytesPerSec ? static_cast<double>(wav->samples.size()) / wav->format.nAvgBytesPerSec : 1.0;
+            std::thread([seconds]
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(seconds * 1000)));
+                std::lock_guard<std::mutex> lock(g_mixMutex);
+                if (--g_duckDepth <= 0)
+                {
+                    g_duckDepth = 0;
+                    SetVolumes(1.0f, nullptr);
+                }
+            }).detach();
+        }
         return true;
     }
 

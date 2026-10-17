@@ -7,10 +7,12 @@
 #include <objc/message.h>
 #include <objc/runtime.h>
 
+#include <chrono>
 #include <fstream>
 #include <map>
 #include <mutex>
 #include <sstream>
+#include <thread>
 #include <vector>
 
 extern char** environ;
@@ -51,6 +53,15 @@ namespace
     std::mutex g_mixMutex;
     std::map<std::string, id> g_mixData;      // caminho -> NSData com o arquivo
     std::vector<id> g_mixPlayers;             // tocadores em curso (liberados quando terminam)
+    int g_duckDepth = 0;                      // sons com ducking em curso
+    const float kDuckVolume = 0.25f;
+
+    void SetVolumes(float volume, id except)
+    {
+        for (id p : g_mixPlayers)
+            if (p != except)
+                Send<void>(p, "setVolume:fadeDuration:", volume, 0.08);
+    }
 
     id LoadData(const std::string& filePath)
     {
@@ -88,7 +99,7 @@ namespace
 
 namespace AudioPlayer
 {
-    bool PlayWavMixed(const std::string& filePath)
+    bool PlayWavMixed(const std::string& filePath, bool duckOthers)
     {
         std::lock_guard<std::mutex> lock(g_mixMutex);
         ReapMixPlayers();
@@ -102,12 +113,32 @@ namespace AudioPlayer
         if (!player)
             return false;
         Send<BOOL>(player, "prepareToPlay");
+        if (duckOthers)
+            SetVolumes(kDuckVolume, player);
+        else if (g_duckDepth > 0)
+            Send<void>(player, "setVolume:", kDuckVolume);  // entra já baixo, por baixo do toque
         if (!Send<BOOL>(player, "play"))
         {
             Send<void>(player, "release");
             return false;
         }
         g_mixPlayers.push_back(player);
+        if (duckOthers)
+        {
+            // Volta o volume dos outros quando este som terminar
+            ++g_duckDepth;
+            const double seconds = Send<double>(player, "duration");
+            std::thread([seconds]
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(seconds * 1000)));
+                std::lock_guard<std::mutex> lock(g_mixMutex);
+                if (--g_duckDepth <= 0)
+                {
+                    g_duckDepth = 0;
+                    SetVolumes(1.0f, nullptr);
+                }
+            }).detach();
+        }
         return true;
     }
 
