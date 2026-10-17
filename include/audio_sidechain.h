@@ -90,13 +90,13 @@ namespace AudioSidechain
     }
 
     // Ganho dos sons comuns a partir do nível do dominante: desce na hora (attack) e
-    // sobe devagar (release). depth = quanto abaixa no pico (0,55 = fica em 45 %).
+    // sobe devagar (release). depth = quanto abaixa no pico (0,8 = fica em 20 %).
     class Compressor
     {
     public:
         float Update(float keyLevel, double dtSeconds)
         {
-            const float target = 1.0f - kDepth * std::min(1.0f, keyLevel * 1.4f);  // 1,4: chega ao fundo antes do pico
+            const float target = 1.0f - kDepth * std::min(1.0f, keyLevel * kSensitivity);  // chega ao fundo antes do pico
             if (target < gain)
                 gain = target;  // attack imediato
             else
@@ -107,8 +107,10 @@ namespace AudioSidechain
         void Reset() { gain = 1.0f; }
 
     private:
-        static constexpr float kDepth = 0.55f;
-        static constexpr double kReleaseSeconds = 0.35;
+        // Ajustados em 2026-10-17 (pedido: mais intenso): no pico os outros ficam em 20 %
+        static constexpr float kDepth = 0.8f;
+        static constexpr float kSensitivity = 2.0f;
+        static constexpr double kReleaseSeconds = 0.5;
         float gain = 1.0f;
     };
 }
