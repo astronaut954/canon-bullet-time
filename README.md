@@ -6,7 +6,7 @@ Stillpoint fires several cameras at the same instant to create bullet time photo
 (the frozen-moment effect from *The Matrix*). Synchronized multi-camera control for
 Canon cameras via EDSDK; other brands are planned.
 
-<p align="center"><img src="docs/images/stillpoint-demo.gif" alt="Stillpoint demo: the cameras connect, a 3-second countdown, all cameras fire at once and the session plays as bullet time"></p>
+<p align="center"><img src="docs/images/stillpoint-demo.gif" alt="Stillpoint demo: the cameras connect, Timing set to Sweep, a 3-second countdown, the shoot, and the Live window showing the cameras firing and the sequence playing"></p>
 
 Formerly **Canon Bullet Time**.
 

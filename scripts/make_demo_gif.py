@@ -2,7 +2,9 @@
 
 Usa a interface real do app (assets/ui) num navegador, com câmeras e disparo simulados.
 As fotos da sessão saem de um vídeo bullet time: cada vista diferente do vídeo vira a
-foto de uma câmera, na ordem em que aparecem. Aprovado em 2026-10-14.
+foto de uma câmera, na ordem em que aparecem. Aprovado em 2026-10-14; refeito em
+2026-10-17 com o visual da 2.10.0: janela de 1300 px, Timing (Sweep) e a janela Live
+(assets/ui/live.html) mostrando a varredura e a sequência no fim.
 
 Requer Python com Pillow e Playwright (Chromium) e o ffmpeg:
     pip install pillow playwright && python -m playwright install chromium
@@ -82,7 +84,7 @@ performance.now = () => Date.now();
 window.uiReady = () => Promise.resolve({});
 window.listSessions = () => Promise.resolve(window.__sessions || []);
 window.getPhoto = (session, file, size) => Promise.resolve(size > 400 ? window.__photos[file].big : window.__photos[file].small);
-for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp','saveSessions','exitApp','takeOrderPhotos','setOrder','discardOrderPhotos','reorderSession','deletePhotos','deleteSession','deleteAllSessions','getOrderPhoto']) window[n] = () => Promise.resolve({});
+for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp','saveSessions','exitApp','takeOrderPhotos','setOrder','discardOrderPhotos','reorderSession','deletePhotos','deleteSession','deleteAllSessions','getOrderPhoto','saveTiming','saveSettings','liveSetSound','openLive','readCameraSettings','checkForUpdate']) window[n] = () => Promise.resolve({});
 """ % photos_js
     html = (UI / "index.html").read_text(encoding="utf-8").replace("/*__THEME__*/", css)
     html = re.sub(r"__IMAGE:([A-Za-z0-9_.\-]+)__",
@@ -94,6 +96,20 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
                         "<script>" + stub + "</script><script>" + (UI / "app.js").read_text(encoding="utf-8") + "</script>")
     page_file = work / "demo.html"
     page_file.write_text(html, encoding="utf-8")
+
+    # Janela Live (assets/ui/live.html) com as mesmas fotos e funções simuladas
+    live_stub = """
+performance.now = () => Date.now();
+window.__photos = %s;
+window.liveReady = () => Promise.resolve({index: 1, opts: '{"mode":"operator","layout":"arc"}', sound: {sound: true, sounds: true},
+  screens: [{name: 'Display', primary: true}], cameraEvent: {type: 'cameras', cameras: %s}});
+for (const n of ['liveShoot','liveCancel','saveLiveWindow','liveDisplay','liveSetSound','liveClose','liveAnother']) window[n] = () => Promise.resolve(null);
+window.getPhoto = (session, file, size) => Promise.resolve(size > 400 ? window.__photos[file].big : window.__photos[file].small);
+""" % (photos_js, "[" + ",".join(f'{{name:"{CAMS[i][0]}",model:"{CAMS[i][1]}",connected:true,state:"connected",order:{i + 1},seconds:0,compatible:true}}' for i in range(n)) + "]")
+    live_html = (UI / "live.html").read_text(encoding="utf-8").replace("/*__THEME__*/", css).replace("/*__LIVE_CSS__*/", (UI / "live.css").read_text(encoding="utf-8"))
+    live_html = live_html.replace("<script>/*__LIVE_SCRIPT__*/</script>", "<script>" + live_stub + "</script><script>" + (UI / "live.js").read_text(encoding="utf-8") + "</script>")
+    live_file = work / "live.html"
+    live_file.write_text(live_html, encoding="utf-8")
     FR = work / "frames"
     FR.mkdir()
 
@@ -106,7 +122,7 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
 
     
     frames = []  # (path, seconds)
-    W, H = 1280, 800
+    W, H = 1300, 840  # a largura com que o app abre
 
     with sync_playwright() as pw:
         b = pw.chromium.launch()
@@ -184,7 +200,14 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
             cameras(states); run(50); shot(0.35)
         shot(0.6)
 
-        # 3. Contagem de 3 s e disparo
+        # 3. Timing: Advanced → Sweep (a varredura)
+        move_to("#timingToggle")
+        press("#timingToggle"); pg.click("#timingToggle"); run(50); shot(0.6)
+        sweep = "#timingModes button:nth-child(2)"
+        move_to(sweep); press(sweep); pg.click(sweep); run(50); shot(0.9)
+        move_to("#timingToggle", steps=4, total=0.3); press("#timingToggle"); pg.click("#timingToggle"); run(50); shot(0.6)
+
+        # 4. Contagem de 3 s e disparo (janela principal)
         move_to("#countdown")
         pg.fill("#countdown", "3"); shot(0.5)
         move_to("#shootBtn")
@@ -192,8 +215,8 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
         pg.evaluate("window.onCoreEvent({type:'busy', busy:true, action:'shoot'})")
         pg.evaluate("window.onCoreEvent({type:'sessionStarted', index:1, total:1})")
         pg.evaluate("window.onCoreEvent({type:'countdownStarted'})")
-        for s in (3, 2, 1):
-            pg.evaluate(f"window.onCoreEvent({{type:'countdownTick', seconds:{s}}})")
+        for sec in (3, 2, 1):
+            pg.evaluate(f"window.onCoreEvent({{type:'countdownTick', seconds:{sec}}})")
             run(50); shot(0.75)
         pg.evaluate("window.onCoreEvent({type:'trigger'})")
         pg.wait_for_timeout(60); shot(0.12)
@@ -201,9 +224,9 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
         run(600); pg.wait_for_timeout(400)
         pg.evaluate("window.onCoreEvent({type:'waitingDownloads'})"); run(50); shot(0.4)
         for d in range(1, n + 1):
-            pg.evaluate(f"window.onCoreEvent({{type:'downloadProgress', done:{d}, total:{n}}})"); run(50); shot(0.25)
+            pg.evaluate(f"window.onCoreEvent({{type:'downloadProgress', done:{d}, total:{n}}})"); run(50); shot(0.2)
 
-        # 4. Sessão nova aparece
+        # 5. Sessão nova aparece
         session = {"name": "2026-10-14_14-30-05",
                    "photos": [{"file": FILES[i - 1], "order": i, "camera": CAMS[i - 1][0], "previewable": True} for i in range(1, n + 1)]}
         pg.evaluate("s => { window.__sessions=[s]; }", session)
@@ -212,20 +235,37 @@ for (const n of ['shoot','identify','setPrefix','restartConnections','restartApp
         pg.evaluate("s => window.onCoreEvent({type:'sessions', sessions:[s]})", session)
         run(100); pg.wait_for_timeout(500); run(100); shot(1.2)
 
-        # 5. Tela cheia e play
-        full = "#sessionGallery .gallery-actions button:last-child"
-        move_to(full)
-        press(full)
-        pg.click(full); run(100); pg.wait_for_timeout(400); shot(0.6)
-        play = "#sessionGallery .gallery-actions button:nth-child(2)"
-        move_to(play, steps=4, total=0.3)
-        press(play)
-        pg.click(play)
-        # move o cursor para fora da foto
-        pg.evaluate("() => { const c=document.getElementById('demoCursor'); c.style.left='1240px'; c.style.top='760px'; }")
-        pg.wait_for_timeout(300)
+        # 6. Live view: a janela separada com a varredura e a sequência no fim
+        move_to("#liveBtn"); press("#liveBtn"); shot(0.3)
+        lv = b.new_page(viewport={"width": W, "height": H})
+        lv.goto(live_file.as_uri()); lv.wait_for_timeout(500)
+        lv.add_style_tag(content=".live-tools, .live-play { transition: none !important; }")
+        def lshot(sec):
+            # as opções (que aparecem ao abrir e com o mouse) ficam fora do GIF
+            lv.evaluate("document.getElementById('live').classList.remove('tools-visible')")
+            p = FR / f"{len(frames):04d}.png"
+            lv.screenshot(path=str(p))
+            frames.append((p, sec))
+        def ev(t, **d):
+            lv.evaluate("e => window.onCoreEvent(e)", dict(type=t, **d))
+        lshot(0.8)
+        shots = [{"cam": CAMS[i][0], "number": i + 1, "t": i * 200} for i in range(n)]
+        ev("livePlan", countdown=3, sessions=1, all=False, shots=shots)
+        ev("sessionStarted", index=1, total=1); ev("countdownStarted", seconds=3)
+        for sec in (3, 2, 1):
+            ev("countdownTick", seconds=sec); lv.wait_for_timeout(50); lshot(0.75)
+        ev("trigger")
+        for i in range(n):
+            ev("shotFired", camera=CAMS[i][0], index=i + 1, total=n, ok=True)
+            lv.wait_for_timeout(40); lshot(0.1)
+            lv.wait_for_timeout(120); lshot(0.1)
+        for d in range(1, n + 1):
+            ev("downloadProgress", done=d, total=n); lv.wait_for_timeout(30); lshot(0.12)
+        ev("sessionCompleted")
+        lv.evaluate("s => window.onCoreEvent({type:'sessions', sessions:[s]})", session)
+        lv.wait_for_timeout(900)
         for k in range(n * 3):
-            run(220); pg.wait_for_timeout(120); shot(0.22)
+            lv.wait_for_timeout(220); lshot(0.22)
         b.close()
 
     # GIF: ffmpeg concat com durações, paleta própria
