@@ -4,6 +4,7 @@
 #include "platform/platform.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <chrono>
 #include <filesystem>
 #include <random>
@@ -132,10 +133,15 @@ bool BulletTime::TestCamera(const CameraContext& camera)
     return true;
 }
 
-bool BulletTime::RunCountdown(int seconds, bool playSounds)
+bool BulletTime::RunCountdown(int seconds, bool playSounds, bool mixed)
 {
     const auto countdownAudio = GetAssetAudioPath("countdown.wav");
     const auto bulletTimeAudio = GetAssetAudioPath("itsbullettime.wav");
+    auto play = [mixed](const std::filesystem::path& file, bool dominant = false)
+    {
+        if (mixed) AudioPlayer::PlayWavMixed(file.string(), dominant);
+        else AudioPlayer::PlayWavAsync(file.string());
+    };
 
     if (seconds > 0)
     {
@@ -145,7 +151,7 @@ bool BulletTime::RunCountdown(int seconds, bool playSounds)
         {
             listener.OnCountdownTick(i);
             if (playSounds)
-                AudioPlayer::PlayWavAsync(countdownAudio.string());
+                play(countdownAudio);
             // 1 s em passos de 0,1 s, para o cancelamento responder na hora
             for (int step = 0; step < 10; ++step)
             {
@@ -160,7 +166,13 @@ bool BulletTime::RunCountdown(int seconds, bool playSounds)
 
     listener.OnTrigger();
     if (playSounds)
-        AudioPlayer::PlayWavAsync(bulletTimeAudio.string());
+    {
+        // Na interface, o toque do "0" entra junto com o "it's bullet time" (pedido do dono
+        // do projeto, 2026-10-17); o terminal segue como sempre, só com o "it's bullet time"
+        if (mixed)
+            play(countdownAudio);
+        play(bulletTimeAudio, true);  // dominante: abaixa os toques enquanto toca
+    }
     return true;
 }
 
@@ -207,7 +219,7 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             break;
         }
 
-        if (!RunCountdown(settings.countdownSeconds, settings.playSounds))
+        if (!RunCountdown(settings.countdownSeconds, settings.playSounds, settings.mixedAudio))
         {
             // Cancelado na contagem: nada foi disparado; a pasta vazia da sessão sai
             std::error_code ec;
@@ -222,7 +234,54 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
         if (settings.schedule.empty())
             controller.ShootAll();
         else
-            controller.ShootScheduled(settings.schedule, &cancelRequested);
+        {
+            const auto groupAudio = GetAssetAudioPath("group.wav");
+            const auto countdownAudio = GetAssetAudioPath("countdown.wav");
+            const auto& plan = settings.schedule;
+            const bool sounds = settings.groupSounds && settings.playSounds;
+            auto play = [&](const std::filesystem::path& file, bool duck = false)
+            {
+                if (settings.mixedAudio) AudioPlayer::PlayWavMixed(file.string(), duck);
+                else AudioPlayer::PlayWavAsync(file.string());
+            };
+            // Contagem com som entre grupos (intervalo maior que 1,5 s): metrônomo de um toque
+            // por segundo (mais baixo enquanto o som do grupo toca: ducking); e o som do
+            // grupo quando ele sai (só com intervalo de
+            // pelo menos 0,5 s: mais rápido que isso vira ruído)
+            int tickedSecond = 0;
+            controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
+            {
+                const int gapBefore = index > 1 ? plan[index - 1].atMs - plan[index - 2].atMs : 0;
+                if (sounds && index > 1 && gapBefore >= 500)
+                {
+                    play(groupAudio, true);  // o som do grupo manda: os toques ficam por baixo
+                    // O toque do metrônomo deste segundo entra junto com o som do grupo, menos
+                    // no último grupo (o fim da sessão fica só com o som do grupo)
+                    const int at = plan[index - 1].atMs;
+                    const bool last = !std::any_of(plan.begin() + index, plan.end(), [at](const auto& s) { return s.atMs > at; });
+                    if (gapBefore > 1500 && !last && std::abs(at - static_cast<int>((at + 500) / 1000) * 1000) <= 300)
+                        play(countdownAudio);
+                }
+                listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
+            }, [&](int next, long long msRemaining)
+            {
+                // Metrônomo: um toque a cada segundo inteiro contado do primeiro disparo
+                // (1, 2, 3, 4...), só enquanto o próximo grupo está a mais de 1,5 s do
+                // anterior; o segundo em que um grupo sai (som do grupo) fica sem toque.
+                const int gap = next >= 2 ? plan[next - 1].atMs - plan[next - 2].atMs : 0;
+                if (!sounds || gap <= 1500)
+                    return;
+                const long long elapsed = plan[next - 1].atMs - msRemaining;
+                const int second = static_cast<int>(elapsed / 1000);
+                if (second < 1 || second == tickedSecond)
+                    return;
+                tickedSecond = second;
+                for (const auto& item : plan)
+                    if (std::abs(item.atMs - second * 1000) <= 300)
+                        return;  // um grupo dispara neste segundo: o toque entra com o som do grupo (acima)
+                play(countdownAudio);
+            });
+        }
 
         for (const auto& cam : controller.GetCameras())
         {

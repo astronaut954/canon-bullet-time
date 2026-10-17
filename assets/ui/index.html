@@ -28,6 +28,8 @@
     <div class="topbar-right">
       <div id="status" class="status">Starting</div>
       <button id="updateChip" class="update-chip hidden" title="A new version of Stillpoint is available"><span class="pulse" aria-hidden="true"></span><span id="updateChipText">Update</span></button>
+      <button id="soundBtn" class="btn btn-secondary btn-small btn-icon sound-btn" title="Sound of the countdown and the shots: on" aria-label="Sound"><svg width='16' height='16' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'><path class='spk' d='M3 9v6h4l5 4V5L7 9H3z'/><path class='w1' d='M16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z'/><path class='w2' d='M14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z'/><path class='x' d='M15.2 9.2l5.6 5.6M20.8 9.2l-5.6 5.6' stroke='currentColor' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg></button>
+      <button id="liveBtn" class="btn btn-secondary btn-small" title="Big view of the shoot for a second monitor: countdown, cameras firing and the sequence at the end">Live view</button>
       <button id="saveBtn" class="btn btn-primary btn-small" disabled>Save sessions</button>
       <!-- Menu do app no Windows (no Mac ele fica na barra de cima do sistema) -->
       <div class="app-menu-wrap">
@@ -364,6 +366,7 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
+
 
   <script>/*__SCRIPT__*/</script>
 </body>

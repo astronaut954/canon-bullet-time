@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stillpoint · Live</title>
+  <style>/*__THEME__*/</style>
+  <style>/*__LIVE_CSS__*/</style>
+  <style>html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }</style>
+</head>
+<body>
+  <!-- Janela Live (separada): contagem, câmeras disparando e a sequência no fim, em tamanho
+       de palco (assets/ui/live.js e live.css). Esc cancela / sai da tela cheia / fecha;
+       Space dispara de novo; F tela cheia. -->
+  <div id="live" class="live">
+    <!-- Clarão a cada disparo (como o da janela principal) -->
+    <div id="liveFlash" class="live-flash"></div>
+    <div id="liveTop" class="live-top"><b>Stillpoint · Live</b><span id="liveTopInfo"></span><span id="liveTopRight" class="r"></span>
+      <!-- Play da sequência no fim: velocidade e vai-e-volta (aparece com o mouse, como as opções) -->
+      <div id="livePlay" class="live-play">
+      <span class="live-tools-label">Speed</span>
+      <div class="live-speed"><button id="liveSlower" class="btn btn-secondary btn-small btn-icon" title="Slower">−</button><span id="liveSpeed" class="play-speed">1.0x</span><button id="liveFaster" class="btn btn-secondary btn-small btn-icon" title="Faster">+</button></div>
+      <label class="log-option live-tools-check" title="Play back and forth (1, 2, 3, 2, 1...)"><input id="liveReverse" type="checkbox" checked> Reverse loop</label>
+</div>
+    </div>
+    <div class="live-center">
+      <div id="liveBig" class="live-big hidden"></div>
+      <div id="liveSub" class="live-sub hidden"></div>
+      <div id="liveStatus" class="live-status hidden"><div id="liveStatusN" class="n"></div><div id="liveStatusT" class="t"></div></div>
+    </div>
+    <div id="liveRig" class="live-rig"></div>
+    <div id="liveFilm" class="live-film hidden"></div>
+    <div id="liveStage" class="live-stage hidden"><img id="liveStageImg" alt=""></div>
+    <div id="liveNext" class="live-next hidden"></div>
+    <div id="liveLegend" class="live-legend hidden"><span><i class="on"></i>fired</span><span><i class="cur"></i>firing now</span><span><i class="next"></i>next</span><span><i class="bad"></i>failed</span></div>
+    <div id="liveBar" class="live-bar hidden"><div id="liveBarFill" class="fill"></div><div id="liveBarTicks" class="ticks"></div></div>
+    <div id="liveHint" class="live-hint"></div>
+    <div id="liveTools" class="live-tools">
+      <span class="live-tools-label">Mode</span>
+      <div class="segmented"><button data-mode="operator">Operator</button><button data-mode="audience">Audience</button></div>
+      <span class="live-tools-label">Layout</span>
+      <div class="segmented"><button data-layout="arc">Arc</button><button data-layout="circle">Circle</button><button data-layout="line">Line</button></div>
+      <label class="log-option live-tools-check"><input id="liveSounds" type="checkbox"> Group sounds</label>
+      <span class="live-tools-label">Display</span>
+      <div class="segmented"><button data-display="window">Window</button><button data-display="full">Full screen</button></div>
+      <label id="liveOnTopLabel" class="log-option live-tools-check"><input id="liveOnTop" type="checkbox"> Always on top</label>
+      <button id="liveAnother" class="btn btn-secondary btn-small hidden" title="A second Live window, for example Operator here and Audience on the TV">Another window</button>
+      <button id="liveClose" class="btn btn-secondary btn-small">Close<span class="live-key">Esc</span></button>
+    </div>
+    <!-- Tela cheia: em qual monitor? (só com mais de um) -->
+    <div id="liveScreens" class="live-screens hidden">
+      <div class="live-screens-box">
+        <h3>Full screen on which display?</h3>
+        <div id="liveScreensList" class="live-screens-list"></div>
+        <button id="liveScreensCancel" class="btn btn-secondary btn-small">Cancel<span class="live-key">Esc</span></button>
+      </div>
+    </div>
+  </div>
+  <script>/*__LIVE_SCRIPT__*/</script>
+  <script>
+  // Liga a página às funções do app (liveReady, liveShoot, liveCancel, saveLiveWindow,
+  // liveDisplay, liveSetSound, liveClose, liveAnother, getPhoto) e aos avisos do núcleo.
+  (function () {
+    "use strict";
+    const photoCache = {};
+    function photo(session, file, size) {
+      const key = session + "/" + file + "/" + size;
+      if (!photoCache[key]) photoCache[key] = Promise.resolve(window.getPhoto(session, file, size));
+      return photoCache[key];
+    }
+    let cameras = [];
+    let ready = false;
+    window.onCoreEvent = function (event) {
+      if (!ready) return;
+      if (event.type === "cameras") { cameras = event.cameras || []; Live.setCameras(cameras); return; }
+      if (event.type === "soundChanged") { Live.setSound({ sound: !!event.sound, sounds: !!event.sounds }); return; }
+      if (event.type === "screens") { Live.setScreens(event.screens || []); return; }
+      if (event.type === "sessions") {
+        const list = event.sessions || [];
+        const newest = list[0];
+        if (newest && newest.photos && newest.photos.length)
+          Live.playback(newest.photos, (file) => photo(newest.name, file, 800));
+        return;
+      }
+      Live.handle(event);
+    };
+    Promise.resolve(window.liveReady()).then((info) => {
+      info = info || {};
+      Live.init({
+        shoot: () => window.liveShoot(),
+        cancel: () => window.liveCancel(),
+        save: (opts) => window.saveLiveWindow(String(info.index || 1), JSON.stringify(opts)),
+        display: (opts) => window.liveDisplay(String(info.index || 1), opts.display, opts.screen, opts.onTop ? "1" : "0"),
+        setSound: (sound) => window.liveSetSound(sound.sound ? "1" : "0", sound.sounds ? "1" : "0"),
+        close: () => window.liveClose(String(info.index || 1)),
+        another: info.index === 1 ? () => window.liveAnother() : null,
+      }, info.opts || "", info.sound || null, info.screens || []);
+      ready = true;
+      cameras = (info.cameraEvent && info.cameraEvent.cameras) || [];
+      Live.setCameras(cameras);
+      Live.open();
+      // Aplica o display guardado (tela cheia no monitor de antes, sempre à frente)
+      Live.setOptions({ applyDisplay: true }, true);
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -36,6 +36,7 @@ Status: `feito` · `em andamento` · `próximo` · `depois`
 | 12 | Configurações das câmeras pelo app | Canon: ver e igualar ISO, velocidade, abertura, compensação, balanço de branco (K), Picture Style e qualidade de todas as câmeras pelo app; o app pergunta a cada câmera o que ela aceita e mostra quais não dá para ajustar (e por quê). Preparado para outras marcas. Também: Test shot, Match automatically (com calibração por modelo e Cancel), arrastar para reordenar. Testado no Mac com SL3 + T7 (2026-10-15); no Windows, compilado. Versão 2.7.0. | feito |
 | 13 | Match colors | Picture Style pelo app (botão "±": contraste, saturação, tom de cor) e igualado pelo Match; brilho medido como o olho vê; "Use gray card" (acha o cartão, a pessoa confere, cinza neutro); "Calibrate with chart" (cartela impressa, diferença por modelo); modo debug; perguntar se descarta as sessões depois de salvar. Testado no Mac com SL3 + T7 até o cartão cinza (2026-10-16); a cartela ainda não foi testada com câmeras. Versão 2.8.0. | feito |
 | 14 | Disparo com intervalos (Timing) | Campo Timing no painel Bullet time (botão Advanced): todas juntas, uma depois da outra (intervalo, direção 1→N / N→1 / ida e volta, loops), grupos, ímpar/par e custom (passos: câmeras + tempo). Linha do tempo. Disparo com plano no núcleo (uma foto por item; o número da foto é a posição no plano). Câmeras simuladas para testar sem câmeras (STILLPOINT_FAKE_CAMERAS). Testado no Mac com câmeras simuladas (2026-10-16); com câmeras de verdade, ainda não. Versão 2.9.0. | feito |
+| 15 | Janela Live | Palco em tela cheia para um segundo monitor (ou janela flutuante): contagem inicial (a da janela principal continua), câmeras na ordem do rig disparando (branca → verde, próxima tracejada), contagem entre grupos, fotos chegando e a sequência em loop no fim. Modos Operator e Audience; layout arco (padrão), círculo ou linha; bip por grupo (opcional, ligado). Janela separada (até duas), tela cheia por monitor, sons sobrepostos com ducking, modo Sweep no Timing. Testado no Mac com câmeras simuladas (2026-10-17); Windows e câmeras de verdade ainda não. Versão 2.10.0. | feito |
 
 ### Etapa 5: mudanças pedidas para a interface (registradas em 2026-10-10)
 
@@ -420,6 +421,105 @@ seguidas a mesma câmera). O plano fica salvo em settings.txt (`timing=`).
   certa com ida e volta ×2, custom por passos, cancelar, layout sem rolagem, Timeline fixa. Falta:
   disparo com plano em câmeras de verdade (ShootScheduled) e o teste no Windows.
 
+### Etapa 15: Janela Live (iniciada em 2026-10-16, concluída em 2026-10-17, versão 2.10.0)
+
+Pedido do dono do projeto (2026-10-16): com o Timing, as câmeras podem disparar de jeitos
+diferentes; precisa de um retorno visual numa outra janela (tela cheia num segundo monitor ou
+flutuando) com quantas câmeras disparam, os grupos, quando, a contagem inicial (mantendo a da
+janela principal) e as contagens entre câmeras/grupos. Decisões (2026-10-16, sobre o protótipo
+`scratchpad/stage/stage.png`): modos Operator e Audience desde o início; layout das câmeras em
+arco (padrão), círculo ou linha; som por grupo opcional, ligado por padrão; começa pela página
+(testável com câmeras simuladas) e depois a janela nativa no Mac e no Windows.
+
+Parte 1 (página, feita em 2026-10-17):
+- Núcleo: `BulletTimeListener::OnShotFired(câmera, índice, total, ok)` a cada disparo do plano
+  (`ShootScheduled` ganhou um callback; o terminal não muda). `SequenceSettings::groupSounds`
+  toca `assets/audio/group.wav` (bip curto, gerado no projeto) quando começa um grupo novo (instante
+  diferente do item anterior); só com plano e só pela interface gráfica.
+- App: evento `livePlan` antes de cada disparo (plano com câmera, número e instante; `all` = todas
+  juntas), `shoot` com 5º argumento (sons por grupo), `saveLive` (settings.txt `live=`: modo,
+  layout, sons), `uiReady.live`. `LoadUi` embute `assets/ui/live.css` e `live.js`.
+- Página: `assets/ui/live.js` (objeto `Live`: init, setCameras, open, close, handle, playback) e
+  `live.css`; botão "Live view" na barra de cima; a página principal repassa os avisos do núcleo
+  (`onCoreEvent`) e as fotos da sessão nova. Regras: contagem em números entre grupos só com
+  intervalo maior que 1,5 s (senão barra + "Next: camera n in 0,x s"); câmera disparando fica
+  branca 0,3 s; falha de disparo e foto que não chegou em vermelho (Operator); Audience mostra só
+  a contagem, "Hold still", a contagem entre grupos longos e a sequência no fim. Esc cancela o
+  disparo ou fecha; Space dispara de novo. O relógio da página se acerta pelo `shotFired` que chega.
+- Botão grande Sound on / Sound off na Live view (pedido de 2026-10-16): liga e desliga todos os
+  sons do disparo (contagem, "it's bullet time", bip dos grupos); `shoot` recebe "som,grupos".
+  Câmeras simuladas na tela Camera settings: `CameraContext::fake` e `CameraSettingsCanon::Read/Write`
+  com valores em memória (cada câmera começa um pouco diferente, para o Match ter o que igualar).
+- Conferido no navegador (Playwright, 9 câmeras simuladas, 1280×720 e 900×560): ida e volta 17
+  fotos, grupos com contagem, falha, layouts, Audience. Falta: teste no app (Mac) com
+  `STILLPOINT_FAKE_CAMERAS=9` e o som por grupo.
+
+Decisões de 2026-10-16 (noite): a Live view é uma **janela separada** (a principal continua à
+vista: operador vê as duas, o modelo vê a Live); A agora (janela nativa) e C depois (página servida
+na rede para TV/tablet/navegador); o uso previsto é uma TV por HDMI; precisa dar para ter Operator e
+Audience ao mesmo tempo (duas janelas Live); botão grande de som também fora da Live view.
+
+Parte 2 (janela nativa separada, feita em 2026-10-17, sem compilar aqui — falta o teste no Mac e no
+Windows):
+- `assets/ui/live.html`: a mesma página Live (live.js/live.css) numa janela própria; a cola com o
+  app fica nela (liveReady, liveShoot, liveCancel, saveLiveWindow, liveDisplay, liveSetSound,
+  liveClose, liveAnother, getPhoto). A janela principal perdeu a Live por cima: `Live view` chama
+  `openLive(1)`; dentro da Live, "Another window" abre a 2 (até duas).
+- `main_gui.cpp`: segunda instância da biblioteca webview (a 0.12 aceita mais de uma janela: só
+  encerra o app quando a última fecha); `GuiListener` manda cada aviso para todas as janelas e
+  guarda a última lista de câmeras; `LoadPage(arquivo, tema)` serve as duas páginas. As janelas
+  Live nunca são destruídas enquanto o app roda: o botão de fechar só esconde (close guard).
+  Disparo e cancelamento pedidos pela Live passam pela página principal (`liveShootRequest`),
+  porque o plano do Timing é dela. Som: `live={"sound":…,"sounds":…}` no settings.txt, mudado por
+  `liveSetSound` em qualquer janela, aviso `soundChanged` para todas. Opções por janela em
+  `live1=` / `live2=` (modo, layout, display, monitor, sempre à frente).
+- `native_window.h`: `Screens()`, `Show`, `Hide`, `SetFullScreen(janela, monitor)` (Mac: barra de
+  título transparente sem botões, por cima da barra de menus, cobrindo o monitor; Windows: janela
+  WS_POPUP sobre o retângulo do monitor, topmost), `SetWindowed(janela, sempre à frente)`;
+  `InstallCloseGuard` passou a valer por janela (Mac: mapa por NSWindow; Windows: subclass com o
+  callback). Monitores pelo nome (Mac: `localizedName`; Windows: "Display N (main)").
+- Teclas na Live: Esc cancela / sai da tela cheia / esconde; Space dispara; F tela cheia.
+- Ajustes de 2026-10-16 (teste no Mac): tela cheia com barra de título era encolhida pelo
+  sistema abaixo da barra de menus → sem borda a janela perdia teclado e respostas (e trocar a classe do
+  objeto quebrou os observadores do WebKit: exceção em `setStyleMask:`) → tela cheia do próprio
+  sistema (`toggleFullScreen:`) no monitor escolhido, que só muda aquele monitor com "Displays
+  have separate Spaces" (padrão); Full screen pergunta o monitor (com mais de um); botão de som só na
+  janela principal; Speed (0,25x–5x, também no play da principal) e Reverse loop na Live (caixa
+  própria no alto, à direita). Contagem entre grupos: o relógio da página só anda para a frente
+  com um disparo atrasado (não volta); timer fixo em vez de requestAnimationFrame; nas câmeras
+  simuladas o "download" acontece depois dos disparos, para não atrasar o plano.
+- Ajustes de 2026-10-17 (madrugada): número grande sempre do mesmo tamanho e o rig fixo abaixo
+  dele (sem pulo de um grupo para outro); Speed/Reverse na linha de cima; linha do tempo com um
+  traço por rodada e as câmeras dela embaixo ("1–3", "4–6"), traço da próxima em âmbar; contagem
+  com som a 3, 2 e 1 s de cada grupo (intervalo > 1,5 s; `WaitCallback` no `ShootScheduled` e
+  nas simuladas) e `group.wav` mais alto (duas notas); imagem da foto grande posicionada de
+  forma absoluta (`.stage img`), para não deslocar ao entrar em tela cheia na sessão.
+- Som (decisão de 2026-10-17: opção 3): `AudioPlayer::PlayWavMixed` toca sons sobrepostos, com o
+  arquivo na memória (Mac: AVAudioPlayer pelo runtime do Objective-C, um tocador por som em
+  curso; Windows: uma voz waveOut por som). `SequenceSettings::mixedAudio` (a interface liga; o
+  terminal segue com `PlayWavAsync`, um som por vez). Som de grupo só com intervalo ≥ 0,5 s.
+  Ducking tipo sidechain (pedido de 2026-10-17): `include/audio_sidechain.h` calcula o envelope
+  (RMS a cada 40 ms) de cada WAV ao carregar; enquanto um som dominante toca (som do grupo, "it's
+  bullet time": `PlayWavMixed(arquivo, true)`), uma thread ajusta a cada 40 ms o volume dos
+  outros (toques da contagem) pelo nível do dominante naquele instante — attack imediato,
+  release 0,35 s, até 45 % no pico (Mac: `setVolume:`; Windows: `waveOutSetVolume` por voz). Toques a cada segundo do
+  intervalo, desde logo depois do grupo. Live (Operator): legenda e linha do tempo somem com a sequência tocando; Audience: "Firing!" nos
+  disparos, "Next pose" na contagem, "Got it!" centralizado.
+- Modo "Sweep" no Timing (aprovado em 2026-10-17): varredura rápida, uma câmera depois da outra
+  sem pausa — a Sequence com intervalo por atalhos (0,1 / 0,15 / 0,2 / 0,3 s; `timing.sweep`),
+  direção própria (`timing.sweepDirection`) e loops. Aviso na Timeline: o menor intervalo por USB
+  ainda vai ser medido; abaixo dele, caixa de disparo. `group.wav` trocado pelo som enviado pelo
+  dono do projeto (Fire.mp3 → WAV 44,1 kHz estéreo 16 bits, 4,3 s).
+- Conferido no navegador (live.html com funções simuladas): opções, display, som, sequência.
+  Não compilado: risco maior na parte nativa (Mac e Windows).
+
+Fechada em 2026-10-17 como 2.10.0 **sem** teste no Windows (primeira compilação da janela Live,
+tela cheia e waveOut lá) e **sem** câmeras de verdade — decisão do dono do projeto; conferir na
+primeira oportunidade (ver Pendências conhecidas).
+
+Parte 3 (futuro, "C"): servir a Live na rede local (TV com navegador, tablet), reaproveitando a
+mesma página.
+
 ## Futuro (não planejado ainda)
 
 - **Disparo com intervalos (PRIORIDADE, pedido do dono do projeto em 2026-10-16; etapa 14).**
@@ -486,6 +586,12 @@ seguidas a mesma câmera). O plano fica salvo em settings.txt (`timing=`).
 Atualizar esta tabela sempre que uma função mudar de status.
 
 ## Pendências conhecidas
+
+- **2.10.0 (etapa 15) publicada sem teste no Windows nem com câmeras de verdade (2026-10-17).**
+  No Windows nunca compilou: janela Live (segunda instância webview/WebView2), tela cheia por
+  monitor (WS_POPUP), tocador waveOut e ducking. Com câmeras: `ShootScheduled` (Timing/Sweep),
+  disparo com plano e a Live com fotos reais. Também falta medir o menor intervalo do Sweep por
+  USB (aviso na Timeline).
 
 - **EDSDK fora do repositório:** decidido manter o SDK da Canon só dentro do
   `.zip` das versões (o que os termos da Canon permitem). Os arquivos do SDK

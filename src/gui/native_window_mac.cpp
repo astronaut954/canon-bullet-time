@@ -4,13 +4,17 @@
 // do mesmo jeito que a biblioteca webview faz.
 #include <objc/message.h>
 #include <objc/runtime.h>
+#include <CoreGraphics/CoreGraphics.h>
 
+#include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 
 namespace
 {
-    std::function<bool()> g_canClose;
+    std::function<bool()> g_canClose;                     // janela principal (também o Quit do menu)
+    std::map<id, std::function<bool()>> g_closeGuards;    // por janela (principal e Live)
     std::function<void(const std::string&)> g_onMenuItem;
     std::vector<std::string> g_menuItems;  // posição (tag do item) -> nome
     id g_window = nullptr;
@@ -35,9 +39,32 @@ namespace
         return Send<id>(GetClass("NSString"), "stringWithUTF8String:", text.c_str());
     }
 
-    BOOL WindowShouldClose(id, SEL, id)
+    BOOL WindowShouldClose(id, SEL, id sender)
     {
-        return (!g_canClose || g_canClose()) ? YES : NO;
+        const auto it = g_closeGuards.find(sender);
+        if (it == g_closeGuards.end() || !it->second)
+            return YES;
+        return it->second() ? YES : NO;
+    }
+
+    bool IsNativeFullScreen(id window)
+    {
+        return (Send<unsigned long>(window, "styleMask") & (1ul << 14)) != 0;  // NSWindowStyleMaskFullScreen
+    }
+
+    id ScreenNamed(const std::string& name)
+    {
+        id screens = Send<id>(GetClass("NSScreen"), "screens");
+        const unsigned long count = Send<unsigned long>(screens, "count");
+        for (unsigned long i = 0; i < count; ++i)
+        {
+            id screen = Send<id>(screens, "objectAtIndex:", i);
+            id localized = Send<id>(screen, "localizedName");
+            const char* utf8 = localized ? Send<const char*>(localized, "UTF8String") : nullptr;
+            if (utf8 && name == utf8)
+                return screen;
+        }
+        return nullptr;
     }
 
     // ---- Menu do app ----
@@ -142,17 +169,100 @@ namespace NativeWindow
 
     void InstallCloseGuard(void* nativeWindow, std::function<bool()> canClose)
     {
-        g_canClose = std::move(canClose);
-
-        // A janela já tem um "delegate" criado pela biblioteca webview; acrescentamos
-        // a ele a pergunta "pode fechar?" (windowShouldClose:).
         id window = static_cast<id>(nativeWindow);
+        if (g_closeGuards.empty())
+            g_canClose = canClose;  // a primeira é a janela principal (Quit do menu)
+        g_closeGuards[window] = std::move(canClose);
+
+        // A janela já tem um "delegate" criado pela biblioteca webview (a mesma classe
+        // para todas as janelas); acrescentamos a ele a pergunta "pode fechar?"
+        // (windowShouldClose:), que procura a janela no mapa acima.
         id delegate = Send<id>(window, "delegate");
         if (!delegate)
             return;
         ::Class cls = object_getClass(delegate);
         class_addMethod(cls, sel_registerName("windowShouldClose:"),
                         reinterpret_cast<IMP>(WindowShouldClose), "B@:@");
+    }
+
+    // ---- Janelas Live ----
+
+    std::vector<Screen> Screens()
+    {
+        std::vector<Screen> out;
+        id screens = Send<id>(GetClass("NSScreen"), "screens");
+        const unsigned long count = Send<unsigned long>(screens, "count");
+        for (unsigned long i = 0; i < count; ++i)
+        {
+            id screen = Send<id>(screens, "objectAtIndex:", i);
+            id localized = Send<id>(screen, "localizedName");
+            const char* utf8 = localized ? Send<const char*>(localized, "UTF8String") : nullptr;
+            Screen item;
+            item.name = utf8 && *utf8 ? utf8 : "Display " + std::to_string(i + 1);
+            item.primary = i == 0;
+            out.push_back(item);
+        }
+        return out;
+    }
+
+    void Show(void* nativeWindow)
+    {
+        id window = static_cast<id>(nativeWindow);
+        Send<void>(window, "makeKeyAndOrderFront:", nullptr);
+        id app = Send<id>(GetClass("NSApplication"), "sharedApplication");
+        Send<void>(app, "activateIgnoringOtherApps:", YES);
+    }
+
+    void Hide(void* nativeWindow)
+    {
+        Send<void>(static_cast<id>(nativeWindow), "orderOut:", nullptr);
+    }
+
+    bool SetFullScreen(void* nativeWindow, const std::string& screenName)
+    {
+        id window = static_cast<id>(nativeWindow);
+        if (IsNativeFullScreen(window))
+            return true;
+        id screen = ScreenNamed(screenName);
+        if (!screen)
+            screen = Send<id>(window, "screen");
+        if (!screen)
+            screen = Send<id>(GetClass("NSScreen"), "mainScreen");
+        if (!screen)
+            return false;
+
+        // Tela cheia do próprio sistema (como o botão verde), no monitor escolhido: a
+        // janela vai primeiro para esse monitor e então entra em tela cheia lá. Com
+        // "Displays have separate Spaces" (padrão do Mac), só esse monitor muda; o outro
+        // continua normal. Tentativas anteriores (janela sem borda cobrindo o monitor)
+        // perderam o teclado e as respostas da página (2026-10-16).
+        const unsigned long titled = 1ul << 0, closable = 1ul << 1, miniaturizable = 1ul << 2, resizable = 1ul << 3;
+        Send<void>(window, "setStyleMask:", titled | closable | miniaturizable | resizable);
+        Send<void>(window, "setLevel:", 0l);
+        Send<void>(window, "setCollectionBehavior:", (1ul << 7));  // NSWindowCollectionBehaviorFullScreenPrimary
+        const CGRect visible = Send<CGRect>(screen, "visibleFrame");
+        const CGRect current = Send<CGRect>(window, "frame");
+        const CGFloat w = std::min(current.size.width, visible.size.width), h = std::min(current.size.height, visible.size.height);
+        const CGRect frame = CGRectMake(visible.origin.x + (visible.size.width - w) / 2,
+                                        visible.origin.y + (visible.size.height - h) / 2, w, h);
+        Send<void>(window, "setFrame:display:", frame, YES);
+        Send<void>(window, "makeKeyAndOrderFront:", nullptr);
+        Send<void>(window, "toggleFullScreen:", nullptr);
+        return true;
+    }
+
+    void SetWindowed(void* nativeWindow, bool alwaysOnTop)
+    {
+        id window = static_cast<id>(nativeWindow);
+        if (IsNativeFullScreen(window))
+        {
+            // Sai da tela cheia do sistema (animação; a janela volta ao tamanho de antes)
+            Send<void>(window, "toggleFullScreen:", nullptr);
+            Send<void>(window, "setLevel:", alwaysOnTop ? 3l : 0l);
+            return;
+        }
+        Send<void>(window, "setLevel:", alwaysOnTop ? 3l : 0l);  // NSFloatingWindowLevel : NSNormalWindowLevel
+        Send<void>(window, "makeKeyAndOrderFront:", nullptr);
     }
 
     void InstallAppMenu(void* nativeWindow, std::function<void(const std::string&)> onItem)
