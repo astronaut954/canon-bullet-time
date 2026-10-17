@@ -363,8 +363,10 @@ window.Live = (function () {
           if (audience) big(fmtS(nextIn), nextIn <= 500 ? "Fire!" : "Next pose");
           else status(fmtS(nextIn), label, true);
         } else if (audience) {
-          // Disparos seguidos (intervalos curtos) ou todas de uma vez
-          big("Fire!", "", true);
+          // Plano com pausas: na hora do grupo fica o "0.0 s · Fire!" da contagem (sem a palavra
+          // grande piscando); disparos seguidos (intervalos curtos) ou todas de uma vez: "Fire!"
+          if (ni >= 0 && gap > NUMERIC_GAP_MS) big("0.0 s", "Fire!");
+          else big("Fire!", "", true);
         } else {
           const k = S.fired.size;
           status(k + " / " + n, k ? "Firing · camera " + camNumber(p.shots[Math.max(...S.fired) - 1].cam) : "Firing");
