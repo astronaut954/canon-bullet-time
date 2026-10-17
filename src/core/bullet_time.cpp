@@ -132,10 +132,15 @@ bool BulletTime::TestCamera(const CameraContext& camera)
     return true;
 }
 
-bool BulletTime::RunCountdown(int seconds, bool playSounds)
+bool BulletTime::RunCountdown(int seconds, bool playSounds, bool mixed)
 {
     const auto countdownAudio = GetAssetAudioPath("countdown.wav");
     const auto bulletTimeAudio = GetAssetAudioPath("itsbullettime.wav");
+    auto play = [mixed](const std::filesystem::path& file)
+    {
+        if (mixed) AudioPlayer::PlayWavMixed(file.string());
+        else AudioPlayer::PlayWavAsync(file.string());
+    };
 
     if (seconds > 0)
     {
@@ -145,7 +150,7 @@ bool BulletTime::RunCountdown(int seconds, bool playSounds)
         {
             listener.OnCountdownTick(i);
             if (playSounds)
-                AudioPlayer::PlayWavAsync(countdownAudio.string());
+                play(countdownAudio);
             // 1 s em passos de 0,1 s, para o cancelamento responder na hora
             for (int step = 0; step < 10; ++step)
             {
@@ -160,7 +165,7 @@ bool BulletTime::RunCountdown(int seconds, bool playSounds)
 
     listener.OnTrigger();
     if (playSounds)
-        AudioPlayer::PlayWavAsync(bulletTimeAudio.string());
+        play(bulletTimeAudio);
     return true;
 }
 
@@ -207,7 +212,7 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             break;
         }
 
-        if (!RunCountdown(settings.countdownSeconds, settings.playSounds))
+        if (!RunCountdown(settings.countdownSeconds, settings.playSounds, settings.mixedAudio))
         {
             // Cancelado na contagem: nada foi disparado; a pasta vazia da sessão sai
             std::error_code ec;
@@ -227,13 +232,19 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
             const auto countdownAudio = GetAssetAudioPath("countdown.wav");
             const auto& plan = settings.schedule;
             const bool sounds = settings.groupSounds && settings.playSounds;
+            auto play = [&](const std::filesystem::path& file)
+            {
+                if (settings.mixedAudio) AudioPlayer::PlayWavMixed(file.string());
+                else AudioPlayer::PlayWavAsync(file.string());
+            };
             // Contagem com som antes de cada grupo (intervalo maior que 1,5 s): um toque a
             // 3, 2 e 1 s do grupo, como a contagem inicial; e o som do grupo quando ele sai
+            // (só com intervalo de pelo menos 0,5 s: mais rápido que isso vira ruído)
             int tickedIndex = 0, tickedSecond = 0;
             controller.ShootScheduled(plan, &cancelRequested, [&](int index, const CameraContext& cam, bool ok)
             {
-                if (sounds && index > 1 && plan[index - 1].atMs != plan[index - 2].atMs)
-                    AudioPlayer::PlayWavAsync(groupAudio.string());
+                if (sounds && index > 1 && plan[index - 1].atMs - plan[index - 2].atMs >= 500)
+                    play(groupAudio);
                 listener.OnShotFired(cam, index, static_cast<int>(plan.size()), ok);
             }, [&](int next, long long msRemaining)
             {
@@ -244,7 +255,7 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 {
                     tickedIndex = next;
                     tickedSecond = second;
-                    AudioPlayer::PlayWavAsync(countdownAudio.string());
+                    play(countdownAudio);
                 }
             });
         }

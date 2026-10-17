@@ -1298,7 +1298,7 @@ namespace
                 {
                     listener.OnCountdownTick(s);
                     if (settings.playSounds)
-                        AudioPlayer::PlayWavAsync(GetAssetAudioPath("countdown.wav").string());
+                        AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string());
                     for (int step = 0; step < 10 && completed; ++step)
                     {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1313,7 +1313,7 @@ namespace
                 }
                 listener.OnTrigger();
                 if (settings.playSounds)
-                    AudioPlayer::PlayWavAsync(GetAssetAudioPath("itsbullettime.wav").string());
+                    AudioPlayer::PlayWavMixed(GetAssetAudioPath("itsbullettime.wav").string());
                 // Plano: vazio = todas ao mesmo tempo, uma foto por câmera
                 std::vector<CanonController::ScheduledShot> plan = settings.schedule;
                 if (plan.empty())
@@ -1341,7 +1341,7 @@ namespace
                             {
                                 tickedIndex = static_cast<int>(i);
                                 tickedSecond = second;
-                                AudioPlayer::PlayWavAsync(GetAssetAudioPath("countdown.wav").string());
+                                AudioPlayer::PlayWavMixed(GetAssetAudioPath("countdown.wav").string());
                             }
                         }
                         std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long long>(20, plan[i].atMs - elapsed)));
@@ -1355,8 +1355,8 @@ namespace
                             number = cam.orderPrefix;
                             if (scheduled)
                             {
-                                if (settings.groupSounds && settings.playSounds && i > 0 && plan[i].atMs != plan[i - 1].atMs)
-                                    AudioPlayer::PlayWavAsync(GetAssetAudioPath("group.wav").string());
+                                if (settings.groupSounds && settings.playSounds && i > 0 && plan[i].atMs - plan[i - 1].atMs >= 500)
+                                    AudioPlayer::PlayWavMixed(GetAssetAudioPath("group.wav").string());
                                 listener.OnShotFired(cam, static_cast<int>(i) + 1, static_cast<int>(plan.size()), true);
                             }
                         }
@@ -1405,6 +1405,7 @@ namespace
             // A página manda os quatro como texto: "3", "1", "10", "SL3_1:0,T7_1:500"
             const auto args = ParseStringArgs(request);
             SequenceSettings settings;
+            settings.mixedAudio = true;  // sons sobrepostos na interface gráfica
             auto number = [&](size_t i, int fallback) { try { return std::stoi(args.at(i)); } catch (...) { return fallback; } };
             if (args.size() >= 3)
             {

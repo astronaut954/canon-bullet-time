@@ -23,6 +23,9 @@ struct SequenceSettings
     std::vector<CanonController::ScheduledShot> schedule;
     // Som curto a cada grupo do plano depois do primeiro (janela Live); nada no terminal
     bool groupSounds = false;
+    // Sons sobrepostos (AudioPlayer::PlayWavMixed) em vez de um por vez; a interface
+    // gráfica liga; o terminal fica como sempre
+    bool mixedAudio = false;
 };
 
 // Avisos do núcleo para a interface. Todos têm implementação vazia por padrão.
@@ -89,7 +92,7 @@ public:
 
 private:
     // false se a contagem foi cancelada (aí não dispara)
-    bool RunCountdown(int seconds, bool playSounds);
+    bool RunCountdown(int seconds, bool playSounds, bool mixed = false);
     static std::string GenerateShotId();
 
     CanonController& controller;

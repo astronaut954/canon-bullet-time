@@ -130,6 +130,7 @@ else()
         "-framework EDSDK"
         "-framework CoreFoundation"
         "-framework IOKit"
+        "-framework AVFoundation"   # sons sobrepostos (AudioPlayer::PlayWavMixed)
     )
 endif()
 

@@ -297,7 +297,7 @@ window.Live = (function () {
   function renderBar() {
     const p = S.plan;
     const audience = S.opts.mode === "audience";
-    if (!p || p.all || !p.shots.length || S.phase === "cancelled" || S.phase === "failed" || (audience && S.phase !== "firing")) { el.bar.classList.add("hidden"); return; }
+    if (!p || p.all || !p.shots.length || S.phase === "cancelled" || S.phase === "failed" || (audience && S.phase !== "firing") || S.play.urls.length) { el.bar.classList.add("hidden"); return; }
     el.bar.classList.remove("hidden");
     const total = Math.max(1, p.shots[p.shots.length - 1].t);
     if (el.ticks.childElementCount !== p.groups.length) {
@@ -408,7 +408,7 @@ window.Live = (function () {
     el.hint.textContent =
       S.phase === "countdown" || S.phase === "firing" || S.phase === "receiving" ? "Esc · cancel"
       : "Space · " + (S.phase === "done" ? "shoot again" : "bullet time") + "    F · full screen    Esc · " + (S.opts.display === "full" ? "leave full screen" : "close");
-    el.legend.classList.toggle("hidden", audience || !p || p.all || S.phase === "idle" || S.phase === "countdown");
+    el.legend.classList.toggle("hidden", audience || !p || p.all || S.phase === "idle" || S.phase === "countdown" || !!S.play.urls.length);
   }
 
   function render() {

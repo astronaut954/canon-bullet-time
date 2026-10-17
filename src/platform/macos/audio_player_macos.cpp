@@ -4,6 +4,15 @@
 #include <spawn.h>
 #include <sys/wait.h>
 
+#include <objc/message.h>
+#include <objc/runtime.h>
+
+#include <fstream>
+#include <map>
+#include <mutex>
+#include <sstream>
+#include <vector>
+
 extern char** environ;
 
 // Toca os áudios com o "afplay", que vem em todo macOS.
@@ -29,8 +38,79 @@ namespace
     }
 }
 
+namespace
+{
+    // ---- Sons sobrepostos: AVAudioPlayer (AVFoundation), um tocador por som em curso ----
+    template <typename Result, typename... Args>
+    Result Send(id object, const char* selector, Args... args)
+    {
+        using Fn = Result (*)(id, SEL, Args...);
+        return reinterpret_cast<Fn>(objc_msgSend)(object, sel_registerName(selector), args...);
+    }
+
+    std::mutex g_mixMutex;
+    std::map<std::string, id> g_mixData;      // caminho -> NSData com o arquivo
+    std::vector<id> g_mixPlayers;             // tocadores em curso (liberados quando terminam)
+
+    id LoadData(const std::string& filePath)
+    {
+        auto it = g_mixData.find(filePath);
+        if (it != g_mixData.end())
+            return it->second;
+        std::ifstream file(filePath, std::ios::binary);
+        std::stringstream content;
+        content << file.rdbuf();
+        const std::string bytes = content.str();
+        if (bytes.empty())
+            return nullptr;
+        id cls = reinterpret_cast<id>(objc_getClass("NSData"));
+        id data = Send<id>(cls, "dataWithBytes:length:", static_cast<const void*>(bytes.data()),
+                           static_cast<unsigned long>(bytes.size()));
+        Send<id>(data, "retain");
+        g_mixData[filePath] = data;
+        return data;
+    }
+
+    void ReapMixPlayers()
+    {
+        for (auto it = g_mixPlayers.begin(); it != g_mixPlayers.end();)
+        {
+            if (!Send<BOOL>(*it, "isPlaying"))
+            {
+                Send<void>(*it, "release");
+                it = g_mixPlayers.erase(it);
+            }
+            else
+                ++it;
+        }
+    }
+}
+
 namespace AudioPlayer
 {
+    bool PlayWavMixed(const std::string& filePath)
+    {
+        std::lock_guard<std::mutex> lock(g_mixMutex);
+        ReapMixPlayers();
+        id data = LoadData(filePath);
+        if (!data)
+            return false;
+        id cls = reinterpret_cast<id>(objc_getClass("AVAudioPlayer"));
+        if (!cls)
+            return false;
+        id player = Send<id>(Send<id>(cls, "alloc"), "initWithData:error:", data, static_cast<id*>(nullptr));
+        if (!player)
+            return false;
+        Send<BOOL>(player, "prepareToPlay");
+        if (!Send<BOOL>(player, "play"))
+        {
+            Send<void>(player, "release");
+            return false;
+        }
+        g_mixPlayers.push_back(player);
+        return true;
+    }
+
     bool PlayWavAsync(const std::string& filePath)
     {
         Stop();

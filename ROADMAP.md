@@ -494,6 +494,14 @@ Windows):
   com som a 3, 2 e 1 s de cada grupo (intervalo > 1,5 s; `WaitCallback` no `ShootScheduled` e
   nas simuladas) e `group.wav` mais alto (duas notas); imagem da foto grande posicionada de
   forma absoluta (`.stage img`), para não deslocar ao entrar em tela cheia na sessão.
+- Som (decisão de 2026-10-17: opção 3): `AudioPlayer::PlayWavMixed` toca sons sobrepostos, com o
+  arquivo na memória (Mac: AVAudioPlayer pelo runtime do Objective-C, um tocador por som em
+  curso; Windows: uma voz waveOut por som). `SequenceSettings::mixedAudio` (a interface liga; o
+  terminal segue com `PlayWavAsync`, um som por vez). Som de grupo só com intervalo ≥ 0,5 s.
+  Live (Operator): legenda e linha do tempo somem com a sequência tocando; Audience: "Firing!" nos
+  disparos, "Next pose" na contagem, "Got it!" centralizado.
+- Modo "Sweep" no Timing (varredura: Sequence com intervalo curto pré-ajustado): mostrado em
+  protótipo (`scratchpad/live/sweep_mock2.png`) em 2026-10-17; decisão pendente.
 - Conferido no navegador (live.html com funções simuladas): opções, display, som, sequência.
   Não compilado: risco maior na parte nativa (Mac e Windows).
 
