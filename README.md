@@ -117,10 +117,14 @@ xattr -dr com.apple.quarantine path/to/stillpoint-vX.Y.Z
    choose), and the quality: Standard, High or Maximum. Each session can have its own settings.
 6. Enter the Matrix
 
+<p align="center"><img src="docs/images/screen-save-sessions.png" alt="Save sessions: each session as a video or animated image, with format, speed, loops, size and quality" width="820"></p>
+
 ### Making the cameras look alike (window app)
 
 Open **Camera settings** (button in the Cameras panel). It shows the settings of every camera
 and lets you change one camera or **All cameras** at once.
+
+<p align="center"><img src="docs/images/screen-camera-settings.png" alt="Camera settings: ISO, shutter, aperture, white balance, Picture Style and more for every camera; values that differ are highlighted" width="820"></p>
 
 - **Test shot** fires every camera once so you can compare the photos (they are not saved).
 - With **Match automatically** on, the test shot also changes the cameras so they look alike:
