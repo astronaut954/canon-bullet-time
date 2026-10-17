@@ -6,8 +6,8 @@
 #include <objc/runtime.h>
 #include <CoreGraphics/CoreGraphics.h>
 
+#include <algorithm>
 #include <map>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -47,38 +47,9 @@ namespace
         return it->second() ? YES : NO;
     }
 
-    // Janelas sem borda que mesmo assim recebem o teclado. Uma NSWindow sem borda
-    // responde NO em canBecomeKeyWindow; trocamos a implementação na própria classe
-    // NSWindow, devolvendo YES só para as janelas deste conjunto e chamando a original
-    // para as outras. (Trocar a classe da janela, como o KVO faz, quebrou os observadores
-    // que o WebKit registra na janela: exceção em setStyleMask:, 2026-10-16.)
-    std::set<id> g_keyable;
-    IMP g_canBecomeKeyOriginal = nullptr;
-    IMP g_canBecomeMainOriginal = nullptr;
-
-    BOOL CanBecomeKeyWindow(id self, SEL sel)
+    bool IsNativeFullScreen(id window)
     {
-        if (g_keyable.count(self))
-            return YES;
-        return reinterpret_cast<BOOL (*)(id, SEL)>(g_canBecomeKeyOriginal)(self, sel);
-    }
-    BOOL CanBecomeMainWindow(id self, SEL sel)
-    {
-        if (g_keyable.count(self))
-            return YES;
-        return reinterpret_cast<BOOL (*)(id, SEL)>(g_canBecomeMainOriginal)(self, sel);
-    }
-    void MakeKeyable(id window)
-    {
-        if (!g_canBecomeKeyOriginal)
-        {
-            ::Class cls = objc_getClass("NSWindow");
-            Method key = class_getInstanceMethod(cls, sel_registerName("canBecomeKeyWindow"));
-            Method main = class_getInstanceMethod(cls, sel_registerName("canBecomeMainWindow"));
-            g_canBecomeKeyOriginal = method_setImplementation(key, reinterpret_cast<IMP>(CanBecomeKeyWindow));
-            g_canBecomeMainOriginal = method_setImplementation(main, reinterpret_cast<IMP>(CanBecomeMainWindow));
-        }
-        g_keyable.insert(window);
+        return (Send<unsigned long>(window, "styleMask") & (1ul << 14)) != 0;  // NSWindowStyleMaskFullScreen
     }
 
     id ScreenNamed(const std::string& name)
@@ -250,6 +221,8 @@ namespace NativeWindow
     bool SetFullScreen(void* nativeWindow, const std::string& screenName)
     {
         id window = static_cast<id>(nativeWindow);
+        if (IsNativeFullScreen(window))
+            return true;
         id screen = ScreenNamed(screenName);
         if (!screen)
             screen = Send<id>(window, "screen");
@@ -257,114 +230,38 @@ namespace NativeWindow
             screen = Send<id>(GetClass("NSScreen"), "mainScreen");
         if (!screen)
             return false;
-        const CGRect frame = Send<CGRect>(screen, "frame");
 
-        // Janela sem borda cobrindo o monitor inteiro (com barra de título o sistema
-        // encolhia a janela para caber abaixo da barra de menus, 2026-10-16). Sem borda
-        // ela não receberia teclado: ver MakeKeyable.
-        MakeKeyable(window);
-        Send<void>(window, "setStyleMask:", 0ul);  // NSWindowStyleMaskBorderless
-        Send<void>(window, "setMovable:", NO);
-        Send<void>(window, "setHasShadow:", NO);
-        // canJoinAllSpaces (1) + fullScreenAuxiliary (1 << 8): aparece em qualquer espaço
-        Send<void>(window, "setCollectionBehavior:", (1ul << 0) | (1ul << 8));
-        Send<void>(window, "setLevel:", 25l);  // NSMainMenuWindowLevel (24) + 1: por cima da barra de menus e do Dock
+        // Tela cheia do próprio sistema (como o botão verde), no monitor escolhido: a
+        // janela vai primeiro para esse monitor e então entra em tela cheia lá. Com
+        // "Displays have separate Spaces" (padrão do Mac), só esse monitor muda; o outro
+        // continua normal. Tentativas anteriores (janela sem borda cobrindo o monitor)
+        // perderam o teclado e as respostas da página (2026-10-16).
+        const unsigned long titled = 1ul << 0, closable = 1ul << 1, miniaturizable = 1ul << 2, resizable = 1ul << 3;
+        Send<void>(window, "setStyleMask:", titled | closable | miniaturizable | resizable);
+        Send<void>(window, "setLevel:", 0l);
+        Send<void>(window, "setCollectionBehavior:", (1ul << 7));  // NSWindowCollectionBehaviorFullScreenPrimary
+        const CGRect visible = Send<CGRect>(screen, "visibleFrame");
+        const CGRect current = Send<CGRect>(window, "frame");
+        const CGFloat w = std::min(current.size.width, visible.size.width), h = std::min(current.size.height, visible.size.height);
+        const CGRect frame = CGRectMake(visible.origin.x + (visible.size.width - w) / 2,
+                                        visible.origin.y + (visible.size.height - h) / 2, w, h);
         Send<void>(window, "setFrame:display:", frame, YES);
         Send<void>(window, "makeKeyAndOrderFront:", nullptr);
+        Send<void>(window, "toggleFullScreen:", nullptr);
         return true;
     }
 
     void SetWindowed(void* nativeWindow, bool alwaysOnTop)
     {
         id window = static_cast<id>(nativeWindow);
-        const unsigned long titled = 1ul << 0, closable = 1ul << 1, miniaturizable = 1ul << 2, resizable = 1ul << 3;
-        Send<void>(window, "setStyleMask:", titled | closable | miniaturizable | resizable);
-        Send<void>(window, "setMovable:", YES);
-        Send<void>(window, "setHasShadow:", YES);
-        Send<void>(window, "setCollectionBehavior:", 0ul);
-        Send<void>(window, "setLevel:", alwaysOnTop ? 3l : 0l);  // NSFloatingWindowLevel : NSNormalWindowLevel
-        // Tamanho de janela, no monitor principal, se estava cobrindo um monitor
-        id screen = Send<id>(GetClass("NSScreen"), "mainScreen");
-        const CGRect current = Send<CGRect>(window, "frame");
-        if (screen)
+        if (IsNativeFullScreen(window))
         {
-            const CGRect visible = Send<CGRect>(screen, "visibleFrame");
-            if (current.size.width >= visible.size.width || current.size.height >= visible.size.height)
-            {
-                const CGFloat w = 960, h = 560;
-                const CGRect frame = CGRectMake(visible.origin.x + (visible.size.width - w) / 2,
-                                                visible.origin.y + (visible.size.height - h) / 2, w, h);
-                Send<void>(window, "setFrame:display:", frame, YES);
-            }
+            // Sai da tela cheia do sistema (animação; a janela volta ao tamanho de antes)
+            Send<void>(window, "toggleFullScreen:", nullptr);
+            Send<void>(window, "setLevel:", alwaysOnTop ? 3l : 0l);
+            return;
         }
+        Send<void>(window, "setLevel:", alwaysOnTop ? 3l : 0l);  // NSFloatingWindowLevel : NSNormalWindowLevel
         Send<void>(window, "makeKeyAndOrderFront:", nullptr);
-    }
-
-    void InstallAppMenu(void* nativeWindow, std::function<void(const std::string&)> onItem)
-    {
-        g_onMenuItem = std::move(onItem);
-        g_menuItems.clear();
-        g_window = static_cast<id>(nativeWindow);
-        id app = Send<id>(GetClass("NSApplication"), "sharedApplication");
-        // Uma janela só: sem abas (o Mac acrescentaria "Show Tab Bar" no menu View)
-        Send<void>(GetClass("NSWindow"), "setAllowsAutomaticWindowTabbing:", NO);
-        id bar = NewMenu("");
-
-        // Stillpoint
-        id appMenu = NewMenu("Stillpoint");
-        AddAppItem(appMenu, "About Stillpoint", "about");
-        AddAppItem(appMenu, "Check for Updates…", "updates");
-        AddSeparator(appMenu);
-        AddAppItem(appMenu, "Settings…", "settings", ",");
-        AddSeparator(appMenu);
-        id services = NewMenu("Services");
-        id servicesItem = AddItem(appMenu, "Services", nullptr);
-        Send<void>(servicesItem, "setSubmenu:", services);
-        Send<void>(app, "setServicesMenu:", services);
-        AddSeparator(appMenu);
-        AddItem(appMenu, "Hide Stillpoint", "hide:", "h");
-        AddItem(appMenu, "Hide Others", "hideOtherApplications:", "h", kCommand | kOption);
-        AddItem(appMenu, "Show All", "unhideAllApplications:");
-        AddSeparator(appMenu);
-        // Quit: como clicar no botão de fechar (com os mesmos avisos de fotos não salvas)
-        AddAppItem(appMenu, "Quit Stillpoint", "quit", "q");
-        AddToBar(bar, appMenu);
-
-        // Edit: sem ele o Mac não aceita ⌘C, ⌘V e ⌘A nos campos de texto
-        id edit = NewMenu("Edit");
-        AddItem(edit, "Undo", "undo:", "z");
-        AddItem(edit, "Redo", "redo:", "Z");
-        AddSeparator(edit);
-        AddItem(edit, "Cut", "cut:", "x");
-        AddItem(edit, "Copy", "copy:", "c");
-        AddItem(edit, "Paste", "paste:", "v");
-        AddItem(edit, "Select All", "selectAll:", "a");
-        AddToBar(bar, edit);
-
-        // View
-        id view = NewMenu("View");
-        AddItem(view, "Enter Full Screen", "toggleFullScreen:", "f", kCommand | kControl);
-        AddToBar(bar, view);
-
-        // Window
-        id windowMenu = NewMenu("Window");
-        AddItem(windowMenu, "Minimize", "performMiniaturize:", "m");
-        AddItem(windowMenu, "Zoom", "performZoom:");
-        AddSeparator(windowMenu);
-        AddItem(windowMenu, "Bring All to Front", "arrangeInFront:");
-        AddToBar(bar, windowMenu);
-        Send<void>(app, "setWindowsMenu:", windowMenu);
-
-        // Help
-        id help = NewMenu("Help");
-        AddAppItem(help, "Stillpoint Help", "help");
-        AddAppItem(help, "Compatible Cameras", "cameras");
-        AddAppItem(help, "What's New", "whatsnew");
-        AddSeparator(help);
-        AddAppItem(help, "Report a Problem", "report");
-        AddToBar(bar, help);
-        Send<void>(app, "setHelpMenu:", help);
-
-        Send<void>(app, "setMainMenu:", bar);
     }
 }

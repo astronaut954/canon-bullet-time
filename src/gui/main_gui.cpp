@@ -1350,8 +1350,13 @@ namespace
                     char prefix[8];
                     std::snprintf(prefix, sizeof(prefix), "%02d", static_cast<int>(i) + 1);
                     WriteTestPhoto(dir / (std::string(prefix) + "_" + plan[i].shortName + "_IMG_" + std::to_string(1000 + i) + ".jpg"), number, static_cast<int>(i) + 1);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(120));  // "download"
-                    listener.OnDownloadProgress(++done, static_cast<int>(plan.size()));
+                    ++done;
+                }
+                // "Download": depois dos disparos, para não atrasar os tempos do plano
+                for (int i = 0; i < done; ++i)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(120));
+                    listener.OnDownloadProgress(i + 1, static_cast<int>(plan.size()));
                 }
                 if (completed)
                     listener.OnSessionCompleted();

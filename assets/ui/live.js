@@ -107,6 +107,7 @@ window.Live = (function () {
     el.another.addEventListener("click", () => { if (cb.another) cb.another(); });
     el.close.addEventListener("click", close);
     el.root.addEventListener("mousemove", showTools);
+    el.root.addEventListener("mousedown", showTools);
     // Um botão clicado não fica com o foco: Space continua sendo "disparar", não o botão
     el.root.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.blur(); });
     window.addEventListener("resize", () => { if (S.open) layoutRig(); });
@@ -407,16 +408,14 @@ window.Live = (function () {
     S.rigVisible = showRig;
   }
 
+  // Relógio da contagem: um timer fixo (requestAnimationFrame fica lento numa janela
+  // que não está em foco)
   function tick() {
-    S.raf = 0;
-    if (!S.open) return;
-    if (S.phase === "firing") {
-      renderCenter();
-      renderBar();
-      S.raf = requestAnimationFrame(tick);
-    }
+    if (!S.open || S.phase !== "firing") { clearInterval(S.raf); S.raf = 0; return; }
+    renderCenter();
+    renderBar();
   }
-  function startTicking() { if (!S.raf) S.raf = requestAnimationFrame(tick); }
+  function startTicking() { if (!S.raf) S.raf = setInterval(tick, 40); }
 
   // ---------------------------------------------------------------- sequência tocando em loop
   function stopPlayback() {
@@ -513,9 +512,10 @@ window.Live = (function () {
     shotFired(e) {
       if (!S.plan || S.plan.all) return;
       S.fired.add(e.index);
-      // Acerta o relógio pelo disparo que chegou (o plano diz quando ele devia sair)
+      // Acerta o relógio pelo disparo que chegou, só para a frente: um disparo atrasado
+      // (câmeras de um grupo saem uma por vez) adia os próximos; nunca volta a contagem
       const shot = S.plan.shots[e.index - 1];
-      if (shot) S.t0 = performance.now() - shot.t;
+      if (shot) S.t0 = Math.max(S.t0, performance.now() - shot.t);
       if (e.ok) flashCam(e.camera); else S.failed.add(e.camera);
       if (e.index >= e.total) {
         S.phase = "receiving";

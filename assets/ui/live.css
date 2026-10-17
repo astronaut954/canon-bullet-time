@@ -99,10 +99,12 @@
 .live-tools .segmented button { height: 28px; padding: 0 10px; white-space: nowrap; }
 .live-tools .btn { white-space: nowrap; }
 .live-play {
-  position: absolute; right: 24px; top: 44px; display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  position: absolute; right: 20px; top: 8px; z-index: 6; display: flex; align-items: center; gap: 10px; padding: 6px 10px;
   background: rgba(var(--noct-bg-rgb), .92); border: 1px solid var(--noct-border); opacity: 0; pointer-events: none; transition: opacity .25s; font-size: 12px;
 }
 .live.tools-visible .live-play { opacity: 1; pointer-events: auto; }
+.live.tools-visible .live-top .r { opacity: 0; }
+.live-tools { z-index: 6; }
 .live-speed { display: inline-flex; align-items: center; gap: 4px; }
 .live-speed .btn-icon { width: 28px; height: 28px; font-size: 16px; line-height: 1; }
 /* Escolha do monitor para a tela cheia */
