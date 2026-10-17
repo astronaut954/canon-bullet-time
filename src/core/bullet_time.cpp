@@ -253,7 +253,8 @@ bool BulletTime::RunSequence(const SequenceSettings& settings)
                 if (!sounds || gap <= 1500)
                     return;
                 const int second = static_cast<int>((msRemaining + 999) / 1000);
-                if (second >= 1 && (next != tickedIndex || second != tickedSecond))
+                // Sem toque nos primeiros 400 ms depois do grupo anterior: cairia junto com o som dele
+                if (second >= 1 && msRemaining <= gap - 400 && (next != tickedIndex || second != tickedSecond))
                 {
                     tickedIndex = next;
                     tickedSecond = second;

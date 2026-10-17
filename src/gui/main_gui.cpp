@@ -1341,7 +1341,8 @@ namespace
                         if (groupSounds && scheduled && gap > 1500)
                         {
                             const int second = static_cast<int>((plan[i].atMs - elapsed + 999) / 1000);
-                            if (second >= 1 && (static_cast<int>(i) != tickedIndex || second != tickedSecond))
+                            // Sem toque nos primeiros 400 ms depois do grupo anterior (cairia junto com o som dele)
+                            if (second >= 1 && plan[i].atMs - elapsed <= gap - 400 && (static_cast<int>(i) != tickedIndex || second != tickedSecond))
                             {
                                 tickedIndex = static_cast<int>(i);
                                 tickedSecond = second;
