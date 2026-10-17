@@ -127,6 +127,7 @@ window.Live = (function () {
     S.opts.sounds = !!S.opts.sounds;
     S.opts.sound = !!S.opts.sound;
     if (!silent && cb.save) cb.save(Object.assign({}, S.opts));
+    if (cb.changed) cb.changed(Object.assign({}, S.opts));
     renderOpts();
     if (el && S.open) layoutRig();
     render();

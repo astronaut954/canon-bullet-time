@@ -269,6 +269,11 @@ button { font: inherit; }
 .btn-link:hover:not(:disabled) { color: var(--noct-primary); background: var(--noct-elevated); }
 .btn-small { height: 28px; padding: 0 12px; font-size: 11px; }
 .btn-icon { width: 30px; padding: 0; }
+/* Som ligado/desligado (barra de cima e Live view): ondas quando ligado, X quando desligado */
+.sound-btn .x { display: none; }
+.sound-btn.off .w1, .sound-btn.off .w2 { display: none; }
+.sound-btn.off .x { display: block; }
+.sound-btn.off { color: var(--noct-text-muted); }
 .btn svg { display: block; }
 .btn-overlay { background: rgba(var(--noct-bg-rgb), .75); border-color: var(--noct-border-strong); }
 .btn-overlay:hover { border-color: var(--noct-primary); color: var(--noct-primary); }

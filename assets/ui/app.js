@@ -3254,6 +3254,13 @@
   // Palco em tela cheia com a contagem, as câmeras disparando e a sequência no fim.
   // As opções (modo, layout, sons) ficam em settings.txt (live=).
   $("liveBtn").addEventListener("click", () => { if (window.Live) window.Live.open(); });
+  // Som do disparo: o botão da barra de cima e o da Live view são o mesmo ajuste
+  function renderSoundBtn(opts) {
+    const on = !opts || opts.sound !== false;
+    $("soundBtn").classList.toggle("off", !on);
+    $("soundBtn").title = "Sound of the countdown and the shots: " + (on ? "on" : "off");
+  }
+  $("soundBtn").addEventListener("click", () => { if (window.Live) window.Live.setOptions({ sound: !window.Live.options().sound }); });
 
   // =================== Timing: como as câmeras disparam ===================
   // Modos: todas juntas; uma depois da outra (intervalo, direção, loops); grupos;
@@ -3522,6 +3529,7 @@
         shoot: () => { if (!ui.shootBtn.disabled && !(busy && busyAction === "shoot")) ui.shootBtn.click(); },
         cancel: cancelShoot,
         save: (opts) => window.saveLive(JSON.stringify(opts)),
+        changed: renderSoundBtn,
       }, info && info.live);
       window.Live.setCameras(cameras);
     }
