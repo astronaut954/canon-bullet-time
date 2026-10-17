@@ -500,8 +500,11 @@ Windows):
   terminal segue com `PlayWavAsync`, um som por vez). Som de grupo só com intervalo ≥ 0,5 s.
   Live (Operator): legenda e linha do tempo somem com a sequência tocando; Audience: "Firing!" nos
   disparos, "Next pose" na contagem, "Got it!" centralizado.
-- Modo "Sweep" no Timing (varredura: Sequence com intervalo curto pré-ajustado): mostrado em
-  protótipo (`scratchpad/live/sweep_mock2.png`) em 2026-10-17; decisão pendente.
+- Modo "Sweep" no Timing (aprovado em 2026-10-17): varredura rápida, uma câmera depois da outra
+  sem pausa — a Sequence com intervalo por atalhos (0,1 / 0,15 / 0,2 / 0,3 s; `timing.sweep`),
+  direção própria (`timing.sweepDirection`) e loops. Aviso na Timeline: o menor intervalo por USB
+  ainda vai ser medido; abaixo dele, caixa de disparo. `group.wav` trocado pelo som enviado pelo
+  dono do projeto (Fire.mp3 → WAV 44,1 kHz estéreo 16 bits, 4,3 s).
 - Conferido no navegador (live.html com funções simuladas): opções, display, som, sequência.
   Não compilado: risco maior na parte nativa (Mac e Windows).
 

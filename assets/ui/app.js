@@ -3263,9 +3263,12 @@
   // Modos: todas juntas; uma depois da outra (intervalo, direção, loops); grupos;
   // ímpares/pares; custom (passos: câmeras + tempo depois do passo anterior).
   // O plano vira "câmera:ms,..." para o app; vazio = todas juntas, como sempre.
-  const TIMING_DEFAULT = { mode: "all", interval: 0.5, direction: "fwd", loops: 1, groups: 2, gap: 1, oeGap: 1, steps: [{ after: 0, cams: [1, 2, 3] }, { after: 1, cams: [4, 5, 6] }] };
-  const TIMING_MODES = [["all", "All at once"], ["seq", "One after another"], ["groups", "Groups"], ["oddeven", "Odd / even"], ["custom", "Custom"]];
-  const TIMING_SHORT = { all: "At once", seq: "Sequence", groups: "Groups", oddeven: "Odd / even", custom: "Custom" };
+  // Sweep: varredura rápida (uma câmera depois da outra com intervalo curto, sem pausa), o
+  // "bullet time" clássico; por baixo é a Sequence com um intervalo pré-ajustado.
+  const TIMING_DEFAULT = { mode: "all", interval: 0.5, direction: "fwd", loops: 1, groups: 2, gap: 1, oeGap: 1, sweep: 0.15, sweepDirection: "fwd", steps: [{ after: 0, cams: [1, 2, 3] }, { after: 1, cams: [4, 5, 6] }] };
+  const TIMING_MODES = [["all", "All at once"], ["sweep", "Sweep"], ["seq", "One after another"], ["groups", "Groups"], ["oddeven", "Odd / even"], ["custom", "Custom"]];
+  const TIMING_SHORT = { all: "At once", sweep: "Sweep", seq: "Sequence", groups: "Groups", oddeven: "Odd / even", custom: "Custom" };
+  const SWEEP_INTERVALS = [0.1, 0.15, 0.2, 0.3];
   let timing = JSON.parse(JSON.stringify(TIMING_DEFAULT));
   let timingOpen = false;
   let timingSaveTimer = 0;
@@ -3296,16 +3299,19 @@
     if (N === 0) return { shots, warn: "", total: "", N };
     if (timing.mode === "all") {
       for (let o = 1; o <= N; o++) add(o, 0);
-    } else if (timing.mode === "seq") {
-      const ms = num(timing.interval, 0.05, 600, 0.5) * 1000;
+    } else if (timing.mode === "seq" || timing.mode === "sweep") {
+      const sweep = timing.mode === "sweep";
+      const ms = (sweep ? sweepInterval() : num(timing.interval, 0.05, 600, 0.5)) * 1000;
+      const direction = sweep ? timing.sweepDirection : timing.direction;
       let order = [];
       const fwd = Array.from({ length: N }, (_, i) => i + 1);
-      if (timing.direction === "back") order = fwd.slice().reverse();
-      else if (timing.direction === "pingpong") order = N > 1 ? fwd.concat(fwd.slice(1, -1).reverse()) : fwd;  // 1..N..2 (o 1 final entra no fim)
+      if (direction === "back") order = fwd.slice().reverse();
+      else if (direction === "pingpong") order = N > 1 ? fwd.concat(fwd.slice(1, -1).reverse()) : fwd;  // 1..N..2 (o 1 final entra no fim)
       else order = fwd;
       let k = 0;
       for (let l = 0; l < loops; l++) order.forEach((o) => add(o, (k++) * ms));
-      if (timing.direction === "pingpong" && N > 1) add(1, (k++) * ms);
+      if (direction === "pingpong" && N > 1) add(1, (k++) * ms);
+      if (sweep) warn = "Shortest interval the cameras keep up with over USB is still to be measured (around 0.1–0.2 s). Faster than that needs the trigger box.";
     } else if (timing.mode === "groups") {
       const g = Math.max(1, Math.min(N, Math.round(num(timing.groups, 1, 99, 2))));
       const gap = num(timing.gap, 0.05, 600, 1) * 1000;
@@ -3373,12 +3379,14 @@
     const parts = [name];
     const loops = Math.round(num(timing.loops, 1, 99, 1));
     if (timing.mode === "seq") parts.push(num(timing.interval, 0.05, 600, 0.5) + " s", timing.direction === "back" ? plan.N + " → 1" : timing.direction === "pingpong" ? "1 → " + plan.N + " → 1" : "1 → " + plan.N);
+    if (timing.mode === "sweep") parts.push(sweepInterval() + " s", timing.sweepDirection === "back" ? plan.N + " → 1" : timing.sweepDirection === "pingpong" ? "1 → " + plan.N + " → 1" : "1 → " + plan.N);
     if (timing.mode === "groups") parts.push(Math.round(num(timing.groups, 1, 99, 2)) + " groups · " + num(timing.gap, 0.05, 600, 1) + " s");
     if (timing.mode === "oddeven") parts.push("evens " + num(timing.oeGap, 0.05, 600, 1) + " s later");
     if (timing.mode === "custom") parts.push(timing.steps.length + " steps");
     if (timing.mode !== "all" && loops > 1) parts.push("×" + loops);
     return parts.join(" · ");
   }
+  function sweepInterval() { return SWEEP_INTERVALS.includes(Number(timing.sweep)) ? Number(timing.sweep) : 0.15; }
   function field(label, unit, value, onChange, opts) {
     const o = opts || {};
     const lab = el("label", "field"); lab.appendChild(el("span", "", label));
@@ -3411,6 +3419,13 @@
     if (timing.mode === "seq") {
       f.appendChild(field("Interval", "sec", timing.interval, (v) => { timing.interval = num(v, 0.05, 600, 0.5); timingSave(); }));
       f.appendChild(selectField("Direction", [["fwd", "1 → " + plan.N], ["back", plan.N + " → 1"], ["pingpong", "1 → " + plan.N + " → 1"]], timing.direction, (v) => { timing.direction = v; timingSave(); }));
+    }
+    if (timing.mode === "sweep") {
+      // Intervalo por atalhos (sem digitar): 0,1 / 0,15 / 0,2 / 0,3 s
+      const lab = el("label", "field sweep-field"); lab.appendChild(el("span", "", "Interval (sec)"));
+      lab.appendChild(segmented(SWEEP_INTERVALS.map((v) => [String(v), String(v)]), String(sweepInterval()), (v) => { timing.sweep = Number(v); timingSave(); renderTiming(); }));
+      f.appendChild(lab);
+      f.appendChild(selectField("Direction", [["fwd", "1 → " + plan.N], ["back", plan.N + " → 1"], ["pingpong", "1 → " + plan.N + " → 1"]], timing.sweepDirection, (v) => { timing.sweepDirection = v; timingSave(); }));
     }
     if (timing.mode === "groups") {
       f.appendChild(field("Groups", "", timing.groups, (v) => { timing.groups = Math.round(num(v, 1, 99, 2)); timingSave(); }));

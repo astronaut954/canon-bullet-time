@@ -866,6 +866,8 @@ table.cs tr.has-note td { border-bottom-color: transparent; }
 /* Opções do modo: caixas do mesmo tamanho, rótulos numa linha só, alinhadas pela base */
 .timing-fields { display: flex; flex-wrap: wrap; gap: 12px; align-items: start; margin: 12px 0 0; }
 .timing-fields .field { width: 150px; flex: none; }
+.timing-fields .field.sweep-field { width: auto; }
+.timing-fields .sweep-field .segmented button { height: 36px; padding: 0 12px; white-space: nowrap; }
 .timing-fields .field select.cs-sel { height: 36px; max-width: none; width: 100%; font-size: 14px; padding-left: 12px; line-height: 34px; }
 .timing-fields .field > span:first-child { white-space: nowrap; }
 .timing-fields:empty { display: none; }

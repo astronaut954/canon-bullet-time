@@ -326,6 +326,9 @@ geram fotos de teste com o número da câmera e "#n" (número da foto na sessão
 - [ ] Sequence 0,5 s, 1 → 9 → 1: resumo "17 shots over 8 s"; a linha do tempo mostra 1…9 e depois
       8…1 (bolinhas vazadas = segunda foto da câmera). Direction 9 → 1 inverte. Loops 2 dobra.
 - [ ] Groups 3 × 1 s: "1–3", "4–6", "7–9" em 0, 1 e 2 s. Odd / even: "odd (5)" em 0 e "even (4)" em 1 s.
+- [ ] Sweep: atalhos de intervalo (0,1 / 0,15 / 0,2 / 0,3 s), direção e loops; resumo "Sweep · 0.2 s ·
+      1 → 9 · 9 shots over 1.6 s"; disparo com as 9 fotos em sequência (na Live: "Firing!", sem
+      contagem nem som de grupo).
 - [ ] Custom: passos com chips; clicar num chip move a câmera para aquele passo; "Add step" cria um
       passo; o X remove. Câmera fora dos passos: aviso "Camera 9 is not in any step…".
 - [ ] Advanced fechado com um modo escolhido: etiqueta âmbar "Timing", resumo e linha do tempo
