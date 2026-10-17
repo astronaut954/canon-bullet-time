@@ -346,37 +346,47 @@ geram fotos de teste com o número da câmera e "#n" (número da foto na sessão
 ## 19. Janela Live (etapa 15)
 
 Sem câmeras: abra com câmeras simuladas (como na seção 18). O botão **Live view** fica na barra
-de cima, ao lado de Save sessions. Esc fecha (ou cancela o disparo, se estiver no meio); Space
-dispara de novo. Mexendo o mouse aparecem as opções embaixo: Mode (Operator / Audience), Layout
-(Arc / Circle / Line) e Group sounds.
+de cima, ao lado de Save sessions, e abre uma **janela separada** (a principal continua à vista).
+Esc cancela o disparo (se estiver no meio), sai da tela cheia ou esconde a janela; Space dispara
+de novo; F alterna a tela cheia. O botão grande **Sound on / Sound off** (canto de cima, à
+direita; também na barra de cima da janela principal) liga e desliga todos os sons do disparo
+(contagem, "it's bullet time" e o bip dos grupos). Mexendo o mouse aparecem as opções embaixo:
+Mode (Operator / Audience), Layout (Arc / Circle / Line), Group sounds, Display (Window / Full
+screen, com o monitor quando há mais de um), Always on top, Another window e Close.
 
-- [ ] Live view abre o palco escuro com as 9 câmeras em arco (número de cada uma), "Ready · 9 cameras"
-      e as teclas embaixo. Close ou Esc volta à janela normal.
-- [ ] Countdown 3 e Sequence 1 s 1 → 9 → 1; abrir a Live view e apertar Space: a contagem 3, 2, 1
-      aparece grande com "Get ready" (o som continua); depois cada câmera fica branca na hora do
-      disparo e verde logo depois, a próxima fica tracejada (âmbar), "k / 17" em cima, "Next: camera
-      n in 0,x s" embaixo à esquerda e a barra do plano avança. No fim: "17 / 17 received" e a
-      sequência toca em loop (tira de fotos em cima, foto grande embaixo). Space dispara de novo.
+- [ ] Live view abre a janela "Stillpoint · Live" com as 9 câmeras em arco (número de cada uma),
+      "Ready · 9 cameras" e as teclas embaixo. A janela principal continua funcionando. Fechar a
+      janela Live (botão do sistema, Close ou Esc) só a esconde; Live view traz de volta como estava.
+- [ ] Countdown 3 e Sequence 1 s 1 → 9 → 1; na janela Live apertar Space: a contagem 3, 2, 1 aparece
+      grande com "Get ready" (na janela principal também); depois cada câmera fica branca na hora do
+      disparo e verde logo depois, a próxima fica tracejada (âmbar), "7 / 17" em cima (fotos
+      disparadas de 17), "Next: camera n in 0,x s" embaixo à esquerda e a barra do plano avança.
+      No fim: "17 / 17 received" e a sequência toca em loop (tira de fotos em cima, foto grande
+      embaixo). Space dispara de novo.
 - [ ] Groups 3 × 2 s: entre os grupos aparece a contagem em números ("1.4 s", "Next group: cameras
       4, 5, 6") e as três câmeras do próximo grupo tracejadas. Com Group sounds ligado, um bip curto
       no começo do 2º e do 3º grupo; desligado, só o som do disparo.
-- [ ] Sound off: o disparo seguinte sai sem nenhum som (nem contagem); Sound on volta tudo. Depois
-      de clicar no botão, Space ainda dispara (o botão não fica com o foco).
-- [ ] Layout Circle e Line mudam a disposição das câmeras na hora; a escolha, o modo e os sons ficam
-      guardados ao fechar e abrir o app.
+- [ ] Sound off (em qualquer das janelas): o botão muda nas duas; o disparo seguinte sai sem nenhum
+      som (nem contagem). Sound on volta tudo. Depois de clicar num botão, Space ainda dispara.
+- [ ] Display Full screen: a janela cobre o monitor inteiro (sem borda, por cima da barra de menus /
+      barra de tarefas); com dois monitores, a lista escolhe qual (a TV). Esc ou Window volta a ser
+      janela normal no monitor principal. Always on top: a janela fica à frente da principal.
+- [ ] Fechar e abrir o app: Live view volta com o mesmo modo, layout, display e monitor; o som também.
+- [ ] Another window: abre "Stillpoint · Live 2" (ex.: Operator na janela 1, Audience em tela cheia
+      na 2). As duas recebem o disparo ao mesmo tempo.
+- [ ] Layout Circle e Line mudam a disposição das câmeras na hora.
 - [ ] Mode Audience: só a contagem grande, "Hold still" (com a contagem em números entre grupos
       longos), e a foto grande tocando em loop no fim; sem câmeras, sem números de fotos, sem plano.
 - [ ] All at once: na hora do disparo todas as câmeras piscam brancas e ficam verdes; "k / 9" das
       fotos chegando; sequência no fim.
-- [ ] Cancelar (Esc) no meio: "Cancelled"; Esc de novo fecha a Live view.
-- [ ] Sessions 2: a Live view mostra "Session 1 of 2"; a segunda sessão começa sozinha e a sequência
-      da primeira para de tocar.
-- [ ] A janela principal continua igual por baixo: contagem própria, log e a sessão nova.
+- [ ] Cancelar (Esc na janela Live, ou o botão da principal) no meio: "Cancelled" nas duas.
+- [ ] Sessions 2: "Session 1 of 2"; a segunda sessão começa sozinha e a sequência da primeira para.
 - [ ] Camera settings com câmeras simuladas: as 9 aparecem ajustáveis (modo M), com ISO, Tv, Av,
       exp. comp., WB (com Kelvin e ajuste fino), Picture Style (com contraste/saturação/tom), Drive e
       foco MF; algumas começam diferentes (ISO, Tv, WB, Picture Style, ajuste fino). Mudar um valor
       numa câmera ou em todas muda na hora; Copy from camera e Match automatically funcionam com as
       fotos de teste. Os valores voltam ao início ao abrir o app de novo.
+- [ ] Windows: tudo acima, e a janela Live em tela cheia e de volta a janela.
 
 ## Resultado
 

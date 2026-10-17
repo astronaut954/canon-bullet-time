@@ -1818,7 +1818,6 @@
       renderCameras();
       readyStatus();
       refreshSessionTitles();
-      if (window.Live) window.Live.setCameras(cameras);
 
       renderActivity();
     },
@@ -2027,12 +2026,9 @@
     },
 
     // Fotos guardadas
-    sessions(e) {
-      setSessions(e.sessions);
-      const newest = sessions[0];
-      if (window.Live && window.Live.isOpen() && newest && newest.photos.length)
-        window.Live.playback(newest.photos, (file) => sessionPhoto(newest.name, file, 800));
-    },
+    sessions(e) { setSessions(e.sessions); },
+    // Som do disparo (botão da barra de cima e das janelas Live): um ajuste só, do app
+    soundChanged(e) { sound = { sound: !!e.sound, sounds: !!e.sounds }; renderSoundBtn(); },
     saving() { activity.saving = true; renderActivity(); },
     exportProgress(e) { showProgress(e); },
     saveCancelled() {
@@ -2125,7 +2121,6 @@
   window.onCoreEvent = function (event) {
     const handler = handlers[event.type];
     if (handler) handler(event);
-    if (window.Live && !orderCapture()) window.Live.handle(event);
   };
 
   // Sem o menu do botão direito do navegador ("Reload" deixava a janela em branco);
@@ -3244,23 +3239,25 @@
     const plan = timingPlan();
     if (plan.warn && !plan.shots.length) { toast(plan.warn, 6000); return; }
     const schedule = timing.mode === "all" ? "" : plan.shots.map((s) => s.cam + ":" + s.t).join(",");
-    // Som: "disparo,grupos" (1/0), das opções da Live view (o botão grande Sound e Group sounds)
-    const live = window.Live ? window.Live.options() : { sound: true, sounds: true };
-    const sounds = (live.sound ? "1" : "0") + "," + (live.sound && live.sounds ? "1" : "0");
+    // Som: "disparo,grupos" (1/0)
+    const sounds = (sound.sound ? "1" : "0") + "," + (sound.sound && sound.sounds ? "1" : "0");
     window.shoot(String(intValue(ui.countdown, 0, 0)), String(intValue(ui.sessions, 1, 1)), String(intValue(ui.downloadWait, 1, 10)), schedule, sounds);
   });
 
-  // =================== Live view (assets/ui/live.js) ===================
-  // Palco em tela cheia com a contagem, as câmeras disparando e a sequência no fim.
-  // As opções (modo, layout, sons) ficam em settings.txt (live=).
-  $("liveBtn").addEventListener("click", () => { if (window.Live) window.Live.open(); });
-  // Som do disparo: o botão da barra de cima e o da Live view são o mesmo ajuste
-  function renderSoundBtn(opts) {
-    const on = !opts || opts.sound !== false;
-    $("soundBtn").classList.toggle("off", !on);
-    $("soundBtn").title = "Sound of the countdown and the shots: " + (on ? "on" : "off");
+  // =================== Live view (janela separada: assets/ui/live.html) ===================
+  // O botão abre (ou traz de volta) a janela Live 1; dentro dela dá para abrir a 2ª.
+  // As janelas Live pedem o disparo e o cancelamento por aqui (o plano do Timing é desta página).
+  $("liveBtn").addEventListener("click", () => window.openLive("1"));
+  window.liveShootRequest = () => { if (!ui.shootBtn.disabled && !(busy && busyAction === "shoot")) ui.shootBtn.click(); };
+  window.liveCancelRequest = () => cancelShoot();
+  // Som do disparo (contagem, "it's bullet time", bip dos grupos): ajuste do app, guardado em
+  // settings.txt (live=); o botão da barra de cima e o das janelas Live mudam o mesmo valor
+  var sound = { sound: true, sounds: true };
+  function renderSoundBtn() {
+    $("soundBtn").classList.toggle("off", !sound.sound);
+    $("soundBtn").title = "Sound of the countdown and the shots: " + (sound.sound ? "on" : "off");
   }
-  $("soundBtn").addEventListener("click", () => { if (window.Live) window.Live.setOptions({ sound: !window.Live.options().sound }); });
+  $("soundBtn").addEventListener("click", () => window.liveSetSound(sound.sound ? "0" : "1", sound.sounds ? "1" : "0"));
 
   // =================== Timing: como as câmeras disparam ===================
   // Modos: todas juntas; uma depois da outra (intervalo, direção, loops); grupos;
@@ -3524,15 +3521,10 @@
     upd.info = info || null;
     timingLoad(info && info.timing);
     renderTiming();
-    if (window.Live) {
-      window.Live.init({
-        shoot: () => { if (!ui.shootBtn.disabled && !(busy && busyAction === "shoot")) ui.shootBtn.click(); },
-        cancel: cancelShoot,
-        save: (opts) => window.saveLive(JSON.stringify(opts)),
-        changed: renderSoundBtn,
-      }, info && info.live);
-      window.Live.setCameras(cameras);
+    if (info && info.live) {
+      try { const l = JSON.parse(info.live); sound = { sound: l.sound !== false, sounds: l.sounds !== false }; } catch (e) {}
     }
+    renderSoundBtn();
     if (info && info.fakeCameras) log("Fake cameras: " + info.fakeCameras + " (STILLPOINT_FAKE_CAMERAS). Shots make test photos.", "warn");
     if (info && info.os === "windows") menuEl.btn.classList.remove("hidden");
     if (info && info.version) {

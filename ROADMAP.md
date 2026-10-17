@@ -454,10 +454,36 @@ Parte 1 (página, feita em 2026-10-17):
   fotos, grupos com contagem, falha, layouts, Audience. Falta: teste no app (Mac) com
   `STILLPOINT_FAKE_CAMERAS=9` e o som por grupo.
 
-Parte 2 (janela nativa separada): segunda janela com a mesma página (`assets/ui/live.html`),
-tela cheia no monitor escolhido (lembrar o monitor), flutuante/sempre à frente; os avisos do
-núcleo vão para as duas janelas; a janela Live pede as fotos da sessão pelo mesmo `getPhoto`.
-Mac (NSWindow/WKWebView) e Windows (WebView2). Ainda não começou.
+Decisões de 2026-10-16 (noite): a Live view é uma **janela separada** (a principal continua à
+vista: operador vê as duas, o modelo vê a Live); A agora (janela nativa) e C depois (página servida
+na rede para TV/tablet/navegador); o uso previsto é uma TV por HDMI; precisa dar para ter Operator e
+Audience ao mesmo tempo (duas janelas Live); botão grande de som também fora da Live view.
+
+Parte 2 (janela nativa separada, feita em 2026-10-17, sem compilar aqui — falta o teste no Mac e no
+Windows):
+- `assets/ui/live.html`: a mesma página Live (live.js/live.css) numa janela própria; a cola com o
+  app fica nela (liveReady, liveShoot, liveCancel, saveLiveWindow, liveDisplay, liveSetSound,
+  liveClose, liveAnother, getPhoto). A janela principal perdeu a Live por cima: `Live view` chama
+  `openLive(1)`; dentro da Live, "Another window" abre a 2 (até duas).
+- `main_gui.cpp`: segunda instância da biblioteca webview (a 0.12 aceita mais de uma janela: só
+  encerra o app quando a última fecha); `GuiListener` manda cada aviso para todas as janelas e
+  guarda a última lista de câmeras; `LoadPage(arquivo, tema)` serve as duas páginas. As janelas
+  Live nunca são destruídas enquanto o app roda: o botão de fechar só esconde (close guard).
+  Disparo e cancelamento pedidos pela Live passam pela página principal (`liveShootRequest`),
+  porque o plano do Timing é dela. Som: `live={"sound":…,"sounds":…}` no settings.txt, mudado por
+  `liveSetSound` em qualquer janela, aviso `soundChanged` para todas. Opções por janela em
+  `live1=` / `live2=` (modo, layout, display, monitor, sempre à frente).
+- `native_window.h`: `Screens()`, `Show`, `Hide`, `SetFullScreen(janela, monitor)` (Mac: barra de
+  título transparente sem botões, por cima da barra de menus, cobrindo o monitor; Windows: janela
+  WS_POPUP sobre o retângulo do monitor, topmost), `SetWindowed(janela, sempre à frente)`;
+  `InstallCloseGuard` passou a valer por janela (Mac: mapa por NSWindow; Windows: subclass com o
+  callback). Monitores pelo nome (Mac: `localizedName`; Windows: "Display N (main)").
+- Teclas na Live: Esc cancela / sai da tela cheia / esconde; Space dispara; F tela cheia.
+- Conferido no navegador (live.html com funções simuladas): opções, display, som, sequência.
+  Não compilado: risco maior na parte nativa (Mac e Windows).
+
+Parte 3 (futuro, "C"): servir a Live na rede local (TV com navegador, tablet), reaproveitando a
+mesma página.
 
 ## Futuro (não planejado ainda)
 

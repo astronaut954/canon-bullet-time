@@ -1,19 +1,22 @@
-// Janela Live: o que está acontecendo no disparo, em tamanho de palco (segundo monitor
-// ou janela flutuante). Recebe os mesmos avisos do programa que a página principal
-// (window.onCoreEvent -> Live.handle) e desenha: contagem inicial, as câmeras na ordem
-// do rig (disparadas, disparando agora, próximas), a contagem até o próximo grupo, as
-// fotos chegando e a sequência tocando em loop no fim.
+// Janela Live: o que está acontecendo no disparo, em tamanho de palco (uma janela
+// separada: tela cheia num segundo monitor/TV ou flutuante). Recebe os mesmos avisos do
+// programa que a página principal (window.onCoreEvent -> Live.handle) e desenha:
+// contagem inicial, as câmeras na ordem do rig (disparadas, disparando agora, próximas),
+// a contagem até o próximo grupo, as fotos chegando e a sequência tocando em loop no fim.
 //
 // Dois modos: Operator (tudo: câmeras, plano, fotos recebidas, erros) e Audience (só a
 // contagem, "hold still", a contagem entre grupos e a sequência no fim).
-// Layout das câmeras: arc (padrão), circle ou line.
+// Layout das câmeras: arc (padrão), circle ou line. Display: janela (sempre à frente ou
+// não) ou tela cheia num monitor escolhido; isso quem faz é o app (cb.display).
 //
-// A página principal chama Live.init({...}), Live.setCameras(lista) e, quando a sessão
-// nova chega, Live.playback(fotos, carregar). Live.handle(evento) recebe os avisos.
+// A página (live.html) chama Live.init(callbacks, opções, som), Live.setCameras(lista),
+// Live.setSound(som) e, quando a sessão nova chega, Live.playback(fotos, carregar).
+// Live.handle(evento) recebe os avisos. O som (ligado/desligado, bip por grupo) é um
+// ajuste do app inteiro, não da janela: a página só pede a mudança (cb.setSound).
 window.Live = (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const DEFAULTS = { mode: "operator", layout: "arc", sound: true, sounds: true };
+  const DEFAULTS = { mode: "operator", layout: "arc", display: "window", screen: "", onTop: false };
   const NUMERIC_GAP_MS = 1500;   // contagem em números só para intervalos maiores que isto
   const FLASH_MS = 320;          // quanto tempo a câmera fica branca depois de disparar
   const PLAY_FPS = 8;
@@ -21,6 +24,8 @@ window.Live = (function () {
   const S = {
     open: false,
     opts: Object.assign({}, DEFAULTS),
+    sound: { sound: true, sounds: true },
+    screens: [],               // [{name, primary}] do app
     cams: [],                  // [{name, number, model, connected}] na ordem do rig
     plan: null,                // {all, countdown, sessions, shots:[{cam, number, t}], groups:[{t, idx:[...]}]}
     session: { index: 1, total: 1 },
@@ -84,12 +89,18 @@ window.Live = (function () {
       hint: $("liveHint"), tools: $("liveTools"),
       modeBtns: Array.from(document.querySelectorAll("#liveTools [data-mode]")),
       layoutBtns: Array.from(document.querySelectorAll("#liveTools [data-layout]")),
+      displayBtns: Array.from(document.querySelectorAll("#liveTools [data-display]")),
+      screen: $("liveScreen"), onTop: $("liveOnTop"), onTopLabel: $("liveOnTopLabel"), another: $("liveAnother"),
       sounds: $("liveSounds"), close: $("liveClose"), sound: $("liveSound"),
     };
-    el.sound.addEventListener("click", () => setOpts({ sound: !S.opts.sound }));
+    el.sound.addEventListener("click", () => setSound({ sound: !S.sound.sound }));
+    el.sounds.addEventListener("change", () => setSound({ sounds: el.sounds.checked }));
     el.modeBtns.forEach((b) => b.addEventListener("click", () => setOpts({ mode: b.dataset.mode })));
     el.layoutBtns.forEach((b) => b.addEventListener("click", () => setOpts({ layout: b.dataset.layout })));
-    el.sounds.addEventListener("change", () => setOpts({ sounds: el.sounds.checked }));
+    el.displayBtns.forEach((b) => b.addEventListener("click", () => setOpts({ display: b.dataset.display })));
+    el.screen.addEventListener("change", () => setOpts({ display: "full", screen: el.screen.value }));
+    el.onTop.addEventListener("change", () => setOpts({ onTop: el.onTop.checked }));
+    el.another.addEventListener("click", () => { if (cb.another) cb.another(); });
     el.close.addEventListener("click", close);
     el.root.addEventListener("mousemove", showTools);
     // Um botão clicado não fica com o foco: Space continua sendo "disparar", não o botão
@@ -111,7 +122,12 @@ window.Live = (function () {
       e.preventDefault();
       e.stopImmediatePropagation();
       if (S.phase === "countdown" || S.phase === "firing" || S.phase === "receiving") { if (cb.cancel) cb.cancel(); }
+      else if (S.opts.display === "full") setOpts({ display: "window" });
       else close();
+    } else if (e.key === "f" || e.key === "F") {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      e.preventDefault();
+      setOpts({ display: S.opts.display === "full" ? "window" : "full" });
     } else if (e.key === " ") {
       if (e.target.tagName === "INPUT") return;
       e.preventDefault();
@@ -121,25 +137,47 @@ window.Live = (function () {
   }
 
   function setOpts(change, silent) {
+    const before = JSON.stringify([S.opts.display, S.opts.screen, S.opts.onTop]);
+    const applyDisplay = !!change.applyDisplay;
+    delete change.applyDisplay;
     Object.assign(S.opts, change);
     if (!["operator", "audience"].includes(S.opts.mode)) S.opts.mode = "operator";
     if (!["arc", "circle", "line"].includes(S.opts.layout)) S.opts.layout = "arc";
-    S.opts.sounds = !!S.opts.sounds;
-    S.opts.sound = !!S.opts.sound;
+    if (!["window", "full"].includes(S.opts.display)) S.opts.display = "window";
+    S.opts.onTop = !!S.opts.onTop;
+    S.opts.screen = String(S.opts.screen || "");
+    if (S.opts.display === "full" && !S.screens.some((sc) => sc.name === S.opts.screen))
+      S.opts.screen = (S.screens.find((sc) => !sc.primary) || S.screens[0] || { name: "" }).name;
     if (!silent && cb.save) cb.save(Object.assign({}, S.opts));
-    if (cb.changed) cb.changed(Object.assign({}, S.opts));
+    const after = JSON.stringify([S.opts.display, S.opts.screen, S.opts.onTop]);
+    if (((!silent && before !== after) || applyDisplay) && cb.display) cb.display(Object.assign({}, S.opts));
     renderOpts();
     if (el && S.open) layoutRig();
     render();
+  }
+  function setSound(change) {
+    Object.assign(S.sound, change);
+    if (cb.setSound) cb.setSound(Object.assign({}, S.sound));
+    renderOpts();
   }
   function renderOpts() {
     if (!el) return;
     el.root.classList.toggle("audience", S.opts.mode === "audience");
     el.modeBtns.forEach((b) => b.classList.toggle("on", b.dataset.mode === S.opts.mode));
     el.layoutBtns.forEach((b) => b.classList.toggle("on", b.dataset.layout === S.opts.layout));
-    el.sounds.checked = S.opts.sounds;
-    el.sound.classList.toggle("off", !S.opts.sound);
-    el.sound.querySelector("span").textContent = S.opts.sound ? "Sound on" : "Sound off";
+    el.displayBtns.forEach((b) => b.classList.toggle("on", b.dataset.display === S.opts.display));
+    if (el.screen.options.length !== S.screens.length || Array.from(el.screen.options).some((o, i) => o.value !== S.screens[i].name)) {
+      el.screen.innerHTML = "";
+      S.screens.forEach((sc) => { const o = document.createElement("option"); o.value = sc.name; o.textContent = sc.name; el.screen.appendChild(o); });
+    }
+    el.screen.value = S.opts.screen;
+    el.screen.classList.toggle("hidden", S.opts.display !== "full" || S.screens.length < 2);
+    el.onTop.checked = S.opts.onTop;
+    el.onTopLabel.classList.toggle("hidden", S.opts.display === "full");
+    el.another.classList.toggle("hidden", !cb.another);
+    el.sounds.checked = S.sound.sounds;
+    el.sound.classList.toggle("off", !S.sound.sound);
+    el.sound.querySelector("span").textContent = S.sound.sound ? "Sound on" : "Sound off";
   }
 
   // ---------------------------------------------------------------- câmeras (rig)
@@ -326,7 +364,7 @@ window.Live = (function () {
     el.topRight.textContent = !audience && sessions > 1 ? "Session " + S.session.index + " of " + sessions : "";
     el.hint.textContent =
       S.phase === "countdown" || S.phase === "firing" || S.phase === "receiving" ? "Esc · cancel"
-      : "Space · " + (S.phase === "done" ? "shoot again" : "bullet time") + "    Esc · close";
+      : "Space · " + (S.phase === "done" ? "shoot again" : "bullet time") + "    F · full screen    Esc · " + (S.opts.display === "full" ? "leave full screen" : "close");
     el.legend.classList.toggle("hidden", audience || !p || p.all || S.phase === "idle" || S.phase === "countdown");
   }
 
@@ -472,13 +510,19 @@ window.Live = (function () {
   }
 
   // ---------------------------------------------------------------- API
-  function init(callbacks, saved) {
+  // callbacks: shoot, cancel, save(opções), display(opções), setSound(som), close, another
+  // opts: opções desta janela (objeto ou JSON); sound: {sound, sounds}; screens: [{name, primary}]
+  function init(callbacks, opts, sound, screens) {
     cb = callbacks || {};
     build();
-    let opts = {};
-    try { opts = saved ? JSON.parse(saved) : {}; } catch (err) { opts = {}; }
-    setOpts(Object.assign({}, DEFAULTS, opts || {}), true);
+    let parsed = opts || {};
+    if (typeof parsed === "string") { try { parsed = JSON.parse(parsed) || {}; } catch (err) { parsed = {}; } }
+    S.screens = Array.isArray(screens) ? screens : [];
+    if (sound) Object.assign(S.sound, sound);
+    setOpts(Object.assign({}, DEFAULTS, parsed), true);
   }
+  function setSoundState(sound) { Object.assign(S.sound, sound || {}); renderOpts(); }
+  function setScreens(screens) { S.screens = Array.isArray(screens) ? screens : []; renderOpts(); }
   function setCameras(list) {
     S.cams = (list || []).filter((c) => c.connected).map((c) => ({ name: c.name, number: c.order, model: c.model, connected: true }))
       .sort((a, b) => a.number - b.number);
@@ -497,12 +541,12 @@ window.Live = (function () {
   }
   function close() {
     if (!el) return;
+    if (cb.close) { cb.close(); return; }  // janela separada: o app esconde a janela
     S.open = false;
     el.root.classList.add("hidden");
-    if (cb.closed) cb.closed();
   }
   function isOpen() { return S.open; }
   function options() { return Object.assign({}, S.opts); }
 
-  return { init, setCameras, open, close, isOpen, handle, playback, options, setOptions: setOpts };
+  return { init, setCameras, open, close, isOpen, handle, playback, options, setOptions: setOpts, setSound: setSoundState, setScreens };
 })();

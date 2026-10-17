@@ -89,14 +89,16 @@
 /* Teclas e as opções (aparecem quando o mouse se mexe e somem sozinhas) */
 .live-hint { position: absolute; left: 0; right: 0; bottom: 20px; text-align: center; font-size: 12px; text-transform: uppercase; letter-spacing: .2em; color: var(--noct-text-dim); white-space: pre; }
 .live-tools {
-  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; padding: 8px 10px; max-width: calc(100% - 40px); box-sizing: border-box;
   background: rgba(var(--noct-bg-rgb), .92); border: 1px solid var(--noct-border); opacity: 0; pointer-events: none; transition: opacity .25s;
   font-size: 12px;
 }
 .live.tools-visible .live-tools { opacity: 1; pointer-events: auto; }
 .live.tools-visible .live-hint { opacity: 0; }
 .live-tools-label { text-transform: uppercase; letter-spacing: .1em; color: var(--noct-text-muted); font-size: 11px; margin-left: 6px; }
-.live-tools .segmented button { height: 28px; padding: 0 10px; }
+.live-tools .segmented button { height: 28px; padding: 0 10px; white-space: nowrap; }
+.live-tools .btn { white-space: nowrap; }
+.live-screen { max-width: 160px; }
 .live-key { margin-left: 8px; padding: 1px 5px; border: 1px solid var(--noct-border-strong); font-size: 10px; color: var(--noct-text-dim); }
 
 /* Botão grande do som (canto de cima, à direita). O ícone é o mesmo do botão da barra

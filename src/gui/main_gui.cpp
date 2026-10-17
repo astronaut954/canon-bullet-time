@@ -145,7 +145,8 @@ namespace
     class Json
     {
     public:
-        explicit Json(const std::string& type) { Add("type", type); }
+        explicit Json(const std::string& type) : type(type) { Add("type", type); }
+        const std::string& Type() const { return type; }
 
         Json& Add(const std::string& key, const std::string& value) { return Raw(key, JsonString(value)); }
         Json& Add(const std::string& key, const char* value) { return Raw(key, JsonString(value)); }
@@ -175,6 +176,7 @@ namespace
         std::string Str() const { return "{" + body + "}"; }
 
     private:
+        std::string type;
         std::string body;
     };
 
@@ -337,12 +339,34 @@ namespace
     public:
         explicit GuiListener(webview::webview& window) : window(window) {}
 
+        // Cada aviso vai para a janela principal e para as janelas Live abertas
         void Emit(const Json& event)
         {
             if (closed)
                 return;
-            const std::string script = "window.onCoreEvent && window.onCoreEvent(" + event.Str() + ")";
+            const std::string json = event.Str();
+            if (event.Type() == "cameras")
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                lastCameras = json;
+            }
+            const std::string script = "window.onCoreEvent && window.onCoreEvent(" + json + ")";
             window.dispatch([this, script] { window.eval(script); });
+            std::lock_guard<std::mutex> lock(mutex);
+            for (webview::webview* extra : extras)
+                extra->dispatch([extra, script] { extra->eval(script); });
+        }
+
+        void AddWindow(webview::webview* extra)
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            extras.push_back(extra);
+        }
+        // Última lista de câmeras mandada (para uma janela Live que acabou de abrir)
+        std::string LastCameras()
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            return lastCameras;
         }
 
         void Close() { closed = true; }
@@ -418,6 +442,9 @@ namespace
     private:
         webview::webview& window;
         std::atomic<bool> closed{ false };
+        std::mutex mutex;
+        std::vector<webview::webview*> extras;
+        std::string lastCameras;
 
         int lastDone = -1;
         int lastTotal = -1;
@@ -831,7 +858,9 @@ namespace
 
     // Lê assets/ui/index.html e embute o tema (CSS), as fontes e app.js (o WebKit
     // do Mac não carrega arquivos locais separados de uma página montada em memória).
-    std::string LoadUi(const std::string& theme)
+    // Página da interface (index.html ou live.html) com o tema, as fontes, as imagens e os
+    // scripts embutidos (uma string só para a janela)
+    std::string LoadPage(const std::string& file, const std::string& theme)
     {
         const auto dir = Platform::ResourcesDirectory() / "assets" / "ui";
         auto read = [](const std::filesystem::path& path)
@@ -842,7 +871,7 @@ namespace
             return content.str();
         };
 
-        std::string html = read(dir / "index.html");
+        std::string html = read(dir / file);
         if (html.empty())
             return "<h1>Stillpoint</h1><p>UI files not found: " + dir.string() + "</p>";
 
@@ -1214,17 +1243,6 @@ namespace
             return Json("settings").Add("ok", SaveSettings(current)).Str();
         });
 
-        // saveLive(texto): opções da janela Live (modo, layout, sons), JSON numa linha
-        window.bind("saveLive", [&](const std::string& request) -> std::string
-        {
-            const auto args = ParseStringArgs(request);
-            if (args.empty() || args[0].find('\n') != std::string::npos)
-                return Json("settings").Add("ok", false).Str();
-            auto current = LoadSettings();
-            current["live"] = args[0];
-            return Json("settings").Add("ok", SaveSettings(current)).Str();
-        });
-
         window.bind("saveSettings", [&](const std::string& request) -> std::string
         {
             const auto args = ParseStringArgs(request);
@@ -1529,10 +1547,11 @@ namespace
         });
 
         // getPhoto(sessão, arquivo, tamanho) -> "data:image/jpeg;base64,..." (ou null)
-        auto bindPhotos = [&](const std::string& name, PhotoStore& source)
+        auto bindPhotos = [&](webview::webview& target, const std::string& name, PhotoStore& source)
         {
             PhotoStore* from = &source;
-            window.bind(name, [&, from](const std::string& id, const std::string& request, void*)
+            webview::webview* to = &target;
+            target.bind(name, [&, from, to](const std::string& id, const std::string& request, void*)
             {
                 const auto args = ParseStringArgs(request);
                 const auto numbers = ParseIntArgs(request);
@@ -1543,12 +1562,176 @@ namespace
                 previews.Post([&, from, id, session, file, size]
                 {
                     const std::string jpeg = from->Preview(session, file, size);
-                    window.resolve(id, 0, jpeg.empty() ? "null" : JsonString("data:image/jpeg;base64," + Base64Encode(jpeg)));
+                    to->resolve(id, 0, jpeg.empty() ? "null" : JsonString("data:image/jpeg;base64," + Base64Encode(jpeg)));
                 });
             }, nullptr);
         };
-        bindPhotos("getPhoto", store);
-        bindPhotos("getOrderPhoto", orderStore);
+        bindPhotos(window, "getPhoto", store);
+        bindPhotos(window, "getOrderPhoto", orderStore);
+
+        // ---------------------------------------------------------------
+        // Janelas Live (assets/ui/live.html): palco do disparo numa janela separada,
+        // tela cheia num monitor/TV ou flutuante. Até duas (ex.: Operator no monitor,
+        // Audience na TV). Criadas na thread da janela e nunca destruídas enquanto o
+        // app roda: fechar só esconde; Live view traz de volta. Recebem os mesmos
+        // avisos do núcleo que a página principal (GuiListener::AddWindow).
+        // Opções por janela em settings.txt (live1=, live2=); o som é do app (live=).
+        // ---------------------------------------------------------------
+        struct LiveWindow
+        {
+            int index = 0;
+            std::unique_ptr<webview::webview> view;
+        };
+        std::vector<std::unique_ptr<LiveWindow>> lives;
+
+        // Som do disparo: {"sound":…,"sounds":…} guardado em settings.txt (live=)
+        auto soundSettings = [&]
+        {
+            const auto current = LoadSettings();
+            const std::string text = current.count("live") ? current.at("live") : "";
+            return std::make_pair(text.find("\"sound\":false") == std::string::npos,
+                                  text.find("\"sounds\":false") == std::string::npos);
+        };
+        auto soundEvent = [&]
+        {
+            const auto [sound, sounds] = soundSettings();
+            return Json("soundChanged").Add("sound", sound).Add("sounds", sounds);
+        };
+        // liveSetSound(som, grupos): "1"/"0"; avisa todas as janelas
+        auto bindSetSound = [&](webview::webview& target)
+        {
+            target.bind("liveSetSound", [&](const std::string& request) -> std::string
+            {
+                const auto args = ParseStringArgs(request);
+                if (args.size() < 2)
+                    return "null";
+                auto current = LoadSettings();
+                current["live"] = std::string("{\"sound\":") + (args[0] == "1" ? "true" : "false")
+                    + ",\"sounds\":" + (args[1] == "1" ? "true" : "false") + "}";
+                SaveSettings(current);
+                listener.Emit(soundEvent());
+                return "null";
+            });
+        };
+        bindSetSound(window);
+
+        auto screensJson = []
+        {
+            std::string list = "[";
+            bool first = true;
+            for (const auto& screen : NativeWindow::Screens())
+            {
+                list += (first ? "" : ",") + Json("screen").Add("name", screen.name).Add("primary", screen.primary).Str();
+                first = false;
+            }
+            return list + "]";
+        };
+
+        std::function<void(int)> openLive = [&](int index)
+        {
+            for (auto& live : lives)
+                if (live->index == index)
+                {
+                    if (auto native = live->view->window(); native.ok())
+                        NativeWindow::Show(native.value());
+                    return;
+                }
+            auto live = std::make_unique<LiveWindow>();
+            live->index = index;
+            live->view = std::make_unique<webview::webview>(false, nullptr);
+            webview::webview& v = *live->view;
+            const std::string key = "live" + std::to_string(index);
+            v.set_title(index == 1 ? "Stillpoint · Live" : "Stillpoint · Live " + std::to_string(index));
+            v.set_size(960, 560, WEBVIEW_HINT_NONE);
+            v.set_size(480, 300, WEBVIEW_HINT_MIN);
+
+            // liveReady(): opções desta janela, som, monitores e a última lista de câmeras
+            v.bind("liveReady", [&, index, key](const std::string&) -> std::string
+            {
+                const auto current = LoadSettings();
+                const auto [sound, sounds] = soundSettings();
+                const std::string cameras = listener.LastCameras();
+                return Json("liveReady").Add("index", index)
+                    .Add("opts", current.count(key) ? current.at(key) : std::string())
+                    .Raw("sound", Json("sound").Add("sound", sound).Add("sounds", sounds).Str())
+                    .Raw("screens", screensJson())
+                    .Raw("cameraEvent", cameras.empty() ? "null" : cameras).Str();
+            });
+            // O disparo e o cancelamento passam pela página principal (o plano do Timing é dela)
+            v.bind("liveShoot", [&](const std::string&) -> std::string
+            {
+                window.dispatch([&] { window.eval("window.liveShootRequest && window.liveShootRequest()"); });
+                return "null";
+            });
+            v.bind("liveCancel", [&](const std::string&) -> std::string
+            {
+                window.dispatch([&] { window.eval("window.liveCancelRequest && window.liveCancelRequest()"); });
+                return "null";
+            });
+            // saveLiveWindow(índice, JSON): modo, layout, display, monitor, sempre à frente
+            v.bind("saveLiveWindow", [&, key](const std::string& request) -> std::string
+            {
+                const auto args = ParseStringArgs(request);
+                if (args.size() < 2 || args[1].find('\n') != std::string::npos)
+                    return "null";
+                auto current = LoadSettings();
+                current[key] = args[1];
+                SaveSettings(current);
+                return "null";
+            });
+            // liveDisplay(índice, "window"|"full", monitor, sempre à frente "1"/"0")
+            webview::webview* self = &v;
+            v.bind("liveDisplay", [self](const std::string& request) -> std::string
+            {
+                const auto args = ParseStringArgs(request);
+                if (args.size() < 4)
+                    return "null";
+                auto native = self->window();
+                if (!native.ok())
+                    return "null";
+                if (args[1] == "full")
+                    NativeWindow::SetFullScreen(native.value(), args[2]);
+                else
+                    NativeWindow::SetWindowed(native.value(), args[3] == "1");
+                return "null";
+            });
+            v.bind("liveClose", [self](const std::string&) -> std::string
+            {
+                if (auto native = self->window(); native.ok())
+                    NativeWindow::Hide(native.value());
+                return "null";
+            });
+            v.bind("liveAnother", [&](const std::string&) -> std::string
+            {
+                openLive(2);
+                return "null";
+            });
+            bindSetSound(v);
+            bindPhotos(v, "getPhoto", store);
+
+            // O botão de fechar só esconde a janela (ela volta com Live view)
+            if (auto native = v.window(); native.ok())
+            {
+                void* handle = native.value();
+                NativeWindow::InstallCloseGuard(handle, [handle]
+                {
+                    NativeWindow::Hide(handle);
+                    return false;
+                });
+            }
+            v.set_html(LoadPage("live.html", theme));
+            listener.AddWindow(&v);
+            lives.push_back(std::move(live));
+        };
+        // openLive(índice): abre (ou traz de volta) a janela Live 1 ou 2
+        window.bind("openLive", [&](const std::string& request) -> std::string
+        {
+            const auto numbers = ParseIntArgs(request);
+            const auto args = ParseStringArgs(request);
+            int index = !numbers.empty() ? numbers[0] : (!args.empty() ? std::atoi(args[0].c_str()) : 1);
+            openLive(std::clamp(index, 1, 2));
+            return "null";
+        });
 
         // --- Reordenar por foto ---
 
@@ -2626,7 +2809,7 @@ namespace
             });
         }
 
-        window.set_html(LoadUi(theme));
+        window.set_html(LoadPage("index.html", theme));
         window.run();
 
         // Janela fechada. Se as câmeras não foram encerradas pelo caminho normal

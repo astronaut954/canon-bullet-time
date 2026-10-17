@@ -32,4 +32,10 @@ namespace NativeWindow
     }
 
     void InstallAppMenu(void*, std::function<void(const std::string&)>) {}
+
+    std::vector<Screen> Screens() { return { { "Display 1", true } }; }
+    void Show(void*) {}
+    void Hide(void*) {}
+    bool SetFullScreen(void*, const std::string&) { return false; }
+    void SetWindowed(void*, bool) {}
 }
