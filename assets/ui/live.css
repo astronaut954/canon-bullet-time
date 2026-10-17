@@ -5,7 +5,7 @@
   position: fixed; inset: 0; z-index: 15; overflow: hidden; cursor: default;
   background: radial-gradient(ellipse at 50% 72%, #06140a 0%, #020603 70%), var(--noct-bg);
   color: var(--noct-text); font-family: var(--noct-font-mono);
-  --live-top: 64px; --live-bottom: 120px;
+  --live-top: 64px; --live-bottom: 140px;
 }
 .live.hidden { display: none; }
 
@@ -34,6 +34,9 @@
   font-size: clamp(14px, 2.4vh, 22px); text-transform: uppercase; letter-spacing: .3em; color: var(--noct-text-muted);
 }
 .live-big.hidden + .live-sub:not(.hidden) { transform: translateY(-50%); font-size: clamp(18px, 4vh, 36px); color: var(--noct-text); }
+/* Palavra grande no meio ("Cancelled"), menor que a contagem */
+.live-big.word { font-size: clamp(36px, 11vh, 110px); letter-spacing: .08em; text-transform: uppercase; transform: translateY(-60%); }
+.live-big.word + .live-sub { transform: translateY(calc(clamp(36px, 11vh, 110px) * .5)); }
 .live-status { position: absolute; left: 0; right: 0; top: 12px; text-align: center; }
 .live-status .n { font-weight: 700; font-size: clamp(40px, 13vh, 120px); line-height: 1; color: var(--noct-text); min-height: 1em; font-variant-numeric: tabular-nums; }
 .live-status .t { font-size: clamp(11px, 1.8vh, 15px); text-transform: uppercase; letter-spacing: .25em; color: var(--noct-text-muted); margin-top: 8px; }
@@ -52,6 +55,7 @@
   font-size: calc(var(--cam-size) * .6); color: var(--noct-text-dim);
 }
 .live-rig.line::after { display: none; }
+.live-rig.circle::after { top: 56%; }
 .live-cam {
   position: absolute; width: var(--cam-size); height: var(--cam-size); margin: calc(var(--cam-size) / -2) 0 0 calc(var(--cam-size) / -2);
   border-radius: 50%; border: 2px solid var(--noct-border-strong); display: flex; align-items: center; justify-content: center;
@@ -65,10 +69,10 @@
 .live-cam.cur { background: #fff; color: #000; border-color: #fff; box-shadow: 0 0 28px #fff, 0 0 60px rgba(255, 255, 255, .5); transition: none; opacity: 1; }
 
 /* "Next: camera 8 in 0.6 s" (intervalos curtos) e a legenda */
-.live-next { position: absolute; left: 28px; bottom: 84px; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--noct-pending); }
+.live-next { position: absolute; left: 28px; bottom: 112px; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--noct-pending); }
 .live-next::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--noct-pending); border-top-color: transparent; vertical-align: -3px; margin-right: 8px; animation: live-spin 1s linear infinite; }
 @keyframes live-spin { to { transform: rotate(360deg); } }
-.live-legend { position: absolute; right: 28px; bottom: 84px; display: flex; gap: 16px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--noct-text-muted); }
+.live-legend { position: absolute; right: 28px; bottom: 112px; display: flex; gap: 16px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--noct-text-muted); }
 .live-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 1px solid transparent; }
 .live-legend i.on { background: var(--noct-primary); }
 .live-legend i.cur { background: #fff; }
@@ -90,8 +94,8 @@
 .live-bar .ticks i:first-child span { transform: none; left: 0; }
 .live-bar .ticks i:last-child span { transform: none; left: auto; right: 0; }
 .live-bar.crowded .ticks i span { display: none; }
-.live-bar { bottom: 64px; }
-.live.audience .live-bar { left: 20%; right: 20%; bottom: 46px; }
+.live-bar { bottom: 78px; }
+.live.audience .live-bar { left: 20%; right: 20%; }
 
 /* Fim: a sequência tocando (tira de fotos em cima, a foto grande embaixo) */
 .live-film { position: absolute; left: 28px; right: 28px; top: calc(var(--live-top) + 12vh); display: flex; gap: 6px; justify-content: center; }

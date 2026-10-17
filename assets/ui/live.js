@@ -251,6 +251,7 @@ window.Live = (function () {
       node.style.top = y + "%";
     });
     el.rig.classList.toggle("line", layout === "line");
+    el.rig.classList.toggle("circle", layout === "circle");
   }
 
   // ---------------------------------------------------------------- estado do disparo
@@ -295,7 +296,7 @@ window.Live = (function () {
 
   function renderBar() {
     const p = S.plan;
-    if (!p || p.all || !p.shots.length) { el.bar.classList.add("hidden"); return; }
+    if (!p || p.all || !p.shots.length || S.phase === "cancelled" || S.phase === "failed") { el.bar.classList.add("hidden"); return; }
     el.bar.classList.remove("hidden");
     const total = Math.max(1, p.shots[p.shots.length - 1].t);
     if (el.ticks.childElementCount !== p.groups.length) {
@@ -329,7 +330,7 @@ window.Live = (function () {
   function renderCenter() {
     const p = S.plan;
     const audience = S.opts.mode === "audience";
-    const big = (n, sub) => { el.big.textContent = n; el.sub.textContent = sub; el.big.classList.remove("hidden"); el.sub.classList.remove("hidden"); el.st.classList.add("hidden"); };
+    const big = (n, sub, word) => { el.big.textContent = n; el.sub.textContent = sub; el.big.classList.toggle("word", !!word); el.big.classList.remove("hidden"); el.sub.classList.toggle("hidden", !sub); el.st.classList.add("hidden"); };
     const status = (n, t, large) => { el.stN.textContent = n; el.stT.textContent = t; el.st.classList.toggle("large", !!large); el.root.classList.toggle("large-status", !!large); el.st.classList.remove("hidden"); el.big.classList.add("hidden"); el.sub.classList.add("hidden"); };
     const nothing = () => { el.big.classList.add("hidden"); el.sub.classList.add("hidden"); el.st.classList.add("hidden"); };
     el.root.classList.remove("large-status");
@@ -381,10 +382,10 @@ window.Live = (function () {
         }
         break;
       case "cancelled":
-        status("", "Cancelled");
+        big("Cancelled", "", true);
         break;
       case "failed":
-        status("", "The session stopped before the end");
+        big("Stopped", "The session stopped before the end", true);
         break;
     }
   }
@@ -413,7 +414,7 @@ window.Live = (function () {
     renderRig();
     renderBar();
     renderPlayback();
-    const showRig = S.opts.mode === "operator" && S.phase !== "countdown" && !S.play.urls.length;
+    const showRig = S.opts.mode === "operator" && !["countdown", "cancelled", "failed"].includes(S.phase) && !S.play.urls.length;
     el.root.classList.toggle("has-rig", showRig);
     el.root.classList.toggle("playing", !!S.play.urls.length);
     // As posições dependem do tamanho da área, que só existe com ela visível
