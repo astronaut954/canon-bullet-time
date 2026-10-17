@@ -480,8 +480,9 @@ Windows):
   callback). Monitores pelo nome (Mac: `localizedName`; Windows: "Display N (main)").
 - Teclas na Live: Esc cancela / sai da tela cheia / esconde; Space dispara; F tela cheia.
 - Ajustes de 2026-10-16 (teste no Mac): tela cheia com barra de título era encolhida pelo
-  sistema abaixo da barra de menus → janela sem borda, com subclasse de NSWindow que aceita o
-  foco (`object_setClass`); Full screen pergunta o monitor (com mais de um); botão de som só na
+  sistema abaixo da barra de menus → janela sem borda; para ela receber teclado, `canBecomeKeyWindow` da
+  NSWindow passa a devolver YES só para as janelas Live (trocar a classe do objeto quebrou os
+  observadores do WebKit: exceção em `setStyleMask:`); Full screen pergunta o monitor (com mais de um); botão de som só na
   janela principal; Speed (0,25x–5x, também no play da principal) e Reverse loop na Live.
 - Conferido no navegador (live.html com funções simuladas): opções, display, som, sequência.
   Não compilado: risco maior na parte nativa (Mac e Windows).

@@ -7,6 +7,7 @@
 #include <CoreGraphics/CoreGraphics.h>
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -46,21 +47,38 @@ namespace
         return it->second() ? YES : NO;
     }
 
-    // Subclasse de NSWindow que aceita ser a janela com foco mesmo sem borda
+    // Janelas sem borda que mesmo assim recebem o teclado. Uma NSWindow sem borda
+    // responde NO em canBecomeKeyWindow; trocamos a implementação na própria classe
+    // NSWindow, devolvendo YES só para as janelas deste conjunto e chamando a original
+    // para as outras. (Trocar a classe da janela, como o KVO faz, quebrou os observadores
+    // que o WebKit registra na janela: exceção em setStyleMask:, 2026-10-16.)
+    std::set<id> g_keyable;
+    IMP g_canBecomeKeyOriginal = nullptr;
+    IMP g_canBecomeMainOriginal = nullptr;
+
+    BOOL CanBecomeKeyWindow(id self, SEL sel)
+    {
+        if (g_keyable.count(self))
+            return YES;
+        return reinterpret_cast<BOOL (*)(id, SEL)>(g_canBecomeKeyOriginal)(self, sel);
+    }
+    BOOL CanBecomeMainWindow(id self, SEL sel)
+    {
+        if (g_keyable.count(self))
+            return YES;
+        return reinterpret_cast<BOOL (*)(id, SEL)>(g_canBecomeMainOriginal)(self, sel);
+    }
     void MakeKeyable(id window)
     {
-        static ::Class cls = nullptr;
-        if (!cls)
+        if (!g_canBecomeKeyOriginal)
         {
-            cls = objc_allocateClassPair(objc_getClass("NSWindow"), "StillpointLiveWindow", 0);
-            class_addMethod(cls, sel_registerName("canBecomeKeyWindow"),
-                            reinterpret_cast<IMP>(+[](id, SEL) -> BOOL { return YES; }), "B@:");
-            class_addMethod(cls, sel_registerName("canBecomeMainWindow"),
-                            reinterpret_cast<IMP>(+[](id, SEL) -> BOOL { return YES; }), "B@:");
-            objc_registerClassPair(cls);
+            ::Class cls = objc_getClass("NSWindow");
+            Method key = class_getInstanceMethod(cls, sel_registerName("canBecomeKeyWindow"));
+            Method main = class_getInstanceMethod(cls, sel_registerName("canBecomeMainWindow"));
+            g_canBecomeKeyOriginal = method_setImplementation(key, reinterpret_cast<IMP>(CanBecomeKeyWindow));
+            g_canBecomeMainOriginal = method_setImplementation(main, reinterpret_cast<IMP>(CanBecomeMainWindow));
         }
-        if (object_getClass(window) != cls)
-            object_setClass(window, cls);
+        g_keyable.insert(window);
     }
 
     id ScreenNamed(const std::string& name)
@@ -241,11 +259,9 @@ namespace NativeWindow
             return false;
         const CGRect frame = Send<CGRect>(screen, "frame");
 
-        // Janela sem borda cobrindo o monitor inteiro. Uma NSWindow sem borda não
-        // recebe teclado (canBecomeKeyWindow devolve NO), então a janela passa a ser de
-        // uma subclasse nossa que devolve YES (troca de classe do objeto, como o
-        // próprio sistema faz no KVO). Com barra de título o sistema encolhia a janela
-        // para caber abaixo da barra de menus (observado em 2026-10-16).
+        // Janela sem borda cobrindo o monitor inteiro (com barra de título o sistema
+        // encolhia a janela para caber abaixo da barra de menus, 2026-10-16). Sem borda
+        // ela não receberia teclado: ver MakeKeyable.
         MakeKeyable(window);
         Send<void>(window, "setStyleMask:", 0ul);  // NSWindowStyleMaskBorderless
         Send<void>(window, "setMovable:", NO);
